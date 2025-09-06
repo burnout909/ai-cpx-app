@@ -2,124 +2,415 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-// ----- Types -----
-interface CheckerItem {
-  id: string;
-  label: string;
-  detail?: string;
-}
+/* ===== Types (요청한 형태) ===== */
+export type SectionId = "history" | "physical_exam" | "education" | "ppi"
 
-type MetricType = "binary" | "ternary_uap" | "likert_1to5";
+export type SectionTitle = "병력 청취" | "신체 검진" | "환자 교육" | "환자-의사 관계"
 
-interface CheckerSection {
-  metric: MetricType;
-  items_required: number;
-  items: CheckerItem[];
-}
+type Criteria = {
+  description: string;        // 채점 기준 설명
+  min_evidence_count: number; // 필요한 최소 증거 개수
+};
 
-interface CheckerSections {
-  history: CheckerSection;
-  physical_exam: CheckerSection;
-  education: CheckerSection;
-  ppi: CheckerSection;
-}
+type Item = {
+  id: string;     // 항목 고유 ID
+  title: string;  // 항목 제목 (표시용 라벨)
+  points: number; // 배점
+  criteria: Criteria;
+};
 
-interface CheckerWeights {
-  history: number;
-  physical_exam: number;
-  education: number;
-  ppi: number;
-}
+type Section = {
+  id: SectionId;        // 섹션 ID (enum)
+  title: SectionTitle;  // 섹션 제목 (enum)
+  weight: number;       // 섹션 가중치
+  items: Item[];        // 항목 목록
+};
 
-interface CaseMeta {
-  id: string;
-  chief_complaint: string;
-  title: string;
-  age: number;
-  sex: "M" | "F";
-  summary: string;
-}
-
-interface Checker {
+type Checklist = {
   project: string;
-  case: CaseMeta;
-  weights: CheckerWeights;
-  sections: CheckerSections;
-}
-
-// ----- Data -----
-function sampleChecker(): Checker {
-  return {
-    project: "ai-cpx",
-    case: {
-      id: "sample-acute-abd-pain",
-      chief_complaint: "급성 복통",
-      title: "RUQ 통증과 발열",
-      age: 32,
-      sex: "F",
-      summary: "우상복부 통증 + 발열",
-    },
-    weights: { history: 40, physical_exam: 30, education: 20, ppi: 10 },
-    sections: {
-      history: {
-        metric: "binary",
-        items_required: 10,
-        items: [
-          { id: "HX-01", label: "복통이 시작된 시점을 확인하였다.", detail: "발병 시각과 급성/서서히 여부" },
-          { id: "HX-02", label: "복통의 위치와 이동 양상, 방사통, 빈도를 확인하였다.", detail: "위치, 이동, 방사, 빈도" },
-          { id: "HX-03", label: "통증의 양상에 대해 질문하였다.", detail: "찌르는/조이는/쥐어짜는/간헐/지속" },
-          { id: "HX-04", label: "복통의 강도를 확인하였다.", detail: "0~10 통증척도" },
-          { id: "HX-05", label: "악화/완화 인자 확인", detail: "식사/배뇨/배변/체위" },
-          { id: "HX-06", label: "소화기 증상 질문", detail: "구역/구토/설사/혈변/황달" },
-          { id: "HX-07", label: "산부인과 병력 확인", detail: "월경/성관계/질출혈" },
-          { id: "HX-08", label: "순환기 증상 확인", detail: "가슴통증/호흡곤란" },
-          { id: "HX-09", label: "현재 복용 약/과거력/가족력 확인", detail: "약/수술·외상/과거 GI/가족력" },
-          { id: "HX-10", label: "생활습관 확인", detail: "식이/음주/흡연/운동" },
-        ],
-      },
-      physical_exam: {
-        metric: "ternary_uap",
-        items_required: 6,
-        items: [
-          { id: "PE-01", label: "활력징후 확인", detail: "BP/PR/BT/RR" },
-          { id: "PE-02", label: "결막/공막 검사", detail: "눈 확인" },
-          { id: "PE-03", label: "자세 세팅", detail: "반듯이+무릎 세움" },
-          { id: "PE-04", label: "시-청-타-촉 순서", detail: "순서 준수" },
-          { id: "PE-05", label: "반발통 확인", detail: "통증 부위 마지막 촉진" },
-          { id: "PE-06", label: "CVAT 확인", detail: "늑골척추각" },
-        ],
-      },
-      education: {
-        metric: "ternary_uap",
-        items_required: 8,
-        items: [
-          { id: "ED-01", label: "가능진단 설명" },
-          { id: "ED-02", label: "검사 필요성 설명" },
-          { id: "ED-03", label: "치료/경과 설명" },
-          { id: "ED-04", label: "금식 안내" },
-          { id: "ED-05", label: "생활지도" },
-          { id: "ED-06", label: "경고증상 재내원" },
-          { id: "ED-07", label: "추적 계획" },
-          { id: "ED-08", label: "문진 확인질문" },
-        ],
-      },
-      ppi: {
-        metric: "likert_1to5",
-        items_required: 6,
-        items: [
-          { id: "PPI-01", label: "개방형 질문/경청" },
-          { id: "PPI-02", label: "공감/정상화" },
-          { id: "PPI-03", label: "쉬운 용어 사용" },
-          { id: "PPI-04", label: "중간 요약" },
-          { id: "PPI-05", label: "질문 기회 제공" },
-          { id: "PPI-06", label: "체계적 진행/시간배분" },
-        ],
-      },
-    },
+  case: {
+    id: string;
+    chief_complaint: string;
+    title: string;
+    age?: number;
+    sex?: "M" | "F";
+    summary?: string;
   };
+  sections: Section[];
+};
+
+/* ===== Data ===== */
+function sampleChecklist(): Checklist {
+  return {
+    "project": "ai-cpx-app",
+    "case": {
+      "id": "check-acute-abd-pain",
+      "chief_complaint": "급성 복통",
+      "title": "Case#15 checklist",
+    },
+    "sections": [
+      {
+        "id": "history",
+        "title": "병력 청취",
+        "weight": 40,
+        "items": [
+          {
+            "id": "HX-01",
+            "title": "[윗배] 가슴통증, 소화불량 감별",
+            "points": 1,
+            "criteria": {
+              "description": "가슴통증이나 소화불량을 감별하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "HX-02",
+            "title": "통증 위치 문진",
+            "points": 1,
+            "criteria": {
+              "description": "통증 위치를 짚어보게 하는 등 위치 관련 질문을 하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "HX-03",
+            "title": "통증 시간적 특성",
+            "points": 1,
+            "criteria": {
+              "description": "통증의 기간, 지속 여부, 주기성, 과거 발생 여부 등을 물어보았는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "HX-04",
+            "title": "통증 양상",
+            "points": 1,
+            "criteria": {
+              "description": "쥐어짜는 듯, 콕콕 쑤시는 듯, 박동성 등 통증 양상에 대해 질문하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "HX-05",
+            "title": "방사통 확인",
+            "points": 1,
+            "criteria": {
+              "description": "어깨나 등으로 퍼지는 통증 여부를 확인하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "HX-06",
+            "title": "통증 정도와 일상생활 지장",
+            "points": 1,
+            "criteria": {
+              "description": "통증의 강도(VAS 점수)나 일상생활 지장 여부를 확인하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "HX-07",
+            "title": "악화 요인 확인",
+            "points": 1,
+            "criteria": {
+              "description": "기침, 배를 쭉 피는 등 자세 변화, 지방 식이(췌장염 예상) 등 통증을 악화시키는 요인을 물어보았는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "HX-08",
+            "title": "전신 증상 확인",
+            "points": 1,
+            "criteria": {
+              "description": "발열, 오한, 체중 변화, 피로감 등 전신 증상을 확인하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "HX-09",
+            "title": "간접 동반 증상 확인",
+            "points": 1,
+            "criteria": {
+              "description": "식욕부진, 구역, 구토, 변비, 설사, 혈변, 황달 등 동반 증상을 물어보았는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "HX-10",
+            "title": "식습관/운동 확인",
+            "points": 1,
+            "criteria": {
+              "description": "식습관이나 운동 여부를 질문하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "HX-11",
+            "title": "과거력 확인",
+            "points": 1,
+            "criteria": {
+              "description": "소화기나 대사 관련 만성질환인 쓸개돌-담석-담도-담남염-이자염/대장암 등이 있는지 확인하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "HX-12",
+            "title": "약물 복용력",
+            "points": 1,
+            "criteria": {
+              "description": "소염진통제, 소화제, 경구혈당강하제, 고혈압약, 항혈소판 제제(아스피린), 건강기능식품 등 복용 중인 약물 여부를 확인하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "HX-13",
+            "title": "직업력/사회력",
+            "points": 1,
+            "criteria": {
+              "description": "직업, 식습관(날 것-상한것), 술, 담배, 건강기능식품, 운동 등 사회력을 확인하였는가?",
+              "min_evidence_count": 3
+            }
+          },
+          {
+            "id": "HX-14",
+            "title": "가족력",
+            "points": 1,
+            "criteria": {
+              "description": "쓸개돌, 담석, 담도-담남염, 이자염, 대장암 등 가족의 소화기 관련 질환 여부를 확인하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "HX-15",
+            "title": "외상/수술/입원력",
+            "points": 1,
+            "criteria": {
+              "description": "수술 유무, 골절, 입원 유무를 확인하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "HX-16",
+            "title": "[여성] 월경 양상",
+            "points": 1,
+            "criteria": {
+              "description": "여성의 경우 생리량, 임신 가능성 등에 대해 물어보았는가?",
+              "min_evidence_count": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "physical_exam",
+        "title": "신체 검진",
+        "weight": 30,
+        "items": [
+          {
+            "id": "PE-01",
+            "title": "눈 진찰",
+            "points": 1,
+            "criteria": {
+              "description": "눈을 진찰하여 황달이나 빈혈 여부를 확인하였는가? (위로 쳐다보게 한 뒤 결막을 내려 확인)",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "PE-02",
+            "title": "심장/폐 진찰",
+            "points": 1,
+            "criteria": {
+              "description": "심장과 폐에 대해 시진과 청진을 시행하였는가? (상처·함몰·수포 확인, 심장음 4군데 청진, 6군데 촉진, 6군데 'ㄹ'자 타진, 청진 좌우 대칭 시행 포함)",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "PE-03",
+            "title": "복부 진찰 자세",
+            "points": 1,
+            "criteria": {
+              "description": "복부 진찰을 위해 환자를 바로 눕히고 양쪽 무릎을 세우게 하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "PE-04",
+            "title": "복부 진찰 순서",
+            "points": 1,
+            "criteria": {
+              "description": "복부 진찰을 시진 → 청진 → 타진 → 촉진 순서로 시행하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "PE-05",
+            "title": "반발통 확인",
+            "points": 1,
+            "criteria": {
+              "description": "통증이 심한 부위를 마지막으로 촉진하고 반발통 여부를 확인하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "PE-06",
+            "title": "간/비장 촉진",
+            "points": 1,
+            "criteria": {
+              "description": "간과 비장을 촉진하였는가? (간: 양손을 Rt. costal margin에 대고 심호흡 시킴, 비장: 왼손을 Lt. flank에 두고 오른손으로 Lt. costal margin 아래를 눌러 확인)",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "PE-07",
+            "title": "CVAT 확인",
+            "points": 1,
+            "criteria": {
+              "description": "늑골척추각(CVAT) 압통 여부를 확인하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "PE-08",
+            "title": "충수돌기염 감별 검사",
+            "points": 1,
+            "criteria": {
+              "description": "급성 충수돌기염 감별을 위한 이학적 검사를 시행하였는가? (예: Psoas sign, McBurney's point tenderness, Rovsing sign 중 2가지 이상)",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "PE-09",
+            "title": "여성 환자 골반내진",
+            "points": 1,
+            "criteria": {
+              "description": "여성이면서 아랫배 통증이 있는 경우 골반내진 검사를 시행하였는가?",
+              "min_evidence_count": 1
+            }
+          }
+        ]
+      }
+      ,
+      {
+        "id": "education",
+        "title": "환자 교육",
+        "weight": 20,
+        "items": [
+          {
+            "id": "ED-01",
+            "title": "가능한 원인/질환 설명",
+            "points": 1,
+            "criteria": {
+              "description": "예상되는 원인이나 병명을 환자에게 설명하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "ED-02",
+            "title": "검사 필요성 설명",
+            "points": 1,
+            "criteria": {
+              "description": "향후 시행할 검사나 확진 검사의 필요성을 설명하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "ED-03",
+            "title": "금식 안내",
+            "points": 1,
+            "criteria": {
+              "description": "내시경 등의 검사가 필요한 경우 금식이 필요함을 안내하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "ED-04",
+            "title": "치료 계획 설명",
+            "points": 1,
+            "criteria": {
+              "description": "향후 시행할 치료 계획(예: 금식 유지, 내시경 시술 등)을 설명하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "ED-05",
+            "title": "생활습관 교육",
+            "points": 1,
+            "criteria": {
+              "description": "일상생활에서 위험성을 줄일 수 있는 방법(예: 운동, 식습관)을 교육하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "ED-06",
+            "title": "재방문/입원 필요성 안내",
+            "points": 1,
+            "criteria": {
+              "description": "재방문 시기나 입원 필요성(예: 담낭염, 복막염, 장폐색 등 응급 수술 가능성)을 설명하였는가?",
+              "min_evidence_count": 1
+            }
+          }
+        ]
+      }
+      ,
+      {
+        "id": "ppi",
+        "title": "환자-의사 관계",
+        "weight": 10,
+        "items": [
+          {
+            "id": "PPI-01",
+            "title": "배려와 예의",
+            "points": 1,
+            "criteria": {
+              "description": "본인 소개, 역할 설명, 환자 성함/호칭 확인, 시선·자세·말속도 등 비언어적 배려를 하였는가?",
+              "min_evidence_count": 3
+            }
+          },
+          {
+            "id": "PPI-02",
+            "title": "공감적 경청 (NURSE)",
+            "points": 1,
+            "criteria": {
+              "description": "환자의 말을 끊지 않고 공감 표현을 하였는가?",
+              "min_evidence_count": 2
+            }
+          },
+          {
+            "id": "PPI-03",
+            "title": "요약/반영 (paraphrase)",
+            "points": 1,
+            "criteria": {
+              "description": "환자의 이야기를 중간에 요약하거나 반영하여 이해를 도왔는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "PPI-04",
+            "title": "이해하기 쉬운 설명",
+            "points": 1,
+            "criteria": {
+              "description": "비전문 용어로 핵심을 설명하고 과도한 의학 용어 사용을 자제하였는가?",
+              "min_evidence_count": 1
+            }
+          },
+          {
+            "id": "PPI-05",
+            "title": "이해 확인",
+            "points": 1,
+            "criteria": {
+              "description": "Teach-back을 활용하거나, 이해되지 않은 부분/궁금한 점이 있는지 확인하였는가?",
+              "min_evidence_count": 1
+            }
+          }
+        ]
+      }
+
+    ]
+  }
+
+
 }
 
-// ----- Route -----
+/* ===== Route ===== */
 export async function GET() {
-  return NextResponse.json(sampleChecker());
+  return NextResponse.json(sampleChecklist());
 }
