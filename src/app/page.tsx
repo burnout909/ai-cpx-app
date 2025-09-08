@@ -1,8 +1,47 @@
 "use client";
 
 import { transcodeToWav16kMono } from "@/utils/transcribe";
-import { useEffect, useRef, useState } from "react";
+import { JSX, useEffect, useRef, useState } from "react";
+import {
+  EducationEvidenceChecklist,
+  EvidenceChecklist,
+  HistoryEvidenceChecklist,
+  PhysicalexamEvidenceChecklist,
+  PpiEvidenceChecklist,
+} from "./assets/evidenceChecklist";
+import {
+  EducationScoreChecklist,
+  HistoryScoreChecklist,
+  PhysicalExamScoreChecklist,
+  PpiScoreChecklist,
+  ScoreChecklist,
+} from "./assets/scoreChecklist";
+import { EvidenceListItem } from "./api/collectEvidence/route";
 
+/* =========================
+   Types
+========================= */
+export interface GradeItem {
+  id: string;
+  title: string;
+  criteria: string;
+  evidence: string[];
+  max_evidence_count: number;
+  point: number; // min(evidence.length, max_evidence_count)
+}
+
+type TabKey = "history" | "physical_exam" | "education" | "ppi";
+
+const PART_LABEL: Record<TabKey, string> = {
+  history: "History",
+  physical_exam: "Physical-exam",
+  education: "Education",
+  ppi: "Ppi",
+};
+
+/* =========================
+   Component
+========================= */
 export default function Page() {
   // 설정
   const [openaiKey, setOpenaiKey] = useState("");
@@ -17,19 +56,21 @@ export default function Page() {
   const [cleanupStatus, setCleanupStatus] = useState("");
   const [cleanText, setCleanText] = useState("");
 
-  // 체크리스트
-  const [checkerJson, setCheckerJson] = useState("");
-  const [checkerStatus, setCheckerStatus] = useState("");
-
-  // 채점
+  // 채점 / 섹션 상태
   const [scoreStatus, setScoreStatus] = useState("");
-  const [gradingJson, setGradingJson] = useState("");
-  const [summaryHtml, setSummaryHtml] = useState<string>("");
+  const [gradingJson, setGradingJson] = useState<string>("");
+
+  const [historyGrades, setHistoryGrades] = useState<GradeItem[] | null>(null);
+  const [physicalGrades, setPhysicalGrades] = useState<GradeItem[] | null>(null);
+  const [educationGrades, setEducationGrades] = useState<GradeItem[] | null>(null);
+  const [ppiGrades, setPpiGrades] = useState<GradeItem[] | null>(null);
+
+  const [activeTab, setActiveTab] = useState<TabKey>("history"); // JSON 보기용 탭
+  const [reportTab, setReportTab] = useState<TabKey>("history"); // Report 상세 테이블 탭
 
   // Auto-resize helpers
   const refTranscript = useRef<HTMLTextAreaElement | null>(null);
   const refClean = useRef<HTMLTextAreaElement | null>(null);
-  const refChecker = useRef<HTMLTextAreaElement | null>(null);
   const refGrading = useRef<HTMLTextAreaElement | null>(null);
 
   function autoResize(el: HTMLTextAreaElement | null) {
@@ -40,7 +81,6 @@ export default function Page() {
 
   useEffect(() => { autoResize(refTranscript.current); }, [transcriptText]);
   useEffect(() => { autoResize(refClean.current); }, [cleanText]);
-  useEffect(() => { autoResize(refChecker.current); }, [checkerJson]);
   useEffect(() => { autoResize(refGrading.current); }, [gradingJson]);
 
   async function readJsonOrText(res: Response): Promise<any> {
@@ -53,9 +93,11 @@ export default function Page() {
 
   function ensureOkOrThrow(res: Response, data: any) {
     if (!res.ok) {
-      const message = typeof data === "string" && data
-        ? data
-        : (data?.detail || data?.message || `${res.status} ${res.statusText}`);
+      const message =
+        (typeof data === "string" && data) ||
+        data?.detail ||
+        data?.message ||
+        `${res.status} ${res.statusText}`;
       throw new Error(message);
     }
   }
@@ -86,7 +128,9 @@ export default function Page() {
       let toSend: File = audioFile;
 
       // m4a면 브라우저에서 16kHz mono WAV로 변환
-      const isM4A = /\.m4a$/i.test(audioFile.name) || /audio\/x-m4a|audio\/m4a/i.test(audioFile.type);
+      const isM4A =
+        /\.m4a$/i.test(audioFile.name) ||
+        /audio\/x-m4a|audio\/m4a/i.test(audioFile.type);
       if (isM4A) {
         try {
           toSend = await transcodeToWav16kMono(audioFile);
@@ -102,7 +146,7 @@ export default function Page() {
       const data = await readJsonOrText(res);
       ensureOkOrThrow(res, data);
 
-      const text = (typeof data === "string") ? "" : (data?.text || "");
+      const text = typeof data === "string" ? "" : data?.text || "";
       setTranscriptText(text);
       setTransStatus("✅ 전사 완료 (화자표기는 클린업에서 반영)");
     } catch (e: any) {
@@ -120,7 +164,7 @@ export default function Page() {
       });
       const data = await readJsonOrText(res);
       ensureOkOrThrow(res, data);
-      const txt = (typeof data === "string") ? transcriptText : (data?.text || "");
+      const txt = typeof data === "string" ? transcriptText : data?.text || "";
       setCleanText(txt);
       setCleanupStatus("✅ 클린업 완료");
     } catch (e: any) {
@@ -129,68 +173,189 @@ export default function Page() {
     }
   }
 
-  async function loadSampleChecker() {
-    setCheckerStatus("로딩...");
-    try {
-      const res = await fetch("/api/sample-checker");
-      const data = await readJsonOrText(res);
-      ensureOkOrThrow(res, data);
-      setCheckerJson(JSON.stringify(data, null, 2));
-      setCheckerStatus("✅ 체크리스트 로드됨");
-    } catch (e: any) {
-      setCheckerStatus(`❌ 실패: ${e.message || e}`);
+  // Evidence 수집 (병렬 호출)
+  async function doEvidence() {
+    const [historyRes, physicalRes, educationRes, ppiRes] = await Promise.all([
+      fetch("/api/collectEvidence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: cleanText || transcriptText,
+          evidenceChecklist: HistoryEvidenceChecklist,
+          sectionId: "history",
+        }),
+      }),
+      fetch("/api/collectEvidence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: cleanText || transcriptText,
+          evidenceChecklist: PhysicalexamEvidenceChecklist,
+          sectionId: "physical_exam",
+        }),
+      }),
+      fetch("/api/collectEvidence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: cleanText || transcriptText,
+          evidenceChecklist: EducationEvidenceChecklist,
+          sectionId: "education",
+        }),
+      }),
+      fetch("/api/collectEvidence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: cleanText || transcriptText,
+          evidenceChecklist: PpiEvidenceChecklist,
+          sectionId: "ppi",
+        }),
+      }),
+    ]);
+
+    const [historyJson, physcialjson, educationJson, ppiJson] =
+      await Promise.all([
+        historyRes.json(),
+        physicalRes.json(),
+        educationRes.json(),
+        ppiRes.json(),
+      ]);
+
+    return {
+      HistoryEvidenceList: historyJson,
+      PhysicalExamEvidenceList: physcialjson,
+      EducationEvidenceList: educationJson,
+      PpiEvidenceList: ppiJson,
+    };
+  }
+
+  /** evidence 입력을 배열/객체 모두 허용 */
+  function normalizeEvidenceInput(
+    input: EvidenceListItem[] | { evidenceList?: EvidenceListItem[] } | null | undefined
+  ): EvidenceListItem[] {
+    if (!input) return [];
+    if (Array.isArray(input)) return input;
+    if (Array.isArray(input.evidenceList)) return input.evidenceList;
+    return [];
+  }
+
+  /**
+   * doGrade
+   * - id 기준으로 evidenceList, scoreChecklist, evidenceChecklist를 조인
+   * - point = min(evidence.length, max_evidence_count)
+   * - 반환 순서는 evidenceChecklist의 순서를 따름
+   */
+  function doGrade(
+    evidenceInput: EvidenceListItem[] | { evidenceList?: EvidenceListItem[] },
+    scoreChecklist: ScoreChecklist[],
+    evidenceChecklist: EvidenceChecklist[]
+  ): GradeItem[] {
+    const evidenceList = normalizeEvidenceInput(evidenceInput);
+
+    // 빠른 조인을 위한 맵 구성
+    const evMap = new Map<string, EvidenceListItem>(
+      evidenceList.map((e) => [e.id, e])
+    );
+    const scoreMap = new Map<string, number>(
+      scoreChecklist.map((s) => [s.id, s.max_evidence_count])
+    );
+
+    // evidenceChecklist 순서대로 GradeItem 생성
+    const result: GradeItem[] = evidenceChecklist.map((item) => {
+      const ev = evMap.get(item.id);
+      const evidence = ev?.evidence?.filter(Boolean) ?? [];
+      const maxCnt = scoreMap.get(item.id) ?? 0;
+      const point = Math.min(evidence.length, maxCnt);
+
+      return {
+        id: item.id,
+        title: item.title,
+        criteria: item.criteria,
+        evidence,
+        max_evidence_count: maxCnt,
+        point,
+      };
+    });
+
+    return result;
+  }
+
+  // JSON 보기 탭용 문자열
+  function stringifyGradesForTab(tab: TabKey): string {
+    const map: Record<TabKey, GradeItem[] | null> = {
+      history: historyGrades,
+      physical_exam: physicalGrades,
+      education: educationGrades,
+      ppi: ppiGrades,
+    };
+    const data = map[tab];
+    return data ? JSON.stringify(data, null, 2) : "";
+  }
+
+  // 점수 합계 유틸
+  function sumPoints(list: GradeItem[] | null) {
+    if (!list) return { got: 0, max: 0 };
+    return list.reduce(
+      (acc, cur) => ({
+        got: acc.got + (cur.point ?? 0),
+        max: acc.max + (cur.max_evidence_count ?? 0),
+      }),
+      { got: 0, max: 0 }
+    );
+  }
+  function getPartGrades(tab: TabKey): GradeItem[] | null {
+    switch (tab) {
+      case "history": return historyGrades;
+      case "physical_exam": return physicalGrades;
+      case "education": return educationGrades;
+      case "ppi": return ppiGrades;
     }
+  }
+  function getAllTotals() {
+    const H = sumPoints(historyGrades);
+    const P = sumPoints(physicalGrades);
+    const E = sumPoints(educationGrades);
+    const I = sumPoints(ppiGrades);
+    return {
+      byPart: { history: H, physical_exam: P, education: E, ppi: I },
+      overall: { got: H.got + P.got + E.got + I.got, max: H.max + P.max + E.max + I.max }
+    };
   }
 
   async function doScore() {
     setScoreStatus("채점 중...");
     try {
-      const checker = checkerJson ? JSON.parse(checkerJson) : null;
-      const res = await fetch("/api/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: cleanText || transcriptText, checker }),
-      });
-      const data = await readJsonOrText(res);
-      ensureOkOrThrow(res, data);
-      const payload = (typeof data === "string") ? {} : (data || {});
-      setGradingJson(JSON.stringify(payload, null, 2));
-      const total = (payload as any)?.scores?.total ?? 0;
-      const dom = (payload as any)?.scores?.domain ?? {};
-      const list = Object.entries(dom).map(([k, v]: any) =>
-        `<li>${k}: raw ${v.raw?.toFixed(2)} → weighted ${v.weighted?.toFixed(2)}</li>`
-      ).join("");
-      setSummaryHtml(`<h3 class="font-semibold">총점: ${total} / 100</h3><ul class="list-disc pl-5 space-y-1">${list}</ul>`);
+      const {
+        HistoryEvidenceList,
+        PhysicalExamEvidenceList,
+        EducationEvidenceList,
+        PpiEvidenceList,
+      } = await doEvidence();
+
+      const h = doGrade(HistoryEvidenceList, HistoryScoreChecklist, HistoryEvidenceChecklist);
+      const p = doGrade(PhysicalExamEvidenceList, PhysicalExamScoreChecklist, PhysicalexamEvidenceChecklist);
+      const e = doGrade(EducationEvidenceList, EducationScoreChecklist, EducationEvidenceChecklist);
+      const pp = doGrade(PpiEvidenceList, PpiScoreChecklist, PpiEvidenceChecklist);
+
+      setHistoryGrades(h);
+      setPhysicalGrades(p);
+      setEducationGrades(e);
+      setPpiGrades(pp);
+
+      // 기본 탭은 History로 설정
+      setActiveTab("history");
+      setReportTab("history");
+      setGradingJson(JSON.stringify(h, null, 2));
+
       setScoreStatus("✅ 채점 완료");
+      return { HistoryGradeList: h, PhysicalExamGradeList: p, EducationGradeList: e, PpiGradeList: pp };
     } catch (e: any) {
       setScoreStatus(`❌ 채점 실패: ${e.message || e}`);
     }
   }
 
-  async function downloadPdf() {
-    try {
-      const checker = checkerJson ? JSON.parse(checkerJson) : null;
-      const grading = gradingJson ? JSON.parse(gradingJson) : null;
-      const res = await fetch("/api/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checker, grading }),
-      });
-      if (!res.ok) {
-        const err = await readJsonOrText(res);
-        const msg = typeof err === "string" ? err : (err?.detail || `HTTP ${res.status}`);
-        throw new Error(msg);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "ai-cpx-report.pdf"; a.click();
-      URL.revokeObjectURL(url);
-    } catch (e: any) {
-      alert(`PDF 실패: ${e.message || e}`);
-    }
-  }
-
+  // UI styles
   const commonCard = "rounded-2xl border bg-white/60 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 p-6 shadow-sm";
   const labelCls = "block text-sm font-medium text-zinc-700 dark:text-zinc-300";
   const inputCls = "mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none ring-0 focus:border-zinc-500";
@@ -198,12 +363,18 @@ export default function Page() {
   const primaryBtn = "inline-flex items-center gap-2 rounded-lg bg-zinc-900 text-white px-3 py-2 text-sm hover:bg-black/90 active:translate-y-px transition";
   const badge = "inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300";
 
+  const scorePill = (got: number, max: number) => (
+    <span className="rounded-full px-2 py-1 text-xs bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
+      {got} / {max}
+    </span>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white dark:from-black dark:to-zinc-950 text-zinc-900 dark:text-zinc-100">
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
         <header className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">ai-cpx — CPX 자동 채점 데모</h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">전사 → 클린업 → 체크리스트 → 채점 → PDF</p>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">전사 → 클린업 → 체크리스트 → 채점 → Report</p>
         </header>
 
         {/* 설정 */}
@@ -267,41 +438,33 @@ export default function Page() {
           </div>
         </section>
 
-        {/* 체크리스트 */}
+        {/* 채점 & JSON 보기 */}
         <section className={`${commonCard} mb-6`}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">체크리스트</h2>
-            <button className={btnCls} onClick={loadSampleChecker}>샘플 불러오기</button>
-          </div>
-          {checkerStatus && <div className="mt-3">{checkerStatus && <span className={badge}>{checkerStatus}</span>}</div>}
-          <div className="mt-4">
-            <label className={labelCls}>체크리스트 JSON</label>
-            <textarea
-              ref={refChecker}
-              className={`${inputCls} mt-2 h-auto min-h-[240px] resize-none font-mono`}
-              onInput={(e) => autoResize(e.currentTarget)}
-              value={checkerJson}
-              onChange={(e) => setCheckerJson(e.target.value)}
-              placeholder="체크리스트 JSON"
-            />
-          </div>
-        </section>
-
-        {/* 채점 & 리포트 */}
-        <section className={`${commonCard}`}>
-          <h2 className="text-lg font-semibold">채점 & 리포트</h2>
+          <h2 className="text-lg font-semibold">채점 & JSON</h2>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button className={primaryBtn} onClick={doScore}>채점하기 (o3)</button>
             {scoreStatus && <span className={badge}>{scoreStatus}</span>}
-            <button className={btnCls} onClick={downloadPdf}>PDF 생성/다운로드</button>
           </div>
 
-          <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-4">
-            <div
-              className="prose prose-zinc dark:prose-invert max-w-none text-sm"
-              dangerouslySetInnerHTML={{ __html: summaryHtml }}
-            />
+          {/* 섹션 토글 (JSON 미리보기) */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(["history", "physical_exam", "education", "ppi"] as TabKey[]).map((k) => {
+              const isActive = activeTab === k;
+              return (
+                <button
+                  key={k}
+                  onClick={() => { setActiveTab(k); setGradingJson(stringifyGradesForTab(k)); }}
+                  className={
+                    isActive
+                      ? "inline-flex items-center gap-2 rounded-lg bg-zinc-900 text-white px-3 py-2 text-sm hover:bg-black/90 active:translate-y-px transition"
+                      : "inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 active:translate-y-px transition"
+                  }
+                >
+                  {PART_LABEL[k]}
+                </button>
+              );
+            })}
           </div>
 
           <div className="mt-4">
@@ -317,10 +480,164 @@ export default function Page() {
           </div>
         </section>
 
+        {/* Report 섹션 */}
+        <section className={`${commonCard}`}>
+          <h2 className="text-lg font-semibold">Report</h2>
+
+          {/* 총점 & 파트별 점수 요약 */}
+          <ReportSummary
+            getAllTotals={getAllTotals}
+            reportTab={reportTab}
+            setReportTab={setReportTab}
+            PART_LABEL={PART_LABEL}
+            scorePill={scorePill}
+          />
+
+          {/* 파트 상세 토글 버튼 */}
+          <div className="mt-6 flex flex-wrap gap-2">
+            {(["history", "physical_exam", "education", "ppi"] as TabKey[]).map((k) => {
+              const isActive = reportTab === k;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setReportTab(k)}
+                  className={
+                    isActive
+                      ? "inline-flex items-center gap-2 rounded-lg bg-zinc-900 text-white px-3 py-2 text-sm hover:bg-black/90 active:translate-y-px transition"
+                      : "inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 active:translate-y-px transition"
+                  }
+                >
+                  {PART_LABEL[k]}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 선택된 파트의 체크리스트 상세 (points / max_evidence_count) */}
+          <ReportDetailTable grades={getPartGrades(reportTab)} emptyMsg="아직 채점 결과가 없습니다. 상단에서 ‘채점하기’를 먼저 실행하세요." />
+        </section>
+
         <footer className="mt-10 text-center text-xs text-zinc-500 dark:text-zinc-400">
           © {new Date().getFullYear()} ai-cpx
         </footer>
       </div>
+    </div>
+  );
+}
+
+/* =========================
+   Report UI Subcomponents
+========================= */
+
+// 총점 & 파트별 카드 요약
+function ReportSummary({
+  getAllTotals,
+  reportTab,
+  setReportTab,
+  PART_LABEL,
+  scorePill,
+}: {
+  getAllTotals: () => {
+    byPart: Record<"history" | "physical_exam" | "education" | "ppi", { got: number; max: number }>;
+    overall: { got: number; max: number };
+  };
+  reportTab: TabKey;
+  setReportTab: (k: TabKey) => void;
+  PART_LABEL: Record<TabKey, string>;
+  scorePill: (got: number, max: number) => JSX.Element;
+}) {
+  const { byPart, overall } = getAllTotals();
+
+  return (
+    <>
+      {/* Overall */}
+      <div className="mt-4 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/70 dark:bg-zinc-900/70">
+        <div className="flex items-center justify-between">
+          <div className="text-base font-medium">총점 (Overall)</div>
+          <div className="text-base font-semibold">{overall.got} / {overall.max}</div>
+        </div>
+      </div>
+
+      {/* Per-part cards */}
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {(Object.keys(byPart) as (keyof typeof byPart)[]).map((k) => (
+          <button
+            key={k}
+            onClick={() => setReportTab(k as TabKey)}
+            className={`text-left rounded-xl border p-4 transition ${
+              reportTab === k
+                ? "border-zinc-900 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
+                : "border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-sm opacity-80">{PART_LABEL[k as TabKey]}</div>
+              {scorePill(byPart[k].got, byPart[k].max)}
+            </div>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// 파트 상세 테이블
+function ReportDetailTable({
+  grades,
+  emptyMsg,
+}: {
+  grades: GradeItem[] | null;
+  emptyMsg?: string;
+}) {
+  if (!grades || grades.length === 0) {
+    return (
+      <div className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">
+        {emptyMsg || "표시할 항목이 없습니다."}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+      <table className="min-w-full text-sm">
+        <thead className="bg-zinc-100 dark:bg-zinc-800/60">
+          <tr>
+            <th className="px-4 py-3 text-left font-medium">ID</th>
+            <th className="px-4 py-3 text-left font-medium">체크리스트</th>
+            <th className="px-4 py-3 text-left font-medium whitespace-nowrap">점수</th>
+            <th className="px-4 py-3 text-left font-medium">기준(criteria)</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          {grades.map((g) => (
+            <tr key={g.id} className="align-top">
+              <td className="px-4 py-3 font-mono text-xs">{g.id}</td>
+              <td className="px-4 py-3">
+                <div className="font-medium">{g.title}</div>
+                {/* evidence 미리보기 (있으면 1~2개만) */}
+                {g.evidence?.length > 0 && (
+                  <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+                    {g.evidence.slice(0, 2).map((evi, i) => (
+                      <li key={i} className="whitespace-pre-wrap">{evi}</li>
+                    ))}
+                    {g.evidence.length > 2 && (
+                      <li className="opacity-60">… 외 {g.evidence.length - 2}개</li>
+                    )}
+                  </ul>
+                )}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                <span className="inline-flex items-center rounded-md bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 px-2 py-1 text-xs">
+                  {g.point} / {g.max_evidence_count}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap">
+                {g.criteria}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
