@@ -55,7 +55,7 @@ export async function POST(req: Request) {
         model: "gpt-4o",
         reasoning: { effort: "medium" },
         temperature: 0.2,
-        max_output_tokens: 1500,
+        max_output_tokens: 16384,
         input: [
           { role: "system", content: [{ type: "input_text", text: sys }] },
           { role: "user", content: [{ type: "input_text", text: user }] },
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       const chat = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         temperature: 0.2,
-        max_tokens: 1500,
+        max_tokens: 16384,
         messages: [
           { role: "system", content: sys },
           { role: "user", content: user },
