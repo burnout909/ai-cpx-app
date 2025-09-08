@@ -83,19 +83,21 @@ export async function transcodeToWav16kMono(
 }
 
 /** decodeAudioData 브라우저 차이 안전 래퍼 */
-async function safeDecodeAudioData(ctx: BaseAudioContext, data: ArrayBuffer): Promise<AudioBuffer> {
-  // 최신 크롬/파폭은 promise 반환, 사파리는 콜백 버전 필요할 수 있음
-  // @ts-ignore - 타입 불일치 무시
-  if (ctx.decodeAudioData.length === 1) {
-    // promise style
-    return await (ctx as AudioContext).decodeAudioData(data);
+async function safeDecodeAudioData(
+  ctx: BaseAudioContext,
+  data: ArrayBuffer
+): Promise<AudioBuffer> {
+  // promise 스타일
+  if ((ctx as AudioContext).decodeAudioData.length === 1) {
+    return (ctx as AudioContext).decodeAudioData(data);
   }
-  return await new Promise<AudioBuffer>((resolve, reject) => {
-    // @ts-ignore - 콜백 시그니처
-    ctx.decodeAudioData(
+
+  // 콜백 스타일
+  return new Promise<AudioBuffer>((resolve, reject) => {
+    (ctx as AudioContext).decodeAudioData(
       data,
-      (buf: AudioBuffer) => resolve(buf),
-      (err: any) => reject(err || new Error("decodeAudioData failed"))
+      (buf) => resolve(buf),
+      (err) => reject(err ?? new Error("decodeAudioData failed"))
     );
   });
 }
