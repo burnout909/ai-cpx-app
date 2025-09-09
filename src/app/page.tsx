@@ -17,6 +17,8 @@ import {
   ScoreChecklist,
 } from "./assets/scoreChecklist";
 import { EvidenceListItem } from "./api/collectEvidence/route";
+import { acuteStomachache } from "./assets/exampleTranscribeText";
+import { exampleCleanupText } from "./assets/exampleCleanupText";
 
 /* =========================
    Types
@@ -102,75 +104,94 @@ export default function Page() {
     }
   }
 
-  async function saveConfig() {
-    try {
-      const res = await fetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ openai_api_key: openaiKey }),
-      });
-      const data = await readJsonOrText(res);
-      ensureOkOrThrow(res, data);
-      setSetStatus("✅ 설정이 저장되었습니다.");
-    } catch (e: any) {
-      setSetStatus(`❌ ${e.message || e}`);
-    }
+  // async function saveConfig() {
+  //   try {
+  //     const res = await fetch("/api/config", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ openai_api_key: openaiKey }),
+  //     });
+  //     const data = await readJsonOrText(res);
+  //     ensureOkOrThrow(res, data);
+  //     setSetStatus("✅ 설정이 저장되었습니다.");
+  //   } catch (e: any) {
+  //     setSetStatus(`❌ ${e.message || e}`);
+  //   }
+  // }
+
+  // 30초 후 전사된 것처럼 하기
+  function doTranscribe30Seconds() {
+    setTransStatus('전사 실행중..')
+    setTranscriptText("")
+    setTimeout(() => {
+      setTranscriptText(acuteStomachache)
+      setTransStatus("전사 완료")
+    }, 1000 * 30)
   }
 
-  async function doTranscribe() {
-    if (!audioFile) {
-      setTransStatus("오디오를 선택하세요.");
-      return;
-    }
-    setTransStatus("전사 중...");
+  // async function doTranscribe() {
+  //   if (!audioFile) {
+  //     setTransStatus("오디오를 선택하세요.");
+  //     return;
+  //   }
+  //   setTransStatus("전사 중...");
 
-    try {
-      let toSend: File = audioFile;
+  //   try {
+  //     let toSend: File = audioFile;
 
-      // m4a면 브라우저에서 16kHz mono WAV로 변환
-      const isM4A =
-        /\.m4a$/i.test(audioFile.name) ||
-        /audio\/x-m4a|audio\/m4a/i.test(audioFile.type);
-      if (isM4A) {
-        try {
-          toSend = await transcodeToWav16kMono(audioFile);
-        } catch (e) {
-          console.warn("m4a 변환 실패, 원본으로 시도:", e);
-        }
-      }
+  //     // m4a면 브라우저에서 16kHz mono WAV로 변환
+  //     const isM4A =
+  //       /\.m4a$/i.test(audioFile.name) ||
+  //       /audio\/x-m4a|audio\/m4a/i.test(audioFile.type);
+  //     if (isM4A) {
+  //       try {
+  //         toSend = await transcodeToWav16kMono(audioFile);
+  //       } catch (e) {
+  //         console.warn("m4a 변환 실패, 원본으로 시도:", e);
+  //       }
+  //     }
 
-      const fd = new FormData();
-      fd.append("audio", toSend);
+  //     const fd = new FormData();
+  //     fd.append("audio", toSend);
 
-      const res = await fetch("/api/transcribe", { method: "POST", body: fd });
-      const data = await readJsonOrText(res);
-      ensureOkOrThrow(res, data);
+  //     const res = await fetch("/api/transcribe", { method: "POST", body: fd });
+  //     const data = await readJsonOrText(res);
+  //     ensureOkOrThrow(res, data);
 
-      const text = typeof data === "string" ? "" : data?.text || "";
-      setTranscriptText(text);
-      setTransStatus("✅ 전사 완료 (화자표기는 클린업에서 반영)");
-    } catch (e: any) {
-      setTransStatus(`❌ 실패: ${e.message || e}`);
-    }
-  }
+  //     const text = typeof data === "string" ? "" : data?.text || "";
+  //     setTranscriptText(text);
+  //     setTransStatus("✅ 전사 완료 (화자표기는 클린업에서 반영)");
+  //   } catch (e: any) {
+  //     setTransStatus(`❌ 실패: ${e.message || e}`);
+  //   }
+  // }
 
-  async function doCleanup() {
+  // async function doCleanup() {
+  //   setCleanupStatus("클린업 중...");
+  //   try {
+  //     const res = await fetch("/api/cleanup", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ transcript: transcriptText }),
+  //     });
+  //     const data = await readJsonOrText(res);
+  //     ensureOkOrThrow(res, data);
+  //     const txt = typeof data === "string" ? transcriptText : data?.text || "";
+  //     setCleanText(txt);
+  //     setCleanupStatus("✅ 클린업 완료");
+  //   } catch (e: any) {
+  //     setCleanupStatus(`⚠️ 클린업 경고: ${e.message || e}`);
+  //     setCleanText(transcriptText);
+  //   }
+  // }
+
+  function doCleanup30Seconds() {
     setCleanupStatus("클린업 중...");
-    try {
-      const res = await fetch("/api/cleanup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: transcriptText }),
-      });
-      const data = await readJsonOrText(res);
-      ensureOkOrThrow(res, data);
-      const txt = typeof data === "string" ? transcriptText : data?.text || "";
-      setCleanText(txt);
-      setCleanupStatus("✅ 클린업 완료");
-    } catch (e: any) {
-      setCleanupStatus(`⚠️ 클린업 경고: ${e.message || e}`);
-      setCleanText(transcriptText);
-    }
+    setCleanText("")
+    setTimeout(() => {
+      setCleanText(exampleCleanupText)
+      setCleanupStatus("클린업 완료")
+    }, 1000 * 30)
   }
 
   // Evidence 수집 (병렬 호출)
@@ -357,7 +378,7 @@ export default function Page() {
 
   // UI styles
   const commonCard = "rounded-2xl border bg-white/60 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 p-6 shadow-sm";
-  const labelCls = "block text-sm font-medium text-zinc-700 dark:text-zinc-300";
+  const labelCls = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 ml";
   const inputCls = "mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none ring-0 focus:border-zinc-500";
   const btnCls = "inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 active:translate-y-px transition";
   const primaryBtn = "inline-flex items-center gap-2 rounded-lg bg-zinc-900 text-white px-3 py-2 text-sm hover:bg-black/90 active:translate-y-px transition";
@@ -373,12 +394,11 @@ export default function Page() {
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white dark:from-black dark:to-zinc-950 text-zinc-900 dark:text-zinc-100">
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">ai-cpx — CPX 자동 채점 데모</h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">전사 → 클린업 → 체크리스트 → 채점 → Report</p>
+          <h1 className="text-3xl font-bold tracking-tight">[AI-CPX] Auto Evaluation</h1>
         </header>
 
         {/* 설정 */}
-        <section className={`${commonCard} mb-6`}>
+        {/* <section className={`${commonCard} mb-6`}>
           <h2 className="text-lg font-semibold">설정</h2>
           <div className="mt-4">
             <label className={labelCls}>OpenAI API Key</label>
@@ -394,19 +414,22 @@ export default function Page() {
               {setStatus && <span className={`${badge}`}>{setStatus}</span>}
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* 전사 */}
         <section className={`${commonCard} mb-6`}>
           <h2 className="text-lg font-semibold">전사 & 텍스트 기반 화자표기</h2>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <input
+            {/* <input
               className="block w-full cursor-pointer text-sm file:mr-3 file:rounded-md file:border file:border-zinc-300 dark:file:border-zinc-700 file:bg-white dark:file:bg-zinc-900 file:px-3 file:py-2 file:text-sm file:text-zinc-900 dark:file:text-zinc-100 hover:file:bg-zinc-50 dark:hover:file:bg-zinc-800"
               type="file"
               accept="audio/*"
               onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
             />
-            <button className={btnCls} onClick={doTranscribe}>전사 실행</button>
+            <button className={btnCls} onClick={doTranscribe}>전사 실행</button> */}
+            {/* 임시추가 */}
+            <button className={primaryBtn} onClick={doTranscribe30Seconds}>전사 실행</button>
+            <div>급성 복통 환자.m4a</div>
             {transStatus && <span className={badge}>{transStatus}</span>}
           </div>
 
@@ -414,21 +437,25 @@ export default function Page() {
             <label className={labelCls}>원문 전사</label>
             <textarea
               ref={refTranscript}
-              className={`${inputCls} mt-2 h-auto min-h-[200px] resize-none whitespace-pre-wrap`}
+              className={`${inputCls} mt-2 max-h-[300px] min-h-[200px] resize-none whitespace-pre-wrap`}
               onInput={(e) => autoResize(e.currentTarget)}
               value={transcriptText}
               onChange={(e) => setTranscriptText(e.target.value)}
+              placeholder="원문 전사 텍스트"
             />
           </div>
 
           <div className="mt-6 space-y-3">
-            <button className={btnCls} onClick={doCleanup}>오탈자/표현 클린업 (gpt-4o)</button>
-            {cleanupStatus && <div className={badge}>{cleanupStatus}</div>}
+            {/* <button className={btnCls} onClick={doCleanup}>표현 클린업</button> */}
+            <div className="flex gap-3">
+              <button className={primaryBtn} onClick={doCleanup30Seconds}>표현 클린업</button>
+              {cleanupStatus && <div className={badge + 'h-fit'}>{cleanupStatus}</div>}
+            </div>
             <div>
               <label className={labelCls}>클린 전사</label>
               <textarea
                 ref={refClean}
-                className={`${inputCls} mt-2 h-auto min-h-[200px] resize-none whitespace-pre-wrap`}
+                className={`${inputCls} mt-2 h-auto min-h-[200px] max-h-[300px] resize-none whitespace-pre-wrap`}
                 onInput={(e) => autoResize(e.currentTarget)}
                 value={cleanText}
                 onChange={(e) => setCleanText(e.target.value)}
@@ -443,7 +470,7 @@ export default function Page() {
           <h2 className="text-lg font-semibold">채점 & JSON</h2>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button className={primaryBtn} onClick={doScore}>채점하기 (o3)</button>
+            <button className={primaryBtn} onClick={doScore}>채점하기</button>
             {scoreStatus && <span className={badge}>{scoreStatus}</span>}
           </div>
 
@@ -457,7 +484,7 @@ export default function Page() {
                   onClick={() => { setActiveTab(k); setGradingJson(stringifyGradesForTab(k)); }}
                   className={
                     isActive
-                      ? "inline-flex items-center gap-2 rounded-lg bg-zinc-900 text-white px-3 py-2 text-sm hover:bg-black/90 active:translate-y-px transition"
+                      ? "inline-flex items-center gap-2 rounded-lg bg-zinc-900 text-white px-3 py-1 text-sm hover:bg-black/90 active:translate-y-px transition"
                       : "inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 active:translate-y-px transition"
                   }
                 >
@@ -471,7 +498,7 @@ export default function Page() {
             <label className={labelCls}>채점 JSON</label>
             <textarea
               ref={refGrading}
-              className={`${inputCls} mt-2 h-auto min-h-[240px] resize-none font-mono`}
+              className={`${inputCls} mt-2 h-auto min-h-[240px] max-h-[300px] resize-none font-mono`}
               onInput={(e) => autoResize(e.currentTarget)}
               value={gradingJson}
               readOnly
@@ -492,26 +519,6 @@ export default function Page() {
             PART_LABEL={PART_LABEL}
             scorePill={scorePill}
           />
-
-          {/* 파트 상세 토글 버튼 */}
-          <div className="mt-6 flex flex-wrap gap-2">
-            {(["history", "physical_exam", "education", "ppi"] as TabKey[]).map((k) => {
-              const isActive = reportTab === k;
-              return (
-                <button
-                  key={k}
-                  onClick={() => setReportTab(k)}
-                  className={
-                    isActive
-                      ? "inline-flex items-center gap-2 rounded-lg bg-zinc-900 text-white px-3 py-2 text-sm hover:bg-black/90 active:translate-y-px transition"
-                      : "inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 active:translate-y-px transition"
-                  }
-                >
-                  {PART_LABEL[k]}
-                </button>
-              );
-            })}
-          </div>
 
           {/* 선택된 파트의 체크리스트 상세 (points / max_evidence_count) */}
           <ReportDetailTable grades={getPartGrades(reportTab)} emptyMsg="아직 채점 결과가 없습니다. 상단에서 ‘채점하기’를 먼저 실행하세요." />
@@ -564,11 +571,10 @@ function ReportSummary({
           <button
             key={k}
             onClick={() => setReportTab(k as TabKey)}
-            className={`text-left rounded-xl border p-4 transition ${
-              reportTab === k
-                ? "border-zinc-900 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                : "border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60"
-            }`}
+            className={`text-left rounded-xl border p-4 transition ${reportTab === k
+              ? "border-zinc-900 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
+              : "border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60"
+              }`}
           >
             <div className="flex items-center justify-between">
               <div className="text-sm opacity-80">{PART_LABEL[k as TabKey]}</div>
