@@ -3,11 +3,8 @@ import OpenAI from "openai";
 
 export const runtime = "nodejs";
 
-export async function getOpenAIKey() { 
-  const cookieStore = await cookies();  
-  const fromCookie = cookieStore.get("openai_api_key")?.value || "";
-  const fromEnv = process.env.OPENAI_API_KEY || "";
-  const key = fromCookie || fromEnv;
+export async function getOpenAIKey() {
+  const key = process.env.OPENAI_API_KEY || "";
   if (!key) throw new Error("OpenAI API Key가 설정되지 않았습니다.");
   return key;
 }
