@@ -201,7 +201,8 @@ export default function Page() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          transcript: cleanText || transcriptText,
+          // transcript: cleanText || transcriptText,
+          transcript: exampleCleanupText,
           evidenceChecklist: HistoryEvidenceChecklist,
           sectionId: "history",
         }),
@@ -210,7 +211,8 @@ export default function Page() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          transcript: cleanText || transcriptText,
+          //transcript: cleanText || transcriptText,
+          transcript: exampleCleanupText,
           evidenceChecklist: PhysicalexamEvidenceChecklist,
           sectionId: "physical_exam",
         }),
@@ -219,7 +221,8 @@ export default function Page() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          transcript: cleanText || transcriptText,
+          //transcript: cleanText || transcriptText,
+          transcript: exampleCleanupText,
           evidenceChecklist: EducationEvidenceChecklist,
           sectionId: "education",
         }),
@@ -228,7 +231,8 @@ export default function Page() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          transcript: cleanText || transcriptText,
+          //transcript: cleanText || transcriptText,
+          transcript: exampleCleanupText,
           evidenceChecklist: PpiEvidenceChecklist,
           sectionId: "ppi",
         }),
@@ -418,7 +422,7 @@ export default function Page() {
 
         {/* 전사 */}
         <section className={`${commonCard} mb-6`}>
-          <h2 className="text-lg font-semibold">전사 & 텍스트 기반 화자표기</h2>
+          <h2 className="text-lg font-semibold">Transcribe</h2>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             {/* <input
               className="block w-full cursor-pointer text-sm file:mr-3 file:rounded-md file:border file:border-zinc-300 dark:file:border-zinc-700 file:bg-white dark:file:bg-zinc-900 file:px-3 file:py-2 file:text-sm file:text-zinc-900 dark:file:text-zinc-100 hover:file:bg-zinc-50 dark:hover:file:bg-zinc-800"
@@ -467,7 +471,7 @@ export default function Page() {
 
         {/* 채점 & JSON 보기 */}
         <section className={`${commonCard} mb-6`}>
-          <h2 className="text-lg font-semibold">채점 & JSON</h2>
+          <h2 className="text-lg font-semibold">Grading</h2>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button className={primaryBtn} onClick={doScore}>채점하기</button>
@@ -560,7 +564,7 @@ function ReportSummary({
       {/* Overall */}
       <div className="mt-4 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/70 dark:bg-zinc-900/70">
         <div className="flex items-center justify-between">
-          <div className="text-base font-medium">총점 (Overall)</div>
+          <div className="text-base font-medium">총점</div>
           <div className="text-base font-semibold">{overall.got} / {overall.max}</div>
         </div>
       </div>
