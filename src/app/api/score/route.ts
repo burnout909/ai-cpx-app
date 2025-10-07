@@ -62,11 +62,8 @@ export async function POST(req: Request) {
     const sys =
       "당신은 한국 의대 CPX 자동 채점기입니다. " +
       "입력으로 화자분리 전사(JSON)와 체크리스트(JSON)를 받습니다. " +
-      "각 항목에 대해 다음을 산출하세요: " +
-      " - history: binary(예/아니오 => 1/0) " +
-      " - physical_exam: ternary_uap(우수/수행/미수행 => 1/0.5/0) " +
-      " - education: ternary_uap(우수/수행/미수행 => 1/0.5/0) " +
-      " - ppi: likert_1to5(1~5 정수) " +
+      "체크리스트 JSON 내에 sections는 4개의 객체로 이루어져 있는데 각 객체의 id는 history, physical_exam, education, ppi입니다. 그리고 이 객체의 items내에는 각 체크리스트 항목들이 객체로 있는데, 이중 criteria를 만족하면 points만큼의 점수를 추가하면 됩니다"
+      +
       "판정 근거로 전사의 특정 구간을 인용하되, 세그먼트 단위(turn 번호와 텍스트 일부)를 evidence로 남기세요. " +
       "출력은 JSON만 반환하세요.";
 
