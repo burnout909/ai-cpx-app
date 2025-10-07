@@ -61,7 +61,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                 onClick={() => router.push("/record-select")}
             />
 
-            <div className="flex-1 pt-[120px] pb-[136px] flex flex-col items-center justify-center gap-[24px]">
+            <div className="flex-1 pt-[40px] pb-[136px] flex flex-col items-center justify-center gap-[24px]">
                 <span className="text-[22px] text-[#8473D0] font-medium">
                     {isFinished ? "평가가 완료되었습니다." : isRecording ? "탭하여 일시정지" : "탭하여 시작"}
                 </span>
