@@ -69,7 +69,7 @@ export default function UploadPage() {
             if (!res.ok) throw new Error("S3 업로드 실패");
 
             // 3️⃣ 성공 시 채점 페이지로 이동
-            router.push(`/score?key=${encodeURIComponent(key)}`);
+            router.push(`/score?s3Key=${encodeURIComponent(key)}`);
         } catch (err: any) {
             console.error(err);
             alert(`❌ 업로드 중 오류: ${err.message || "알 수 없는 오류"}`);
