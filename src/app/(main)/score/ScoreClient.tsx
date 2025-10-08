@@ -215,7 +215,7 @@ export default function ScoreClient({ s3Key }: Props) {
 
 
     return (
-        <div className="flex flex-col items-center justify-center bg-gradient-to-b from-zinc-50 to-white dark:from-black dark:to-zinc-950 px-4 h-full pb-[136px]">
+        <div className="flex flex-col items-center justify-center bg-[#FAFAFA] px-4  pb-[136px]">
             {/* 진행 상태 */}
             {statusMessage &&
                 <div className="fixed top-3/7 left-1/2 -translate-x-1/2 -translate-y-3/7 text-center text-[24px] font-semibold text-[#7553FC] animate-pulse">
@@ -252,7 +252,6 @@ export default function ScoreClient({ s3Key }: Props) {
         </div>
     );
 }
-
 /* =========================
    Report Components
 ========================= */
@@ -271,33 +270,64 @@ function ReportSummary({
     setActive: (s: string) => void;
     PART_LABEL: Record<string, string>;
 }) {
+    const primaryColor = '#7553FC';
+    const secondaryColor = '#E9E2FF';
+
     return (
         <>
-            <div className="mb-4 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/70 dark:bg-zinc-900/70 flex justify-between">
-                <div className="text-base font-medium">총점</div>
-                <div className="text-base font-semibold">
+            <div
+                className="mb-4 rounded-xl p-4 flex justify-between"
+                style={{
+                    border: `2px solid ${primaryColor}`,
+                    backgroundColor: '#FFFFFF',
+                }}
+            >
+                <div className="text-base font-medium text-[#333]">총점</div>
+                <div
+                    className="text-base font-semibold"
+                    style={{ color: primaryColor }}
+                >
                     {overall.got} / {overall.max}
                 </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                {Object.entries(totals).map(([key, val]) => (
-                    <button
-                        key={key}
-                        onClick={() => setActive(key)}
-                        className={`text-left rounded-xl border p-4 transition ${active === key
-                            ? 'border-zinc-900 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                            : 'border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60'
-                            }`}
-                    >
-                        <div className="flex justify-between items-center">
-                            <div>{PART_LABEL[key] || key}</div>
-                            <span className="rounded-full px-2 py-1 text-xs bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
-                                {val.got} / {val.max}
-                            </span>
-                        </div>
-                    </button>
-                ))}
+                {Object.entries(totals).map(([key, val]) => {
+                    const isActive = active === key;
+                    return (
+                        <button
+                            key={key}
+                            onClick={() => setActive(key)}
+                            className="text-left rounded-xl border p-4 transition"
+                            style={{
+                                border: isActive
+                                    ? `2px solid ${primaryColor}`
+                                    : '1px solid #E5E5E5',
+                                backgroundColor: isActive
+                                    ? secondaryColor
+                                    : '#FFFFFF',
+                                color: isActive ? primaryColor : '#333',
+                            }}
+                        >
+                            <div className="flex justify-between items-center">
+                                <div className="font-medium">
+                                    {PART_LABEL[key] || key}
+                                </div>
+                                <span
+                                    className="rounded-full px-2 py-1 text-xs font-semibold"
+                                    style={{
+                                        backgroundColor: isActive
+                                            ? primaryColor
+                                            : '#F3F3F3',
+                                        color: isActive ? '#FFF' : '#555',
+                                    }}
+                                >
+                                    {val.got} / {val.max}
+                                </span>
+                            </div>
+                        </button>
+                    );
+                })}
             </div>
         </>
     );
@@ -305,32 +335,50 @@ function ReportSummary({
 
 // 섹션 상세 테이블
 function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
+    const primaryColor = '#7553FC';
+    const borderColor = '#DDD6FE';
+
     return (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <table className="min-w-full text-sm">
-                <thead className="bg-zinc-100 dark:bg-zinc-800/60">
+        <div
+            className="overflow-x-auto rounded-xl border"
+            style={{ borderColor }}
+        >
+            <table className="min-w-full text-sm bg-white">
+                <thead style={{ backgroundColor: '#F7F5FF' }}>
                     <tr>
-                        <th className="px-4 py-3 text-left font-medium">ID</th>
-                        <th className="px-4 py-3 text-left font-medium">체크리스트</th>
-                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap">점수</th>
+                        <th className="px-4 py-3 text-left font-medium text-[#555]">ID</th>
+                        <th className="px-4 py-3 text-left font-medium text-[#555]">
+                            체크리스트
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap text-[#555]">
+                            점수
+                        </th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                <tbody style={{ color: '#333' }}>
                     {grades.map((g) => (
-                        <tr key={g.id} className="align-top">
+                        <tr key={g.id} className="align-top border-t" style={{ borderColor }}>
                             <td className="px-4 py-3 font-mono text-xs">{g.id}</td>
                             <td className="px-4 py-3">
                                 <div className="font-medium">{g.title}</div>
                                 {g.evidence?.length > 0 && (
-                                    <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+                                    <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-[#666]">
                                         {g.evidence.map((evi, i) => (
-                                            <li key={i} className="whitespace-pre-wrap">{evi}</li>
+                                            <li key={i} className="whitespace-pre-wrap">
+                                                {evi}
+                                            </li>
                                         ))}
                                     </ul>
                                 )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                                <span className="inline-flex items-center rounded-md bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 px-2 py-1 text-xs">
+                                <span
+                                    className="inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold"
+                                    style={{
+                                        backgroundColor: primaryColor,
+                                        color: '#FFFFFF',
+                                    }}
+                                >
                                     {g.point} / {g.max_evidence_count}
                                 </span>
                             </td>
