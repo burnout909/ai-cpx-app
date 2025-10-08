@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getOpenAIClient } from "../_lib";
 import { toFile } from "openai/uploads";
 import { extname } from "path";
+import { generateDownloadUrl } from "../s3/s3";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -40,18 +41,23 @@ function guessMimeByExt(name: string, fallback?: string): string {
 
 export async function POST(req: Request) {
   try {
-    const form = await req.formData();
-    const audio = form.get("audio");
-
-    if (!(audio instanceof Blob)) {
-      return NextResponse.json({ detail: "audio 파일이 필요합니다." }, { status: 400 });
+    // 클라이언트에서 JSON으로 s3_key 받기
+    const { s3_key } = await req.json();
+    if (!s3_key) {
+      return NextResponse.json({ detail: "s3_key is required" }, { status: 400 });
     }
 
-    const asFile = audio instanceof File ? audio : undefined;
-    const filename = asFile?.name || "audio.wav"; // (클라에서 변환됐으면 .wav일 가능성 높음)
-    const buffer = Buffer.from(await audio.arrayBuffer());
-    const type = guessMimeByExt(filename, asFile?.type || undefined);
-
+    const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
+    const presignedUrl = await generateDownloadUrl(bucket, s3_key);
+    // ✅ S3에서 오디오 파일 다운로드
+    const audioRes = await fetch(presignedUrl);
+    if (!audioRes.ok) throw new Error("S3 파일 다운로드 실패");
+    const audioBlob = await audioRes.blob();
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const filename = s3_key.split("/").pop() || "audio.mp3";
+    const type = guessMimeByExt(filename, audioBlob.type);
+    
     const openai = await getOpenAIClient();
     const file = await toFile(buffer, filename, { type });
 

@@ -84,6 +84,7 @@ export default function MediaUploadBox(props: MediaUploadBoxProps) {
           "
                     onChange={(e) => handlePick(e.target.files?.[0] || undefined)}
                     className="hidden"
+                    disabled={isUploadLoading}
                 />
 
                 {/* 로딩 중 */}
