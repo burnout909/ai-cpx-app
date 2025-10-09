@@ -19,7 +19,7 @@ export default function Home() {
                 />
                 <HomeComponent
                     icon={<PeopleIcon className="w-[28px] h-[28px] text-[#210535]" />}
-                    title={"환자 역할을 해줄 사람이 있어요"}
+                    title={"환자 역할 해줄 사람이 있어요"}
                     buttonName="녹음 후 채점 받기"
                     onClick={() => router.push('/record-select')}
                 />
