@@ -184,8 +184,6 @@ export async function POST(
             evidence: normalizeEvidence(row?.evidence),
         }));
 
-        console.log(sectionId, finalEvidenceList);
-
         return NextResponse.json<CollectEvidenceResponse>({
             evidenceList: finalEvidenceList,
         });
