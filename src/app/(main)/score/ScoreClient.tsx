@@ -1,5 +1,6 @@
 'use client';
 
+import { generateDownloadUrl } from '@/app/api/s3/s3';
 import {
     HistoryEvidenceChecklist,
     PhysicalexamEvidenceChecklist,
@@ -14,6 +15,7 @@ import { useEffect, useState } from 'react';
 ========================= */
 interface Props {
     s3Key: string;
+    transcriptS3Key: string | null
 }
 
 interface EvidenceListItem {
@@ -38,7 +40,7 @@ interface GradeItem {
 /* =========================
    Main Component
 ========================= */
-export default function ScoreClient({ s3Key }: Props) {
+export default function ScoreClient({ s3Key, transcriptS3Key }: Props) {
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
 
@@ -49,10 +51,14 @@ export default function ScoreClient({ s3Key }: Props) {
     const [activeSection, setActiveSection] = useState<string>('history');
 
     useEffect(() => {
-        console.log("s3Key:", s3Key)
         if (!s3Key) return;
         runAutoPipeline(s3Key);
     }, [s3Key]);
+
+    useEffect(() => {
+        if (!transcriptS3Key) return;
+        runLiveAutoPipeline(transcriptS3Key)
+    })
 
     async function readJsonOrText(res: Response): Promise<any> {
         const ct = res.headers.get('content-type') || '';
@@ -148,6 +154,69 @@ export default function ScoreClient({ s3Key }: Props) {
             setStatusMessage(`오류 발생: ${e.message || e}`);
         }
     }
+
+    async function runLiveAutoPipeline(key: string) {
+        const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME
+        try {
+            const transcript = generateDownloadUrl(bucket as string, key)
+            // 3️⃣ 병렬 증거 수집
+            setStatusMessage('모든 섹션 증거 수집 중');
+            const checklistMap = {
+                history: HistoryEvidenceChecklist,
+                physical_exam: PhysicalexamEvidenceChecklist,
+                education: EducationEvidenceChecklist,
+                ppi: PpiEvidenceChecklist,
+            };
+            const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
+
+            const promises = sectionIds.map(async (sectionId) => {
+                const checklist = checklistMap[sectionId];
+                const res = await fetch('/api/collectEvidence', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        transcript: transcript,
+                        evidenceChecklist: checklist,
+                        sectionId,
+                    }),
+                });
+                const data = await readJsonOrText(res);
+                await ensureOkOrThrow(res, data);
+                return { sectionId, evidenceList: data.evidenceList || [] } as SectionResult;
+            });
+
+            const results = await Promise.all(promises);
+            setResults(results);
+
+            // 4️⃣ 채점 계산
+            const graded: Record<string, GradeItem[]> = {};
+            for (const { sectionId, evidenceList } of results) {
+                const checklist =
+                    checklistMap[sectionId as keyof typeof checklistMap] || [];
+                graded[sectionId] = checklist.map((item) => {
+                    const ev = evidenceList.find((e) => e.id === item.id);
+                    const evidence = ev?.evidence ?? [];
+                    const point = Math.min(evidence.length, 2); // 단순 evidence 개수 기반 점수
+                    return {
+                        id: item.id,
+                        title: item.title,
+                        criteria: item.criteria,
+                        evidence,
+                        point,
+                        max_evidence_count: 2,
+                    };
+                });
+            }
+
+            setGradesBySection(graded);
+            setActiveSection('history');
+            setStatusMessage(null);
+        } catch (e: any) {
+            console.error(e);
+            setStatusMessage(`오류 발생: ${e.message || e}`);
+        }
+    }
+
 
     // 점수 요약 계산
     function sumPoints(list: GradeItem[]) {
