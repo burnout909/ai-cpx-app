@@ -252,7 +252,6 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         return `${mm}:${ss}`;
     }, []);
 
-    // ===== UI =====
     return (
         <div className="flex flex-col min-h-screen">
             <div className="flex flex-col">
