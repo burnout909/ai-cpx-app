@@ -303,11 +303,8 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                     </button>
                 )}
 
-                {isConverting && (
-                    <div className="mt-4">
-                        <Spinner borderClassName="border-[#7553FC]" size={40} />
-                    </div>
-                )}
+                {isConverting && <Spinner borderClassName="border-[#7553FC]" size={40} />}
+
 
                 {isPreviewReady && audioURL && (
                     <audio controls src={audioURL} className="mt-4 w-full z-10" />
@@ -315,7 +312,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
             </div>
 
             <BottomFixButton
-                disabled={isRecording || isUploadingToS3}
+                disabled={isRecording || isUploadingToS3 || seconds==720}
                 onClick={handleSubmit}
                 buttonName={isFinished ? "채점하기" : "종료 및 채점하기"}
             />

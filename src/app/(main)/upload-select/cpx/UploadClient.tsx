@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { standardizeToMP3 } from "@/app/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
+import Spinner from "@/component/Spinner";
 
 type Props = { category: string; caseName: string };
 
@@ -106,7 +107,14 @@ export default function UploadClient({ category, caseName }: Props) {
                         />
                     </div>
                 )}
+
+                {isUploadingToS3 &&
+                    <div className="mt-8 w-full flex justify-center">
+                        <Spinner borderClassName="border-[#7553FC]" size={40} />
+                    </div>}
+
             </main>
+
 
             {/* 하단 버튼 */}
             <BottomFixButton
@@ -114,16 +122,6 @@ export default function UploadClient({ category, caseName }: Props) {
                 onClick={handleSubmit}
                 buttonName={"채점하기"}
             />
-
-            {/* 로딩 스피너 오버레이 */}
-            {(isUploadingToS3) && (
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm z-50">
-                    <div className="w-12 h-12 border-4 border-gray-300 border-t-[#7553FC] rounded-full animate-spin mb-4"></div>
-                    <span className="text-[#7553FC] font-semibold text-lg">
-                        {isUploadingToS3 && "파일 저장 중..."}
-                    </span>
-                </div>
-            )}
         </div>
     );
 }
