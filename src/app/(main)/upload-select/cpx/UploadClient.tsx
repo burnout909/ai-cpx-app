@@ -9,7 +9,9 @@ import { v4 as uuidv4 } from "uuid";
 import { standardizeToMP3 } from "@/app/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 
-export default function UploadPage() {
+type Props = { category: string; caseName: string };
+
+export default function UploadClient({ category, caseName }: Props) {
     const [uploadFileName, setUploadFileName] = useState<string | null>(null);
     const [isUploadLoading, setIsUploadLoading] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export default function UploadPage() {
         }
     };
 
-    // ✅ 채점 버튼 클릭 → S3 업로드 → /score로 이동
+    // 채점 버튼 클릭 → S3 업로드 → /score로 이동
     async function handleSubmit() {
         if (!mp3Blob || !uploadFileName) {
             alert("먼저 오디오 파일을 업로드해주세요!");
@@ -69,10 +71,10 @@ export default function UploadPage() {
             if (!res.ok) throw new Error("S3 업로드 실패");
 
             // 3️⃣ 성공 시 채점 페이지로 이동
-            router.push(`/score?s3Key=${encodeURIComponent(key)}`);
+            router.push(`/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`);
         } catch (err: any) {
             console.error(err);
-            alert(`❌ 업로드 중 오류: ${err.message || "알 수 없는 오류"}`);
+            alert(`업로드 중 오류: ${err.message || "알 수 없는 오류"}`);
         } finally {
             setIsUploadingToS3(false);
         }
@@ -81,7 +83,7 @@ export default function UploadPage() {
     return (
         <div className="flex flex-col relative min-h-screen">
             <SmallHeader
-                title={"실습 파일 업로드"}
+                title={`${caseName} 파일 업로드`}
                 onClick={() => router.push('/home')}
             />
 
@@ -114,11 +116,11 @@ export default function UploadPage() {
             />
 
             {/* 로딩 스피너 오버레이 */}
-            {(isUploadingToS3 || isUploadLoading) && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm z-50">
+            {(isUploadingToS3) && (
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm z-50">
                     <div className="w-12 h-12 border-4 border-gray-300 border-t-[#7553FC] rounded-full animate-spin mb-4"></div>
                     <span className="text-[#7553FC] font-semibold text-lg">
-                        {isUploadingToS3 ? "파일 저장 중..." : "파일 변환 중..."}
+                        {isUploadingToS3 && "파일 저장 중..."}
                     </span>
                 </div>
             )}

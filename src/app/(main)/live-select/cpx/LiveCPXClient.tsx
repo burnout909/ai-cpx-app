@@ -5,66 +5,16 @@ import { generateUploadUrl } from "@/app/api/s3/s3";
 import { v4 as uuidv4 } from "uuid";
 import SmallHeader from "@/component/SmallHeader";
 import BottomFixButton from "@/component/BottomFixButton";
-import PlayIcon from "@/asset/icon/PlayIcon.svg";
-import PauseIcon from "@/asset/icon/PauseIcon.svg";
+import PlayIcon from "@/assets/icon/PlayIcon.svg";
+import PauseIcon from "@/assets/icon/PauseIcon.svg";
 import Spinner from "@/component/Spinner";
 import { useRouter } from "next/navigation";
 import { standardizeToMP3 } from "@/app/utils/audioPreprocessing";
 import buildPatientInstructions from "./buildPrompt";
+import { loadVirtualPatient, VirtualPatient } from "@/utils/loadVirtualPatient";
 type Props = { category: string; caseName: string };
 
 const INITIAL_SECONDS = 12 * 60; // 720s = 12분
-
-/* =======================
-   Mock Data & Types
-======================= */
-type Vitals = {
-    bp: { systolic: number; diastolic: number }; // 혈압
-    pulse: number; // 맥박
-    rr: number;    // 호흡수
-    temp: number;  // 체온(섭씨)
-};
-
-type CaseInfo = {
-    description: string;
-    vitals: Vitals;
-};
-
-// 카테고리 → 케이스명 → 데이터
-const CASE_MOCK: Record<string, Record<string, CaseInfo>> = {
-    소화기: {
-        급성복통: {
-            description: "56세 남성 홍길동씨가 숨 쉬기가 힘들어 내원하였다.",
-            vitals: { bp: { systolic: 140, diastolic: 78 }, pulse: 96, rr: 22, temp: 37.2 },
-        },
-        소화불량: {
-            description: "식후 상복부 불편감과 더부룩함을 호소한다.",
-            vitals: { bp: { systolic: 126, diastolic: 82 }, pulse: 84, rr: 18, temp: 36.8 },
-        },
-    },
-    순환기: {
-        흉통: {
-            description: "계단 오르면 가슴 중앙이 조이는 통증이 발생한다.",
-            vitals: { bp: { systolic: 150, diastolic: 90 }, pulse: 98, rr: 20, temp: 36.9 },
-        },
-    },
-    호흡기: {
-        호흡곤란: {
-            description: "활동 시 숨이 차고 쌕쌕거림이 동반된다.",
-            vitals: { bp: { systolic: 132, diastolic: 86 }, pulse: 92, rr: 24, temp: 37.0 },
-        },
-    },
-};
-
-/* 안전 접근 헬퍼 (데이터 없으면 기본값 반환) */
-function getCaseData(category: string, caseName: string): CaseInfo {
-    const fallback: CaseInfo = {
-        description: "증례 설명이 준비 중입니다.",
-        vitals: { bp: { systolic: 120, diastolic: 80 }, pulse: 80, rr: 18, temp: 36.8 },
-    };
-    return CASE_MOCK[category]?.[caseName] ?? fallback;
-}
-
 /* °C 포맷 */
 const formatTemp = (t: number) => `${t.toFixed(1)}°C`;
 
@@ -78,9 +28,27 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const [isUploading, setIsUploading] = useState(false);
     const [seconds, setSeconds] = useState<number>(INITIAL_SECONDS);
     const [isFinished, setIsFinished] = useState(false);
+    //환자 caseData
+    const [caseData, setCaseData] = useState<VirtualPatient | null>(null);
 
-    // 케이스 데이터 (메모)
-    const caseData = useMemo(() => getCaseData(category, caseName), [category, caseName]);
+    useEffect(() => {
+        let isMounted = true;
+
+        async function fetchCaseData() {
+            try {
+                const data = await loadVirtualPatient(caseName);
+                if (isMounted) setCaseData(data);
+            } catch (err) {
+                console.error("가상환자 로드 실패:", err);
+            }
+        }
+
+        if (caseName) fetchCaseData();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [caseName]);
     // ===== 레퍼런스 =====
     const sessionRef = useRef<any>(null);
     const recorderRef = useRef<MediaRecorder | null>(null);
@@ -131,7 +99,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
 
             const agent = new RealtimeAgent({
                 name: "표준화 환자 AI",
-                instructions: buildPatientInstructions(caseData),
+                instructions: buildPatientInstructions(caseData as VirtualPatient),
             });
 
             const session: any = new RealtimeSession(agent, {
@@ -204,7 +172,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             console.log("✅ 사용자 음성 업로드 완료:", userKey);
 
             // 채점 페이지로 이동
-            router.push(`/score?s3Key=${encodeURIComponent(userKey)}`);
+            router.push(`/score?s3Key=${encodeURIComponent(userKey)}&caseName=${encodeURIComponent(caseName)}`);
         } catch (err) {
             console.error("❌ 업로드 중 오류:", err);
             alert("업로드 실패");
@@ -220,7 +188,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         if (!connected) startSession();
         else stopSession();
     };
-    const { bp, pulse, rr, temp } = caseData.vitals;
+    const vitalData = caseData?.properties.meta.vitals;
 
 
     // ===== UI =====
@@ -229,13 +197,13 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             <div className="flex flex-col">
                 <SmallHeader
                     title={`${category} | ${caseName}`}
-                    onClick={() => router.push("/record-select")}
+                    onClick={() => router.push("/live-select")}
                 />
 
                 {/* 설명 */}
                 <div className="px-8 pt-4">
                     <p className="text-[#210535] text-[18px] leading-relaxed">
-                        {caseData.description}
+                        {caseData?.description}
                     </p>
                 </div>
 
@@ -244,28 +212,28 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     <div className="flex gap-2">
                         <div className="text-[#210535] font-semibold text-[18px]">혈압</div>
                         <div className="text-[#210535] text-[18px]">
-                            {bp.systolic}/{bp.diastolic}
+                            {vitalData?.bp}
                         </div>
                     </div>
 
                     <div className="flex gap-2">
                         <div className="text-[#210535] font-semibold text-[18px]">맥박</div>
                         <div className="text-[#210535] text-[18px]">
-                            {pulse}
+                            {vitalData?.hr}
                         </div>
                     </div>
 
                     <div className="flex gap-2">
                         <div className="text-[#210535] font-semibold text-[18px]">호흡수</div>
                         <div className="text-[#210535] text-[18px]">
-                            {rr}
+                            {vitalData?.rr}
                         </div>
                     </div>
 
                     <div className="flex gap-2">
                         <div className="text-[#210535] font-semibold text-[18px]">체온</div>
                         <div className="text-[#210535] text-[18px]">
-                            {formatTemp(temp)}
+                            {formatTemp(Number(vitalData?.bt))}
                         </div>
                     </div>
                 </div>
