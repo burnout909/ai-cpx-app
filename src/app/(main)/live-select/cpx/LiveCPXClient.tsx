@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { RealtimeAgent, RealtimeSession } from "@openai/agents/realtime";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { v4 as uuidv4 } from "uuid";
@@ -8,7 +8,7 @@ import BottomFixButton from "@/component/BottomFixButton";
 import PlayIcon from "@/assets/icon/PlayIcon.svg";
 import PauseIcon from "@/assets/icon/PauseIcon.svg";
 import Spinner from "@/component/Spinner";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { standardizeToMP3 } from "@/app/utils/audioPreprocessing";
 import buildPatientInstructions from "./buildPrompt";
 import { loadVirtualPatient, VirtualPatient } from "@/utils/loadVirtualPatient";
@@ -30,7 +30,64 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const [isFinished, setIsFinished] = useState(false);
     //환자 caseData
     const [caseData, setCaseData] = useState<VirtualPatient | null>(null);
+    const pathname = usePathname(); // 현재 URL 경로 추적
 
+    /**stopSession */
+    const stopAndResetSession = useCallback(async () => {
+        try {
+            // 세션 종료
+            if (sessionRef.current) {
+                await (sessionRef.current as any).close?.();
+                sessionRef.current = null;
+            }
+            // 녹음 중단
+            if (recorderRef.current?.state === "recording") {
+                recorderRef.current.stop();
+            }
+            recorderRef.current = null;
+            userAudioChunks.current = [];
+            cancelAnimationFrame(rafRef.current!);
+
+            // 상태 초기화
+            setIsRecording(false);
+            setConnected(false);
+            setIsUploading(false);
+            setIsFinished(false);
+            setVolume(0);
+            setSeconds(INITIAL_SECONDS);
+
+        } catch (err) {
+            console.warn(" 세션 종료 중 오류:", err);
+        }
+    }, []);
+
+    /** 라우트 변경 시 자동 정리 */
+    useEffect(() => {
+        // 경로가 /live-select/cpx 가 아니면 정리
+        if (pathname !== "/live-select/cpx") {
+            stopAndResetSession();
+        }
+    }, [pathname, stopAndResetSession]);
+
+    /** 페이지 이탈(새로고침, 닫기) 감지 */
+    useEffect(() => {
+        const handleUnload = () => {
+            if (pathname === "/live-select/cpx") {
+                stopAndResetSession();
+            }
+        };
+        window.addEventListener("beforeunload", handleUnload);
+        return () => {
+            window.removeEventListener("beforeunload", handleUnload);
+        };
+    }, [pathname, stopAndResetSession]);
+
+    /** 컴포넌트 언마운트 시 정리 (ex. Next.js 라우팅 이동) */
+    useEffect(() => {
+        return () => {
+            stopAndResetSession();
+        };
+    }, [stopAndResetSession]);
     useEffect(() => {
         let isMounted = true;
 
@@ -49,6 +106,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             isMounted = false;
         };
     }, [caseName]);
+
     // ===== 레퍼런스 =====
     const sessionRef = useRef<any>(null);
     const recorderRef = useRef<MediaRecorder | null>(null);
@@ -169,8 +227,6 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             });
             if (!res.ok) throw new Error("S3 업로드 실패");
 
-            console.log("✅ 사용자 음성 업로드 완료:", userKey);
-
             // 채점 페이지로 이동
             router.push(`/score?s3Key=${encodeURIComponent(userKey)}&caseName=${encodeURIComponent(caseName)}`);
         } catch (err) {
@@ -190,6 +246,11 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     };
     const vitalData = caseData?.properties.meta.vitals;
 
+    const showTime = useCallback((sec: number) => {
+        const mm = Math.floor(sec / 60).toString().padStart(2, "0");
+        const ss = (sec % 60).toString().padStart(2, "0");
+        return `${mm}:${ss}`;
+    }, []);
 
     // ===== UI =====
     return (
@@ -270,14 +331,18 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                                 <PlayIcon className="w-[240px] h-[240px] text-[#7553FC]" />
                             )}
                         </button>
-                    </div>
 
+                    </div>
+                    {/* 타이머 */}
+                    <div className="font-semibold text-[36px] text-[#7553FC] flex gap-2 items-center">
+                        {showTime(seconds)}
+                    </div>
                     {isUploading && <Spinner borderClassName="border-[#7553FC]" size={40} />}
                 </div>
 
                 <BottomFixButton
-                    disabled={isUploading}
-                    buttonName={isRecording ? "종료 및 채점하기" : "채점하기"}
+                    disabled={isUploading || seconds == 720}
+                    buttonName={"종료 및 채점하기"}
                     onClick={stopSession}
                 />
             </div>
