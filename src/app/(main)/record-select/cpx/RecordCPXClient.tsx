@@ -4,9 +4,9 @@ import BottomFixButton from "@/component/BottomFixButton";
 import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
-import PlayIcon from "@/asset/icon/PlayIcon.svg";
-import PauseIcon from "@/asset/icon/PauseIcon.svg";
-import RefreshIcon from "@/asset/icon/ResetIcon.svg";
+import PlayIcon from "@/assets/icon/PlayIcon.svg";
+import PauseIcon from "@/assets/icon/PauseIcon.svg";
+import RefreshIcon from "@/assets/icon/ResetIcon.svg";
 import Spinner from "@/component/Spinner";
 import { standardizeToMP3 } from "@/app/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
@@ -221,7 +221,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
             if (!res.ok) throw new Error("S3 업로드 실패");
 
             // 업로드 성공 → 채점 페이지로 이동
-            router.push(`/score?s3Key=${encodeURIComponent(key)}`);
+            router.push(`/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`);
         } catch (err: any) {
             console.error(err);
             alert(`❌ 업로드 중 오류: ${err.message || "알 수 없는 오류"}`);

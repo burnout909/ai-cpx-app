@@ -92,7 +92,7 @@ export default function MediaUploadBox(props: MediaUploadBoxProps) {
                     <>
                         <Spinner className="mb-3" borderClassName="border-[#603EEA]" />
                         <p className="text-[16px] text-[#603EEA] font-medium">
-                            파일 업로드 중…
+                            파일 업로드 중
                         </p>
                     </>
                 ) : uploadFileName ? (

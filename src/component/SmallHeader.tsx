@@ -1,5 +1,5 @@
 'use client'
-import LeftArrowIcon from "@/asset/icon/LeftArrowIcon.svg"
+import LeftArrowIcon from "@/assets/icon/LeftArrowIcon.svg"
 export default function SmallHeader({ title, onClick }: { title: string, onClick: () => void; }) {
     return (
         <div className="flex justify-between px-5 py-3 items-center">
