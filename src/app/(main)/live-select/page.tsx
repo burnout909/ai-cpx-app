@@ -13,7 +13,7 @@ type SelectedCaseState = {
 export default function SelectPage() {
     const router = useRouter();
 
-    // ✅ 하나의 객체로 상태 관리
+    // 하나의 객체로 상태 관리
     const [selected, setSelected] = useState<SelectedCaseState>({
         category: LIVE_CASE_CATEGORIES[0].name,
         case: LIVE_CASE_CATEGORIES[0].details[0].name,
