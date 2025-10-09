@@ -1,9 +1,9 @@
 'use client'
 import { ReactNode } from "react";
-import RightArrowIcon from "@/asset/icon/RightArrowIcon.svg"
-import MicroPhoneIcon from "@/asset/icon/MicrophoneIcon.svg"
-import PeopleIcon from "@/asset/icon/PeopleIcon.svg"
-import SprakleIcon from "@/asset/icon/SparkleIcon.svg"
+import RightArrowIcon from "@/assets/icon/RightArrowIcon.svg"
+import MicroPhoneIcon from "@/assets/icon/MicrophoneIcon.svg"
+import PeopleIcon from "@/assets/icon/PeopleIcon.svg"
+import SprakleIcon from "@/assets/icon/SparkleIcon.svg"
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -15,7 +15,7 @@ export default function Home() {
                     icon={<MicroPhoneIcon className="w-[28px] h-[28px] text-[#210535]" />}
                     title={"이미 녹음본이 있어요"}
                     buttonName="채점 받기"
-                    onClick={() => router.push('/upload')}
+                    onClick={() => router.push('/upload-select')}
                 />
                 <HomeComponent
                     icon={<PeopleIcon className="w-[28px] h-[28px] text-[#210535]" />}

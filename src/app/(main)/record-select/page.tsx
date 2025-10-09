@@ -2,7 +2,7 @@
 import { useState } from "react";
 import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
-import { CASE_CATEGORIES } from "@/constants/caseData";
+import { UPLOAD_RECORD_CASE_CATEGORIES } from "@/constants/caseData";
 import BottomFixButton from "@/component/BottomFixButton";
 
 type SelectedCaseState = {
@@ -15,14 +15,14 @@ export default function SelectPage() {
 
     // 하나의 객체로 상태 관리
     const [selected, setSelected] = useState<SelectedCaseState>({
-        category: CASE_CATEGORIES[0].name,
-        case: CASE_CATEGORIES[0].details[0].name,
+        category: UPLOAD_RECORD_CASE_CATEGORIES[0].name,
+        case: UPLOAD_RECORD_CASE_CATEGORIES[0].details[0].name,
     });
 
     // 현재 선택된 대분류 찾기
-    const currentCategory = CASE_CATEGORIES.find(
+    const currentCategory = UPLOAD_RECORD_CASE_CATEGORIES.find(
         (cat) => cat.name === selected.category
-    ) ?? CASE_CATEGORIES[0];
+    ) ?? UPLOAD_RECORD_CASE_CATEGORIES[0];
 
     return (
         <div className="flex flex-col relative">
@@ -31,7 +31,7 @@ export default function SelectPage() {
             <div className="flex flex-row flex-1 px-6 py-4 gap-4 overflow-y-auto pb-[136px]">
                 {/* 왼쪽: 대분류 */}
                 <div className="flex flex-col gap-4 w-1/2">
-                    {CASE_CATEGORIES.map((category) => (
+                    {UPLOAD_RECORD_CASE_CATEGORIES.map((category) => (
                         <button
                             key={category.id}
                             onClick={() => setSelected({ category: category.name, case: category.details[0].name })}
