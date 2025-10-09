@@ -108,16 +108,16 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
             await ensureOkOrThrow(res1, data1);
             const text = data1?.text || '';
 
-            // 3️⃣ 클린업
-            setStatusMessage('전사문 클린업 중');
-            const res2 = await fetch('/api/cleanup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transcript: text }),
-            });
-            const data2 = await readJsonOrText(res2);
-            await ensureOkOrThrow(res2, data2);
-            const cleaned = data2?.text || text;
+            // // 3️⃣ 클린업
+            // setStatusMessage('전사문 클린업 중');
+            // const res2 = await fetch('/api/cleanup', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ transcript: text }),
+            // });
+            // const data2 = await readJsonOrText(res2);
+            // await ensureOkOrThrow(res2, data2);
+            // const cleaned = data2?.text || text;
 
             // 4️⃣ 병렬 증거 수집
             setStatusMessage('모든 섹션 증거 수집 중');
@@ -144,7 +144,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        transcript: cleaned,
+                        transcript: text,
                         evidenceChecklist: checklist,
                         sectionId,
                     }),
@@ -362,7 +362,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
 
 
     return (
-        <div className="flex flex-col items-center justify-center bg-[#FAFAFA] px-4 pb-[136px]">
+        <div className="flex flex-col items-center justify-center px-4 pb-[136px]">
             {/* 진행 상태 */}
             {statusMessage &&
                 <div className="fixed top-3/7 left-1/2 -translate-x-1/2 -translate-y-3/7 text-center text-[24px] font-semibold text-[#7553FC] animate-pulse">
@@ -491,7 +491,7 @@ function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
             style={{ borderColor }}
         >
             <table className="min-w-full text-sm bg-[#FAFAFA]">
-                <thead style={{ backgroundColor: '#F7F5FF' }}>
+                <thead>
                     <tr>
                         <th className="px-4 py-3 text-left font-medium text-[#555]">ID</th>
                         <th className="px-4 py-3 text-left font-medium text-[#555]">
