@@ -114,7 +114,7 @@ export default function MediaUploadBox(props: MediaUploadBoxProps) {
                             오디오 업로드
                         </div>
                         <p className="text-[#210535] text-[14px] mt-2 opacity-70">
-                            오디오 파일을 선택하거나 드래그 앤 드롭하세요
+                            오디오 파일을 선택하거나 드래그 해주세요
                         </p>
                     </>
                 )}
