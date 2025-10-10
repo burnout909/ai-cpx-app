@@ -33,6 +33,8 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const pathname = usePathname(); // 현재 URL 경로 추적
 
     const [isPending, startTransition] = useTransition()
+    //일시정지 안된다는 상태메시지
+    const [statusMessage, setStatusMessage] = useState<string | undefined>(undefined)
 
     /**stopSession */
     const stopAndResetSession = useCallback(async () => {
@@ -245,9 +247,14 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     }
 
     const toggleRecording = () => {
+        if (isRecording) {
+            setStatusMessage('가상환자와의 대화는 일시정지할 수 없어요')
+            return;
+        }
         if (!connected) startSession();
         else stopSession();
     };
+
     const vitalData = caseData?.properties.meta.vitals;
 
     const showTime = useCallback((sec: number) => {
@@ -255,6 +262,15 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         const ss = (sec % 60).toString().padStart(2, "0");
         return `${mm}:${ss}`;
     }, []);
+
+    // 3초 후 자동 사라지는 toast
+    useEffect(() => {
+        if (statusMessage) {
+            const timer = setTimeout(() => setStatusMessage(undefined), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [statusMessage]);
+
 
     return (
         <div className="flex flex-col min-h-screen">
@@ -325,8 +341,9 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                         <button
                             type="button"
                             onClick={toggleRecording}
-                            className="outline-none relative cursor-pointer hover:opacity-70"
-                            disabled={isUploading || isRecording}
+                            className="outline-none relative cursor-pointer hover:opacity-70
+                                                    transition-transform duration-150 ease-out active:scale-90"
+                            disabled={isUploading}
                         >
                             {isRecording ? (
                                 <PauseIcon className="w-[240px] h-[240px] text-[#7553FC] opacity-70" />
@@ -348,7 +365,19 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     onClick={stopSession}
                     loading={isPending || isUploading}
                 />
+                {statusMessage && (
+                    <div
+                        className="
+                        fixed bottom-30 left-1/2 -translate-x-1/2 
+                        bg-[#c7beeeff] text-[#210535] text-[18px] font-medium 
+                        px-4 py-3 rounded-xl shadow-lg flex z-[100]
+                        animate-slideUpFade flex justify-center items-center w-[calc(100%-40px)]
+                        "
+                    >
+                        {statusMessage}
+                    </div>
+                )}
             </div>
-        </div>
+        </div >
     );
 }
