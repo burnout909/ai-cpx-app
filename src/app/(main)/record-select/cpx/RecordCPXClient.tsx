@@ -28,6 +28,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
     const [audioURL, setAudioURL] = useState<string | null>(null);
     const [mp3Blob, setMp3Blob] = useState<Blob | null>(null);
     const [isConverting, setIsConverting] = useState(false);
+    const [isConvertingDirect, setIsConvertingDirect] = useState(false) //바로 전환할 때
     const [isPreviewReady, setIsPreviewReady] = useState(false);
     const [isUploadingToS3, setIsUploadingToS3] = useState(false);
 
@@ -199,35 +200,51 @@ export default function RecordCPXClient({ category, caseName }: Props) {
         }
     }
 
-    // ✅ 업로드 및 채점 이동
+    // 업로드 및 채점 이동 (MP3 변환까지 포함)
     async function handleSubmit() {
-        if (!mp3Blob) {
-            alert("먼저 음성을 변환 후 업로드해주세요!");
-            return;
-        }
-
         try {
-            setIsUploadingToS3(true);
+            // 1️⃣ 변환 준비
+            if (!mp3Blob) {
+                if (audioChunks.current.length === 0) {
+                    alert("녹음된 음성이 없습니다. 먼저 녹음을 완료해주세요!");
+                    return;
+                }
 
+                setIsConvertingDirect(true);
+                try {
+                    const blob = new Blob(audioChunks.current, { type: "audio/webm" });
+                    const mp3 = await standardizeToMP3(blob);
+                    setMp3Blob(mp3);
+                } catch (err) {
+                    console.error(err);
+                    alert("MP3 변환 중 오류가 발생했습니다.");
+                    setIsConvertingDirect(false);
+                    return;
+                } finally {
+                    setIsConvertingDirect(false);
+                }
+            }
+
+            // 2️⃣ S3 업로드
+            setIsUploadingToS3(true);
             const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
             const key = `uploads/${uuidv4()}.mp3`;
 
-            // Presigned URL 생성
             const uploadUrl = await generateUploadUrl(bucket, key);
-
-            // 업로드 실행
             const res = await fetch(uploadUrl, {
                 method: "PUT",
                 headers: { "Content-Type": "audio/mpeg" },
-                body: mp3Blob,
+                body: mp3Blob ?? (await standardizeToMP3(new Blob(audioChunks.current, { type: "audio/webm" }))),
             });
 
             if (!res.ok) throw new Error("S3 업로드 실패");
 
-            // 업로드 성공 → 채점 페이지로 이동
+            // 3️⃣ 업로드 완료 → 채점 페이지 이동
             startTransition(() => {
-                router.push(`/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`);
-            })
+                router.push(
+                    `/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`
+                );
+            });
         } catch (err: any) {
             console.error(err);
             alert(`❌ 업로드 중 오류: ${err.message || "알 수 없는 오류"}`);
@@ -235,6 +252,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
             setIsUploadingToS3(false);
         }
     }
+
 
     return (
         <div className="flex flex-col">
@@ -267,7 +285,8 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                         type="button"
                         onClick={toggleRecording}
                         disabled={isFinished}
-                        className="outline-none relative z-10 cursor-pointer hover:opacity-70"
+                        className="outline-none relative z-10 cursor-pointer hover:opacity-70     
+                        transition-transform duration-150 ease-out active:scale-90"
                     >
                         {isRecording ? (
                             <PauseIcon className="w-[240px] h-[240px] text-[#7553FC]" />
@@ -300,17 +319,15 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                 </div>
 
                 {/* “녹음된 음성 확인하기” */}
-                {(isPaused || isFinished) && !isConverting && !isPreviewReady && (
+                {(isPaused || isFinished) && !isPreviewReady && (
                     <button
                         onClick={handlePreview}
-                        className="mt-4 px-6 py-3 bg-[#7553FC] text-white rounded-xl hover:opacity-90 transition"
+                        className="flex gap-2 items-center justify-center mt-4 px-6 py-3 bg-[#7553FC] text-white rounded-xl hover:opacity-90 transition"
                     >
-                        녹음된 음성 확인하기
+                        <span className="text-[16px] font-medium">녹음된 음성 확인하기</span>
+                        {isConverting && <Spinner borderClassName="border-[#7553FC]" size={12} />}
                     </button>
                 )}
-
-                {isConverting && <Spinner borderClassName="border-[#7553FC]" size={40} />}
-
 
                 {isPreviewReady && audioURL && (
                     <audio controls src={audioURL} className="mt-4 w-full z-10" />
@@ -321,7 +338,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                 disabled={isRecording || isUploadingToS3 || seconds == 720}
                 onClick={handleSubmit}
                 buttonName={isFinished ? "채점하기" : "종료 및 채점하기"}
-                loading={isPending || isUploadingToS3}
+                loading={isConvertingDirect || isPending || isUploadingToS3}
             />
         </div>
     );
