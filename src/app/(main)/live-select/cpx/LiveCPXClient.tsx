@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, useTransition } from "react";
 import { RealtimeAgent, RealtimeSession } from "@openai/agents/realtime";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { v4 as uuidv4 } from "uuid";
@@ -31,6 +31,8 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     //환자 caseData
     const [caseData, setCaseData] = useState<VirtualPatient | null>(null);
     const pathname = usePathname(); // 현재 URL 경로 추적
+
+    const [isPending, startTransition] = useTransition()
 
     /**stopSession */
     const stopAndResetSession = useCallback(async () => {
@@ -228,7 +230,9 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             if (!res.ok) throw new Error("S3 업로드 실패");
 
             // 채점 페이지로 이동
-            router.push(`/score?s3Key=${encodeURIComponent(userKey)}&caseName=${encodeURIComponent(caseName)}`);
+            startTransition(() => {
+                router.push(`/score?s3Key=${encodeURIComponent(userKey)}&caseName=${encodeURIComponent(caseName)}`);
+            })
         } catch (err) {
             console.error("❌ 업로드 중 오류:", err);
             alert("업로드 실패");
@@ -268,7 +272,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                 </div>
 
                 {/* 바이탈표 (2열 그리드) */}
-                <div className="grid grid-cols-2 gap-y-4 gap-x-4 px-8 pt-6 pb-12">
+                <div className="grid grid-cols-2 gap-y-4 gap-x-4 px-8 pt-4 pb-6">
                     <div className="flex gap-2">
                         <div className="text-[#210535] font-semibold text-[18px]">혈압</div>
                         <div className="text-[#210535] text-[18px]">
@@ -298,7 +302,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     </div>
                 </div>
 
-                <div className="px-8 flex-1 pt-[40px] pb-[136px] flex flex-col items-center justify-center gap-[24px] relative overflow-hidden">
+                <div className="px-8 flex-1 pb-[136px] flex flex-col items-center justify-center gap-[12px] relative overflow-hidden">
                     {/* 중앙 녹음 버튼 + 볼륨 애니메이션 */}
                     <div className="relative">
                         {isRecording && (
@@ -321,7 +325,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                         <button
                             type="button"
                             onClick={toggleRecording}
-                            className="outline-none relative z-10 cursor-pointer hover:opacity-70"
+                            className="outline-none relative cursor-pointer hover:opacity-70"
                             disabled={isUploading || isRecording}
                         >
                             {isRecording ? (
@@ -336,13 +340,13 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     <div className="font-semibold text-[36px] text-[#7553FC] flex gap-2 items-center">
                         {showTime(seconds)}
                     </div>
-                    {isUploading && <Spinner borderClassName="border-[#7553FC]" size={40} />}
                 </div>
 
                 <BottomFixButton
                     disabled={isUploading || seconds == 720}
                     buttonName={"종료 및 채점하기"}
                     onClick={stopSession}
+                    loading={isPending || isUploading}
                 />
             </div>
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import MediaUploadBox from "@/component/MediaFileUploader";
 import BottomFixButton from "@/component/BottomFixButton";
 import SmallHeader from "@/component/SmallHeader";
@@ -19,6 +19,7 @@ export default function UploadClient({ category, caseName }: Props) {
     const [mp3Blob, setMp3Blob] = useState<Blob | null>(null);
     const [isUploadingToS3, setIsUploadingToS3] = useState(false);
     const router = useRouter();
+    const [isPending, startTransition] = useTransition()
 
     // 파일 업로드 (로컬 변환 + 미리듣기)
     const handleUpload = async (file: File) => {
@@ -72,7 +73,9 @@ export default function UploadClient({ category, caseName }: Props) {
             if (!res.ok) throw new Error("S3 업로드 실패");
 
             // 3️⃣ 성공 시 채점 페이지로 이동
-            router.push(`/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`);
+            startTransition(() => {
+                router.push(`/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`);
+            })
         } catch (err: any) {
             console.error(err);
             alert(`업로드 중 오류: ${err.message || "알 수 없는 오류"}`);
@@ -89,7 +92,7 @@ export default function UploadClient({ category, caseName }: Props) {
             />
 
             {/* 메인 컨텐츠 */}
-            <main className="flex-1 px-8 pt-4 flex flex-col items-center">
+            <main className="flex-1 px-5 pt-4 flex flex-col items-center">
                 <MediaUploadBox
                     onUpload={handleUpload}
                     uploadFileName={uploadFileName}
@@ -107,12 +110,6 @@ export default function UploadClient({ category, caseName }: Props) {
                         />
                     </div>
                 )}
-
-                {isUploadingToS3 &&
-                    <div className="mt-8 w-full flex justify-center">
-                        <Spinner borderClassName="border-[#7553FC]" size={40} />
-                    </div>}
-
             </main>
 
 
@@ -121,6 +118,7 @@ export default function UploadClient({ category, caseName }: Props) {
                 disabled={!mp3Blob || isUploadLoading || isUploadingToS3}
                 onClick={handleSubmit}
                 buttonName={"채점하기"}
+                loading={isPending || isUploadingToS3}
             />
         </div>
     );
