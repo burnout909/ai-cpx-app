@@ -3,7 +3,7 @@
 import BottomFixButton from "@/component/BottomFixButton";
 import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useTransition } from "react";
 import PlayIcon from "@/assets/icon/PlayIcon.svg";
 import PauseIcon from "@/assets/icon/PauseIcon.svg";
 import RefreshIcon from "@/assets/icon/ResetIcon.svg";
@@ -45,6 +45,10 @@ export default function RecordCPXClient({ category, caseName }: Props) {
         const ss = (sec % 60).toString().padStart(2, "0");
         return `${mm}:${ss}`;
     }, []);
+
+    //transition관리
+    const [isPending, startTransition] = useTransition();
+
 
     // 카테고리나 케이스 바뀌면 초기화
     useEffect(() => {
@@ -221,7 +225,9 @@ export default function RecordCPXClient({ category, caseName }: Props) {
             if (!res.ok) throw new Error("S3 업로드 실패");
 
             // 업로드 성공 → 채점 페이지로 이동
-            router.push(`/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`);
+            startTransition(() => {
+                router.push(`/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`);
+            })
         } catch (err: any) {
             console.error(err);
             alert(`❌ 업로드 중 오류: ${err.message || "알 수 없는 오류"}`);
@@ -237,7 +243,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                 onClick={() => router.push("/record-select")}
             />
 
-            <div className="px-8 flex-1 pt-[40px] pb-[136px] flex flex-col items-center justify-center gap-[24px] relative overflow-hidden">
+            <div className="px-8 flex-1 pt-[20px] pb-[136px] flex flex-col items-center justify-center gap-[12px] relative overflow-hidden">
                 {/* 중앙 녹음 버튼 + 볼륨 애니메이션 */}
                 <div className="relative">
                     {isRecording && (
@@ -312,9 +318,10 @@ export default function RecordCPXClient({ category, caseName }: Props) {
             </div>
 
             <BottomFixButton
-                disabled={isRecording || isUploadingToS3 || seconds==720}
+                disabled={isRecording || isUploadingToS3 || seconds == 720}
                 onClick={handleSubmit}
                 buttonName={isFinished ? "채점하기" : "종료 및 채점하기"}
+                loading={isPending || isUploadingToS3}
             />
         </div>
     );
