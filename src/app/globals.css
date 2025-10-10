@@ -8,3 +8,29 @@
     "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol", sans-serif;
 }
+
+@keyframes slideUpFade {
+  0% {
+    opacity: 0;
+    transform: translate(0%, 20px);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translate(0%, 0);
+  }
+
+  85% {
+    opacity: 1;
+    transform: translate(0%, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(0%, 20px);
+  }
+}
+
+.animate-slideUpFade {
+  animation: slideUpFade 3s ease-in-out forwards;
+}
