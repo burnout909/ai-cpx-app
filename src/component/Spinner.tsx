@@ -11,7 +11,7 @@ export default function Spinner({
 }: SpinnerProps) {
     return (
         <div
-            className={`inline-block animate-spin rounded-full border-4 border-solid border-t-transparent ${borderClassName} ${className}`}
+            className={`inline-block animate-spin rounded-full border-2 border-solid border-t-transparent ${borderClassName} ${className}`}
             style={{ width: size, height: size }}
             role="status"
         />

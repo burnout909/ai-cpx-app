@@ -78,7 +78,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
     async function runAutoPipeline(key: string, caseName: string) {
         try {
             // 1️⃣ 체크리스트 불러오기
-            setStatusMessage('체크리스트 로드 중...');
+            setStatusMessage('채점 기준 로드 중');
             const { evidence, score } = await loadChecklistByCase(caseName!);
 
             // evidence(named exports)
@@ -120,7 +120,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
             // const cleaned = data2?.text || text;
 
             // 4️⃣ 병렬 증거 수집
-            setStatusMessage('모든 섹션 증거 수집 중');
+            setStatusMessage('채점 중');
 
             const checklistMap: Record<'history' | 'physical_exam' | 'education' | 'ppi', EvidenceChecklist[]> = {
                 history: HistoryEvidenceChecklist,
@@ -365,12 +365,12 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
         <div className="flex flex-col items-center justify-center px-4 pb-[136px]">
             {/* 진행 상태 */}
             {statusMessage &&
-                <div className="fixed top-3/7 left-1/2 -translate-x-1/2 -translate-y-3/7 text-center text-[24px] font-semibold text-[#7553FC] animate-pulse">
+                <div className="fixed top-3/7 left-1/2 -translate-x-1/2 -translate-y-3/7 text-center text-[20px] font-semibold text-[#7553FC] animate-pulse">
                     {statusMessage}
                 </div>
             }
-            <div className="max-w-4xl w-full py-[20px]" id='report-root'>
-                <h1 className="text-2xl font-semibold mb-6 text-left">
+            <div className="w-full py-[10px]" id='report-root'>
+                <h1 className="text-[24px] font-semibold mb-5 text-left">
                     {!statusMessage && 'Report'}
                 </h1>
 
@@ -423,7 +423,7 @@ function ReportSummary({
     return (
         <>
             <div
-                className="mb-4 rounded-xl p-4 flex justify-between"
+                className="mb-3 rounded-xl p-4 flex justify-between"
                 style={{
                     border: `2px solid ${primaryColor}`,
                     backgroundColor: '#FFFFFF',
@@ -438,7 +438,7 @@ function ReportSummary({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
                 {Object.entries(totals).map(([key, val]) => {
                     const isActive = active === key;
                     return (
