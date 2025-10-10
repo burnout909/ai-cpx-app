@@ -25,8 +25,7 @@ export const PhysicalExamScoreChecklist: ScoreChecklist[] = [
     { "id": "PE-05", "max_evidence_count": 4 },
     { "id": "PE-06", "max_evidence_count": 1 },
     { "id": "PE-07", "max_evidence_count": 1 },
-    { "id": "PE-08", "max_evidence_count": 1 },
-    { "id": "PE-09", "max_evidence_count": 1 }
+    { "id": "PE-08", "max_evidence_count": 1 }
 ];
 
 export const EducationScoreChecklist: ScoreChecklist[] = [

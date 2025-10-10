@@ -15,7 +15,10 @@ export const HistoryScoreChecklist: ScoreChecklist[] = [
     { "id": "HX-10", "max_evidence_count": 2 },
     { "id": "HX-11", "max_evidence_count": 3 },
     { "id": "HX-12", "max_evidence_count": 2 },
-    { "id": "HX-13", "max_evidence_count": 1 }
+    { "id": "HX-13", "max_evidence_count": 1 },
+    { "id": "HX-14", "max_evidence_count": 2 },
+    { "id": "HX-15", "max_evidence_count": 1 },
+    { "id": "HX-16", "max_evidence_count": 1 }
 ];
 
 export const PhysicalExamScoreChecklist: ScoreChecklist[] = [
