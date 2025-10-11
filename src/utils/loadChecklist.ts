@@ -14,7 +14,7 @@ export type EvidenceModule = {
     HistoryEvidenceChecklist: EvidenceChecklist[];
     PhysicalexamEvidenceChecklist: EvidenceChecklist[];
     EducationEvidenceChecklist: EvidenceChecklist[];
-    PpiEvidenceChecklist: EvidenceChecklist[];
+    PpiEvidenceChecklist?: EvidenceChecklist[];
 };
 
 // score 파일이 내보내는 named exports 묶음 타입
@@ -22,7 +22,7 @@ export type ScoreModule = {
     HistoryScoreChecklist: ScoreChecklist[];
     PhysicalExamScoreChecklist: ScoreChecklist[];
     EducationScoreChecklist: ScoreChecklist[];
-    PpiScoreChecklist: ScoreChecklist[];
+    PpiScoreChecklist?: ScoreChecklist[];
 };
 
 export async function loadChecklistByCase(caseName: string): Promise<LoadResult> {
@@ -225,7 +225,105 @@ export async function loadChecklistByCase(caseName: string): Promise<LoadResult>
                 evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_37_headache")) as EvidenceModule,
                 score: (await import("@/assets/scoreChecklist/scoreChecklist_37_headache")) as ScoreModule,
             };
+        case "경련":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_38_seizure")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_38_seizure")) as ScoreModule,
+            };
+        case "근력/감각이상":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_39_limbWeaknessAndParesthesia")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_39_limbWeaknessAndParesthesia")) as ScoreModule,
+            };
+        case "의식장애":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_40_impairedConsciousness")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_40_impairedConsciousness")) as ScoreModule,
+            };
+        case "떨림":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_41_tremor")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_41_tremor")) as ScoreModule,
+            };
 
+        // 🔹 여성/소아
+        case "유방덩이/통증":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_42_matalgiaAndBreastLump")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_42_matalgiaAndBreastLump")) as ScoreModule,
+            };
+        case "질분비물":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_43-1_vaginalDischarge")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_43-1_vaginalDischarge")) as ScoreModule,
+            };
+        case "질출혈":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_43-2_vaginalBleeding")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_43-2_vaginalBleeding")) as ScoreModule,
+            };
+        case "월경이상":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_44-1_amenorrhea")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_44-1_amenorrhea")) as ScoreModule,
+            };
+        case "월경통":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_44-2_dysmenorrhea")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_44-2_dysmenorrhea")) as ScoreModule,
+            };
+        case "산전진찰":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_45_prenatalCare")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_45_prenatalCare")) as ScoreModule,
+            };
+        case "성장/발달지연":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_46_growthDelayOrDevelopmentalDelay")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_46_growthDelayOrDevelopmentalDelay")) as ScoreModule,
+            };
+        case "예방접종":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_47_vaccination")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_47_vaccination")) as ScoreModule,
+            };
+
+        // 🔹 상담
+        case "음주상담":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_48_alcoholCounseling")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_48_alcoholCounseling")) as ScoreModule,
+            };
+        case "금연상담":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_49_smokingCessationCounseling")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_49_smokingCessationCounseling")) as ScoreModule,
+            };
+        case "물질오남용":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_50_substanceAbuse")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_50_substanceAbuse")) as ScoreModule,
+            };
+        case "나쁜소식전하기":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_51_breakingBadNews")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_51_breakingBadNews")) as ScoreModule,
+            };
+        case "가정폭력":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_52_domesticViolence")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_52_domesticViolence")) as ScoreModule,
+            };
+        case "자살":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_53_suicide")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_53_suicide")) as ScoreModule,
+            };
+        case "성폭력":
+            return {
+                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_54_sexualViolence")) as EvidenceModule,
+                score: (await import("@/assets/scoreChecklist/scoreChecklist_54_sexualViolence")) as ScoreModule,
+            };
         // 🔁 기본 fallback (준비 안 된 케이스)
         default:
             return {

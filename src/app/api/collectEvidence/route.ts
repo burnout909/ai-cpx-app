@@ -29,7 +29,7 @@ export interface EvidenceChecklistItem {
 /** Request DTO */
 export interface CollectEvidenceRequest {
     transcript: TranscriptInput;
-    evidenceChecklist: EvidenceChecklistItem[];
+    evidenceChecklist?: EvidenceChecklistItem[];
     sectionId: SectionId; // 섹션 구분
 }
 
@@ -96,7 +96,7 @@ export async function POST(
         const evidenceChecklist = payload?.evidenceChecklist ?? [];
         const sectionId = payload?.sectionId;
 
-        if (!transcriptText || !evidenceChecklist?.length || !sectionId) {
+        if (!transcriptText || !sectionId) {
             return NextResponse.json<CollectEvidenceError>(
                 { detail: "Invalid payload: transcript, evidenceChecklist, sectionId required." },
                 { status: 400 }
