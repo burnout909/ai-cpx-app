@@ -83,18 +83,18 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
 
             // evidence(named exports)
             const {
-                HistoryEvidenceChecklist,
-                PhysicalexamEvidenceChecklist,
-                EducationEvidenceChecklist,
-                PpiEvidenceChecklist,
+                HistoryEvidenceChecklist = [],
+                PhysicalexamEvidenceChecklist = [],
+                EducationEvidenceChecklist = [],
+                PpiEvidenceChecklist = [],
             } = evidence;
 
             // score(named exports)
             const {
-                HistoryScoreChecklist,
-                PhysicalExamScoreChecklist,
-                EducationScoreChecklist,
-                PpiScoreChecklist,
+                HistoryScoreChecklist = [],
+                PhysicalExamScoreChecklist = [],
+                EducationScoreChecklist = [],
+                PpiScoreChecklist = [],
             } = score;
 
             // 2️⃣ 전사
@@ -204,18 +204,18 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
 
             // evidence(named exports)
             const {
-                HistoryEvidenceChecklist,
-                PhysicalexamEvidenceChecklist,
-                EducationEvidenceChecklist,
-                PpiEvidenceChecklist,
+                HistoryEvidenceChecklist = [],
+                PhysicalexamEvidenceChecklist = [],
+                EducationEvidenceChecklist = [],
+                PpiEvidenceChecklist = [],
             } = evidence;
 
             // score(named exports)
             const {
-                HistoryScoreChecklist,
-                PhysicalExamScoreChecklist,
-                EducationScoreChecklist,
-                PpiScoreChecklist,
+                HistoryScoreChecklist = [],
+                PhysicalExamScoreChecklist = [],
+                EducationScoreChecklist = [],
+                PpiScoreChecklist = [],
             } = score;
             // 이미 transcript 존재 → 다운로드 URL 생성
             const transcript = generateDownloadUrl(bucket as string, key);
