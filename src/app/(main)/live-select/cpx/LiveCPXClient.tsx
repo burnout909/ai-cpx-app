@@ -165,7 +165,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             });
 
             const session: any = new RealtimeSession(agent, {
-                model: "gpt-4o-realtime-preview",
+                model: "gpt-realtime-mini-2025-10-06",
             });
             sessionRef.current = session;
 
