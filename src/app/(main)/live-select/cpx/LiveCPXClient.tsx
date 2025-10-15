@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef, useMemo, useCallback, useTransition } from "react";
+import { useEffect, useState, useRef, useCallback, useTransition } from "react";
 import { RealtimeAgent, RealtimeSession } from "@openai/agents/realtime";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { v4 as uuidv4 } from "uuid";
@@ -7,11 +7,11 @@ import SmallHeader from "@/component/SmallHeader";
 import BottomFixButton from "@/component/BottomFixButton";
 import PlayIcon from "@/assets/icon/PlayIcon.svg";
 import PauseIcon from "@/assets/icon/PauseIcon.svg";
-import Spinner from "@/component/Spinner";
 import { usePathname, useRouter } from "next/navigation";
 import { standardizeToMP3 } from "@/app/utils/audioPreprocessing";
 import buildPatientInstructions from "./buildPrompt";
 import { loadVirtualPatient, VirtualPatient } from "@/utils/loadVirtualPatient";
+import LiveClientPopup from "@/component/LiveClientPopup";
 type Props = { category: string; caseName: string };
 
 const INITIAL_SECONDS = 12 * 60; // 720s = 12분
@@ -28,6 +28,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const [isUploading, setIsUploading] = useState(false);
     const [seconds, setSeconds] = useState<number>(INITIAL_SECONDS);
     const [isFinished, setIsFinished] = useState(false);
+    const [showPopup, setShowPopup] = useState(false); //가상환자 클릭시 popup 띄우기
     //환자 caseData
     const [caseData, setCaseData] = useState<VirtualPatient | null>(null);
     const pathname = usePathname(); // 현재 URL 경로 추적
@@ -64,6 +65,14 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             console.warn(" 세션 종료 중 오류:", err);
         }
     }, []);
+
+    /** popup show */
+    useEffect(() => {
+        const isPopupShown = localStorage.getItem("isLiveClientShow");
+        if (isPopupShown !== "false") {
+            setShowPopup(true)
+        }
+    }, [setShowPopup])
 
     /** 라우트 변경 시 자동 정리 */
     useEffect(() => {
@@ -258,7 +267,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
 
     const toggleRecording = () => {
         if (isRecording) {
-            setStatusMessage('가상환자와의 대화는 일시정지할 수 없어요')
+            setStatusMessage('가상환자와의 대화는 일시정지할 수 없어요');
             return;
         }
         if (!connected) startSession();
@@ -283,7 +292,8 @@ export default function LiveCPXClient({ category, caseName }: Props) {
 
 
     return (
-        <div className="flex flex-col min-h-screen">
+        <div className="flex flex-col min-h-dvh">
+            {showPopup && <LiveClientPopup onClose={() => setShowPopup(false)} />}
             <div className="flex flex-col">
                 <SmallHeader
                     title={`${category} | ${caseName}`}
