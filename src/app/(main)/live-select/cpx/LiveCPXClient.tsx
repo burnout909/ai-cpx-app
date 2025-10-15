@@ -162,6 +162,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             const agent = new RealtimeAgent({
                 name: "표준화 환자 AI",
                 instructions: buildPatientInstructions(caseData as VirtualPatient),
+                voice: "ash"
             });
 
             const session: any = new RealtimeSession(agent, {
@@ -169,8 +170,17 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             });
             sessionRef.current = session;
 
-            await session.connect({ apiKey: value });
-            console.log("✅ Connected to OpenAI Realtime API");
+            await session.connect({
+                apiKey: value,
+                speed: 1.5,
+                turnDetection: {
+                    type: "server_vad", //서버 기반 voice detection
+                    silence_duration_ms: 200,   // 0.2초 침묵 → 턴 종료 판단
+                    autoStart: false, //먼저 발화하지 않도록 설정
+                    prefix_padding_ms: 150, //AI 발화시 앞부분 잘리지 않게 padding
+                    min_duration_ms: 250, // 너무 짧은 음성(숨소리 등) 무시
+                },
+            });
             setConnected(true);
 
             // 🎙 마이크 스트림 수집
