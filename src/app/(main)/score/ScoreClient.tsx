@@ -493,7 +493,6 @@ function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
             <table className="min-w-full text-sm bg-[#FAFAFA]">
                 <thead>
                     <tr>
-                        <th className="px-4 py-3 text-left font-medium text-[#555]">ID</th>
                         <th className="px-4 py-3 text-left font-medium text-[#555]">
                             체크리스트
                         </th>
@@ -505,7 +504,6 @@ function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
                 <tbody style={{ color: '#333' }}>
                     {grades.map((g) => (
                         <tr key={g.id} className="align-top border-t" style={{ borderColor }}>
-                            <td className="px-4 py-3 font-mono text-xs">{g.id}</td>
                             <td className="px-4 py-3">
                                 <div className="font-medium">{g.title}</div>
                                 {g.evidence?.length > 0 && (
