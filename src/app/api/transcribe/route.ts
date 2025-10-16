@@ -4,6 +4,7 @@ import { toFile } from "openai/uploads";
 import { extname } from "path";
 import { generateDownloadUrl } from "../s3/s3";
 
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
 

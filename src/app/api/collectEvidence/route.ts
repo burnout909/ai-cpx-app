@@ -106,6 +106,7 @@ export async function POST(
         const sys =
             "당신은 한국 의대 CPX 자동 채점기를 위한 '증거 수집기' 역할입니다. " +
             "입력으로 전사 텍스트와 특정 섹션(sectionId)의 체크리스트(각 항목: id, title, criteria)를 받습니다. " +
+            "단, 체크리스트는 참고 기준일 뿐, transcript 내용이 아닙니다. criteria의 문장이나 표현을 그대로 evidence로 사용하거나 인용해서는 안 됩니다. " +
             "각 항목의 criteria를 충족한다고 판단되는 transcript 내 근거 문장(세그먼트 단위 직접 인용)을 evidence 배열로 반환하세요. " +
             "출력은 반드시 JSON 스키마 형식만 따르세요.";
 

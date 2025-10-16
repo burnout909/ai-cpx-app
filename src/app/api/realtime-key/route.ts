@@ -16,7 +16,7 @@ export async function GET() {
             body: JSON.stringify({
                 session: {
                     type: "realtime",
-                    model: "gpt-4o-realtime-preview",
+                    model: "gpt-realtime-mini-2025-10-06",
                 },
             }),
         });
