@@ -184,8 +184,6 @@ export async function POST(
       contentJSON ||
       "{}";
 
-    console.log(req.json, contentJSON);
-
     let data: LLMResponseShape;
     try {
       data = JSON.parse(jsonText) as LLMResponseShape;
