@@ -6,6 +6,7 @@ import PeopleIcon from "@/assets/icon/PeopleIcon.svg"
 import SprakleIcon from "@/assets/icon/SparkleIcon.svg"
 import { useRouter } from "next/navigation";
 import Spinner from "@/component/Spinner";
+import BottomFixButton from "@/component/BottomFixButton";
 
 export default function Home() {
     const router = useRouter();
@@ -32,6 +33,7 @@ export default function Home() {
                     onClick={() => router.push('/live-select')}
                 />
             </div>
+            <BottomFixButton onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLScYsGU3Zuj9eHVxClKPYBA9vKQvVvbU2stElJ6zfG13A5mvvg/viewform", "_blank")} disabled={false} buttonName={"의견 남기기"} />
         </div>
     );
 }
@@ -74,7 +76,7 @@ function HomeComponent({
             >
                 <span className="text-[18px] font-semibold flex gap-2 items-center">
                     {buttonName}
-                    {isPending && <Spinner size={20} borderClassName="border-[#210535]"/>} {/* pending 중이면 스피너 표시 */}
+                    {isPending && <Spinner size={20} borderClassName="border-[#210535]" />} {/* pending 중이면 스피너 표시 */}
                 </span>
                 <RightArrowIcon className="w-[24px] h-[24px]" />
 
