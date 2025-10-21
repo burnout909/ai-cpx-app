@@ -39,7 +39,7 @@ export default function BottomFixButton({
             <div
                 className="
           fixed mx-auto max-w-[450px] h-[126px] bottom-0 left-0 right-0
-          backdrop-blur-xs
+          backdrop-blur-xs z-[49]
         "
             />
         </>

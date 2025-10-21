@@ -6,7 +6,7 @@ import BottomFixButton from "@/component/BottomFixButton";
 import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
-import { standardizeToMP3 } from "@/app/utils/audioPreprocessing";
+import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import Spinner from "@/component/Spinner";
 

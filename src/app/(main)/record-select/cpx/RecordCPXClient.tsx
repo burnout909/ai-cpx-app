@@ -8,7 +8,7 @@ import PlayIcon from "@/assets/icon/PlayIcon.svg";
 import PauseIcon from "@/assets/icon/PauseIcon.svg";
 import RefreshIcon from "@/assets/icon/ResetIcon.svg";
 import Spinner from "@/component/Spinner";
-import { standardizeToMP3 } from "@/app/utils/audioPreprocessing";
+import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { v4 as uuidv4 } from "uuid";
 

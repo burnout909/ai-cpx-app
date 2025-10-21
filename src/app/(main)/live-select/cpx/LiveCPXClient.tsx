@@ -8,7 +8,7 @@ import BottomFixButton from "@/component/BottomFixButton";
 import PlayIcon from "@/assets/icon/PlayIcon.svg";
 import PauseIcon from "@/assets/icon/PauseIcon.svg";
 import { usePathname, useRouter } from "next/navigation";
-import { standardizeToMP3 } from "@/app/utils/audioPreprocessing";
+import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import buildPatientInstructions from "./buildPrompt";
 import { loadVirtualPatient, VirtualPatient } from "@/utils/loadVirtualPatient";
 import LiveClientPopup from "@/component/LiveClientPopup";
