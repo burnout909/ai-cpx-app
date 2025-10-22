@@ -1,6 +1,9 @@
 // /app/api/collectEvidence/route.ts
 import { NextResponse } from "next/server";
 import { getOpenAIClient } from "../_lib";
+import { z } from "zod";
+import { zodTextFormat } from "openai/helpers/zod";
+
 
 /* =========================
    Types (DTO)
@@ -50,7 +53,7 @@ export interface CollectEvidenceError {
 
 /** 내부 LLM 파싱용 */
 interface LLMResponseShape {
-  evidence: Array<{ id?: unknown; evidence?: unknown }>;
+  evidenceList: Array<{ id?: unknown; evidence?: unknown }>;
 }
 
 /* =========================
@@ -86,6 +89,16 @@ function normalizeEvidence(x: unknown): string[] {
   return [];
 }
 
+// Structured Output 스키마 (Zod)
+const EvidenceSchema = z.object({
+  evidenceList: z.array(
+    z.object({
+      id: z.string(),
+      evidence: z.array(z.string()),
+    })
+  ),
+});
+
 /* =========================
    Route
 ========================= */
@@ -117,30 +130,6 @@ export async function POST(
 
     const openai = await getOpenAIClient();
 
-    const jsonSchema = {
-      name: "evidence_list_schema",
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          evidenceList: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                evidence: { type: "array", items: { type: "string" } },
-              },
-              required: ["id", "evidence"],
-              additionalProperties: false,
-            },
-          },
-        },
-        required: ["evidenceList"],
-      },
-      strict: true,
-    } as const;
-
     const sys =
       `당신은 한국 의대 CPX 자동 채점기를 위한 “증거 수집기(Evidence Collector)”입니다. 입력으로 
 (1) 대화 전사 텍스트(의사/환자 발화 구분 없이 시간 순서로 포함)와 
@@ -149,13 +138,12 @@ export async function POST(
 
 출력 형식(절대 준수)
 반드시 아래 JSON 스키마만 출력하세요. 불필요한 코멘트/설명/추가 필드는 금지합니다.
-[
 {
-"id": "체크리스트 항목 id",
-"evidence": ["전사에서의 직접 인용 1", "직접 인용 2", ...]
-},
-...
-]
+  "evidenceList": [
+    {"id": "체크리스트 항목 id", "evidence": ["전사에서의 직접 인용 1", "직접 인용 2", ...]}, 
+    ...
+  ]
+}
 evidence에는 0개 이상을 담을 수 있습니다. 문자열은 전사문에서 그대로 따오되, 양끝 불필요 공백만 제거하세요.
 
 핵심 원칙
@@ -249,61 +237,70 @@ evidence에는 0개 이상을 담을 수 있습니다. 문자열은 전사문에
 * JSON 외 다른 텍스트는 출력하지 마세요.
 ’’’json`
 
-    let contentJSON: string | undefined;
     try {
-      const resp = await openai.chat.completions.create({
+      // Structured Output API 호출
+      const resp = await openai.responses.parse({
         model: "gpt-5-2025-08-07",
-        response_format: {
-          type: "json_schema",
-          json_schema: jsonSchema as any,
-        },
-        messages: [
+        input: [
           { role: "system", content: sys },
           { role: "user", content: JSON.stringify(userMsg) },
         ],
+        text: {
+          format: zodTextFormat(EvidenceSchema, "evidence_list_schema"),
+        },
         temperature: 0,
-        max_tokens: 3000,
+        max_output_tokens: 3000,
       });
-      contentJSON = resp.choices?.[0]?.message?.content ?? "";
-    } catch {
-      const resp = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: sys + "\n반드시 JSON만 출력하세요." },
-          { role: "user", content: JSON.stringify(userMsg) },
-        ],
-        temperature: 0.2,
-        max_tokens: 3000,
+
+      // 2파싱된 결과를 그대로 사용
+      const data = resp.output_parsed; // 이미 Zod 검증 통과된 객체이므로 불러오기
+
+      // evidence 배열 보정
+      const finalEvidenceList: EvidenceListItem[] =
+        data?.evidenceList?.map((row) => ({
+          id: row.id,
+          evidence: normalizeEvidence(row.evidence),
+        })) ?? [];
+
+      // 결과 반환
+      return NextResponse.json<CollectEvidenceResponse>({
+        evidenceList: finalEvidenceList,
       });
-      contentJSON = resp.choices?.[0]?.message?.content ?? "";
+    } catch (error) {
+
+      try {
+        const fallback = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: sys + "\n반드시 JSON만 출력하세요(마크다운 금지)." },
+            { role: "user", content: JSON.stringify(userMsg) },
+          ],
+          temperature: 0.2,
+          max_tokens: 3000,
+        });
+
+        const parsed = JSON.parse(fallback.choices?.[0]?.message?.content ?? "{}");
+
+        const finalEvidenceList: EvidenceListItem[] =
+          (parsed?.evidenceList ?? []).map((row: any) => ({
+            id: String(row?.id ?? ""),
+            evidence: normalizeEvidence(row?.evidence),
+          }));
+
+        return NextResponse.json<CollectEvidenceResponse>({
+          evidenceList: finalEvidenceList,
+        });
+      } catch (innerErr) {
+        const msg = innerErr instanceof Error ? innerErr.message : String(innerErr);
+        return NextResponse.json<CollectEvidenceError>(
+          { detail: `collectEvidence failed: ${msg}` },
+          { status: 500 }
+        );
+      }
     }
-
-    const jsonText =
-      (contentJSON && contentJSON.match(/\{[\s\S]*\}$/)?.[0]) ||
-      contentJSON ||
-      "{}";
-
-    let data: LLMResponseShape;
-    try {
-      data = JSON.parse(jsonText) as LLMResponseShape;
-    } catch {
-      data = { evidence: [] };
-    }
-
-    // evidence를 항상 배열로 보정
-    const finalEvidenceList: EvidenceListItem[] = (data?.evidence ?? []).map(
-      (row) => ({
-        id: typeof row?.id === "string" ? row.id : "",
-        evidence: normalizeEvidence(row?.evidence),
-      })
-    );
-
-    return NextResponse.json<CollectEvidenceResponse>({
-      evidenceList: finalEvidenceList,
-    });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json<CollectEvidenceError>(
       { detail: `collectEvidence failed: ${msg}` },
       { status: 500 }

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getOpenAIClient } from "../_lib";
 import { GradeItem } from "@/types/score";
+import z from "zod";
+import { zodTextFormat } from "openai/helpers/zod.mjs";
 
 /* =========================
    Types (DTO)
@@ -24,6 +26,17 @@ export interface FeedbackResponse {
 export interface FeedbackError {
     detail: string;
 }
+
+/* =========================
+   Zod Schema (Structured Output)
+========================= */
+const FeedbackSchema = z.object({
+    history_taking_feedback: z.string(),
+    physical_exam_feedback: z.string(),
+    patient_education_feedback: z.string(),
+    ppi_feedback: z.string(),
+    overall_summary: z.string(),
+});
 
 /* =========================
    Route
@@ -165,56 +178,60 @@ export async function POST(
             graded: payload.graded,
         };
 
-        let contentJSON: string | undefined;
-
+        /* =========================
+        ✅ Structured Output 호출
+     ========================== */
         try {
-            const resp = await openai.chat.completions.create({
+            const resp = await openai.responses.parse({
                 model: "gpt-5-2025-08-07",
-                response_format: {
-                    type: "json_schema",
-                    json_schema: jsonSchema as any,
-                },
-                messages: [
+                input: [
                     { role: "system", content: sys },
                     { role: "user", content: JSON.stringify(userMsg) },
                 ],
+                text: {
+                    format: zodTextFormat(FeedbackSchema, "feedback_schema"),
+                },
                 temperature: 0.3,
-                max_tokens: 3500,
+                max_output_tokens: 3500,
             });
-            contentJSON = resp.choices?.[0]?.message?.content ?? "";
-        } catch {
-            const resp = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
-                response_format: { type: "json_object" },
-                messages: [
-                    { role: "system", content: sys + "\n\n반드시 JSON만 출력하세요." },
-                    { role: "user", content: JSON.stringify(userMsg) },
-                ],
-                temperature: 0.3,
-                max_tokens: 3500,
-            });
-            contentJSON = resp.choices?.[0]?.message?.content ?? "";
-        }
 
-        const jsonText =
-            (contentJSON && contentJSON.match(/\{[\s\S]*\}$/)?.[0]) ||
-            contentJSON ||
-            "{}";
-
-        let data: FeedbackResponse;
-        try {
-            data = JSON.parse(jsonText) as FeedbackResponse;
-        } catch {
-            data = {
+            const data = resp.output_parsed ?? {
                 history_taking_feedback: "",
                 physical_exam_feedback: "",
                 patient_education_feedback: "",
                 ppi_feedback: "",
                 overall_summary: "",
             };
-        }
+            
+            return NextResponse.json<FeedbackResponse>(data);
+        } catch (error) {
+            /* fallback */
+            const fallback = await openai.chat.completions.create({
+                model: "gpt-4o-mini",
+                response_format: { type: "json_object" },
+                messages: [
+                    {
+                        role: "system",
+                        content: sys + "\n\n반드시 JSON만 출력하세요 (마크다운 금지).",
+                    },
+                    { role: "user", content: JSON.stringify(userMsg) },
+                ],
+                temperature: 0.3,
+                max_tokens: 3500,
+            });
 
-        return NextResponse.json<FeedbackResponse>(data);
+            const parsed = JSON.parse(
+                fallback.choices?.[0]?.message?.content ?? "{}"
+            );
+
+            return NextResponse.json<FeedbackResponse>({
+                history_taking_feedback: parsed.history_taking_feedback ?? "",
+                physical_exam_feedback: parsed.physical_exam_feedback ?? "",
+                patient_education_feedback: parsed.patient_education_feedback ?? "",
+                ppi_feedback: parsed.ppi_feedback ?? "",
+                overall_summary: parsed.overall_summary ?? "",
+            });
+        }
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         return NextResponse.json<FeedbackError>(
