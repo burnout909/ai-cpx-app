@@ -175,18 +175,19 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             });
 
             const session: any = new RealtimeSession(agent, {
-                model: "gpt-realtime-mini-2025-10-06",
+                model: "gpt-realtime-2025-08-28",
             });
             sessionRef.current = session;
 
             await session.connect({
                 apiKey: value,
                 speed: 1.5,
+                prewarm: true, // 세션 handshake 미리 완료
                 turnDetection: {
-                    type: "server_vad", //서버 기반 voice detection
-                    silence_duration_ms: 200,   // 0.2초 침묵 → 턴 종료 판단
+                    type: "client_vad",
+                    silence_duration_ms: 120,   // 0.2초 침묵 → 턴 종료 판단
                     autoStart: false, //먼저 발화하지 않도록 설정
-                    prefix_padding_ms: 150, //AI 발화시 앞부분 잘리지 않게 padding
+                    prefix_padding_ms: 80, //AI 발화시 앞부분 잘리지 않게 padding
                     min_duration_ms: 250, // 너무 짧은 음성(숨소리 등) 무시
                 },
             });
