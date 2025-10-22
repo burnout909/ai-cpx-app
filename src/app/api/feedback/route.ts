@@ -1,82 +1,78 @@
 import { NextResponse } from "next/server";
 import { getOpenAIClient } from "../_lib";
+import { GradeItem } from "@/types/score";
 
 /* =========================
    Types (DTO)
 ========================= */
 export interface FeedbackRequest {
-  chief_complaint: string;
-  transcript: string;
-  checklist: {
-    history_taking: Array<{ id: string; title: string; criteria: string }>;
-    physical_exam: Array<{ id: string; title: string; criteria: string }>;
-    patient_education: Array<{ id: string; title: string; criteria: string }>;
-    ppi: Array<{ id: string; title: string; criteria: string }>;
-  };
+    chief_complaint: string;
+    transcript: string;
+    graded: Record<'history' | 'physical_exam' | 'education' | 'ppi', GradeItem[]>
 }
 
 /** Success Response DTO */
 export interface FeedbackResponse {
-  history_taking_feedback: string;
-  physical_exam_feedback: string;
-  patient_education_feedback: string;
-  ppi_feedback: string;
-  overall_summary: string;
+    history_taking_feedback: string;
+    physical_exam_feedback: string;
+    patient_education_feedback: string;
+    ppi_feedback: string;
+    overall_summary: string;
 }
 
 /** Error DTO */
 export interface FeedbackError {
-  detail: string;
+    detail: string;
 }
 
 /* =========================
    Route
 ========================= */
 export async function POST(
-  req: Request
+    req: Request
 ): Promise<NextResponse<FeedbackResponse | FeedbackError>> {
-  try {
-    const payload = (await req.json()) as FeedbackRequest;
+    try {
+        const payload = (await req.json()) as FeedbackRequest;
 
-    if (!payload?.transcript || !payload?.checklist) {
-      return NextResponse.json<FeedbackError>(
-        { detail: "Invalid payload: transcript and checklist are required." },
-        { status: 400 }
-      );
-    }
+        if (!payload?.transcript || !payload?.graded) {
+            return NextResponse.json<FeedbackError>(
+                { detail: "Invalid payload: transcript and checklist are required." },
+                { status: 400 }
+            );
+        }
 
-    const openai = await getOpenAIClient();
+        const openai = await getOpenAIClient();
 
-    /* =========================
-       JSON Schema
-    ========================== */
-    const jsonSchema = {
-      name: "feedback_schema",
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          history_taking_feedback: { type: "string" },
-          physical_exam_feedback: { type: "string" },
-          patient_education_feedback: { type: "string" },
-          ppi_feedback: { type: "string" },
-          overall_summary: { type: "string" },
-        },
-        required: [
-          "history_taking_feedback",
-          "physical_exam_feedback",
-          "patient_education_feedback",
-          "ppi_feedback",
-          "overall_summary",
-        ],
-      },
-      strict: true,
-    } as const;
+        /* =========================
+           JSON Schema
+        ========================== */
+        const jsonSchema = {
+            name: "feedback_schema",
+            schema: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                    history_taking_feedback: { type: "string" },
+                    physical_exam_feedback: { type: "string" },
+                    patient_education_feedback: { type: "string" },
+                    ppi_feedback: { type: "string" },
+                    overall_summary: { type: "string" },
+                },
+                required: [
+                    "history_taking_feedback",
+                    "physical_exam_feedback",
+                    "patient_education_feedback",
+                    "ppi_feedback",
+                    "overall_summary",
+                ],
+            },
+            strict: true,
+        } as const;
 
-    /* =========================
-       System Prompt
-    ========================== */
-    const sys = `
+        /* =========================
+           System Prompt
+        ========================== */
+        const sys = `
 너는 의과대학 CPX 평가위원이며, 표준화환자와 학생 간의 대화 전사문과 체크리스트 결과를 분석하여
 학생에게 따뜻하고 구체적인 피드백을 제공하는 역할을 맡고 있다.
 피드백은 교수님처럼 자연스럽지만 무겁지 않게, 😊🌿💬 같은 이모티콘을 약간 곁들여 격려하는 말투로 작성한다.
@@ -94,8 +90,16 @@ export async function POST(
 {
   "chief_complaint": "복통",
   "transcript": "**학생과 SP의 실제 대화 전사문 전체**",
-  "checklist": {
-    "history_taking": [ { "id":, "title": , "criteria": }, ... ],
+  "graded": {
+    "history_taking": [ {
+    id: string;
+    title: string;
+    criteria: string;
+    evidence: string[];
+    point: number;
+    max_evidence_count: number;
+}
+, ... ],
     "physical_exam": [...],
     "patient_education": [...],
     "ppi": [...]
@@ -152,70 +156,70 @@ export async function POST(
 }
 `;
 
-    /* =========================
-       OpenAI 호출
-    ========================== */
-    const userMsg = {
-      chief_complaint: payload.chief_complaint,
-      transcript: payload.transcript,
-      checklist: payload.checklist,
-    };
+        /* =========================
+           OpenAI 호출
+        ========================== */
+        const userMsg = {
+            chief_complaint: payload.chief_complaint,
+            transcript: payload.transcript,
+            graded: payload.graded,
+        };
 
-    let contentJSON: string | undefined;
+        let contentJSON: string | undefined;
 
-    try {
-      const resp = await openai.chat.completions.create({
-        model: "gpt-5-2025-08-07",
-        response_format: {
-          type: "json_schema",
-          json_schema: jsonSchema as any,
-        },
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: JSON.stringify(userMsg) },
-        ],
-        temperature: 0.3,
-        max_tokens: 3500,
-      });
-      contentJSON = resp.choices?.[0]?.message?.content ?? "";
-    } catch {
-      const resp = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: sys + "\n\n반드시 JSON만 출력하세요." },
-          { role: "user", content: JSON.stringify(userMsg) },
-        ],
-        temperature: 0.3,
-        max_tokens: 3500,
-      });
-      contentJSON = resp.choices?.[0]?.message?.content ?? "";
+        try {
+            const resp = await openai.chat.completions.create({
+                model: "gpt-5-2025-08-07",
+                response_format: {
+                    type: "json_schema",
+                    json_schema: jsonSchema as any,
+                },
+                messages: [
+                    { role: "system", content: sys },
+                    { role: "user", content: JSON.stringify(userMsg) },
+                ],
+                temperature: 0.3,
+                max_tokens: 3500,
+            });
+            contentJSON = resp.choices?.[0]?.message?.content ?? "";
+        } catch {
+            const resp = await openai.chat.completions.create({
+                model: "gpt-4o-mini",
+                response_format: { type: "json_object" },
+                messages: [
+                    { role: "system", content: sys + "\n\n반드시 JSON만 출력하세요." },
+                    { role: "user", content: JSON.stringify(userMsg) },
+                ],
+                temperature: 0.3,
+                max_tokens: 3500,
+            });
+            contentJSON = resp.choices?.[0]?.message?.content ?? "";
+        }
+
+        const jsonText =
+            (contentJSON && contentJSON.match(/\{[\s\S]*\}$/)?.[0]) ||
+            contentJSON ||
+            "{}";
+
+        let data: FeedbackResponse;
+        try {
+            data = JSON.parse(jsonText) as FeedbackResponse;
+        } catch {
+            data = {
+                history_taking_feedback: "",
+                physical_exam_feedback: "",
+                patient_education_feedback: "",
+                ppi_feedback: "",
+                overall_summary: "",
+            };
+        }
+
+        return NextResponse.json<FeedbackResponse>(data);
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return NextResponse.json<FeedbackError>(
+            { detail: `feedback generation failed: ${msg}` },
+            { status: 500 }
+        );
     }
-
-    const jsonText =
-      (contentJSON && contentJSON.match(/\{[\s\S]*\}$/)?.[0]) ||
-      contentJSON ||
-      "{}";
-
-    let data: FeedbackResponse;
-    try {
-      data = JSON.parse(jsonText) as FeedbackResponse;
-    } catch {
-      data = {
-        history_taking_feedback: "",
-        physical_exam_feedback: "",
-        patient_education_feedback: "",
-        ppi_feedback: "",
-        overall_summary: "",
-      };
-    }
-
-    return NextResponse.json<FeedbackResponse>(data);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json<FeedbackError>(
-      { detail: `feedback generation failed: ${msg}` },
-      { status: 500 }
-    );
-  }
 }
