@@ -48,13 +48,13 @@ export default function LiveClientPopup({ onClose }: Props) {
                 {/* 체크박스 (3번째 단계에서만 표시) */}
                 {step === 2 && (
                     <label className="flex items-center justify-center gap-2 mt-2 cursor-pointer text-[#4b3d6e] text-[16px]">
-                        <input
+                        {/* <input
                             type="checkbox"
                             checked={dontShowAgain}
                             onChange={(e) => setDontShowAgain(e.target.checked)}
                             className="w-[18px] h-[18px] accent-[#7553FC]"
                         />
-                        다시 보지 않기
+                        다시 보지 않기 */}
                     </label>
                 )}
 

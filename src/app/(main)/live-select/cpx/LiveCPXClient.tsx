@@ -229,6 +229,9 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         try {
             setIsUploading(true);
 
+            // 녹음 중지
+            setIsRecording(false);
+            setIsFinished(true);
             // MediaRecorder 정지
             if (recorderRef.current?.state === "recording") recorderRef.current.stop();
 

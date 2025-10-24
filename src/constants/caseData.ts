@@ -153,29 +153,29 @@ export const LIVE_CASE_CATEGORIES: CaseCategory[] = [
             // { id: 8, name: "황달" }
         ],
     },
-    {
-        id: 2,
-        name: "순환기",
-        count: 1,
-        details: [
-            { id: 1, name: "가슴통증" },
-            // { id: 2, name: "실신" },
-            // { id: 3, name: "두근거림" },
-            // { id: 4, name: "고혈압" },
-            // { id: 5, name: "이상지질혈증" },
-        ],
-    },
-    {
-        id: 3,
-        name: "호흡기",
-        count: 1,
-        details: [
-            // { id: 1, name: "기침" },
-            // { id: 2, name: "콧물" },
-            // { id: 3, name: "객혈" },
-            { id: 4, name: "호흡곤란" },
-        ],
-    },
+    // {
+    //     id: 2,
+    //     name: "순환기",
+    //     count: 1,
+    //     details: [
+    //         { id: 1, name: "가슴통증" },
+    //         // { id: 2, name: "실신" },
+    //         // { id: 3, name: "두근거림" },
+    //         // { id: 4, name: "고혈압" },
+    //         // { id: 5, name: "이상지질혈증" },
+    //     ],
+    // },
+    // {
+    //     id: 3,
+    //     name: "호흡기",
+    //     count: 1,
+    //     details: [
+    //         // { id: 1, name: "기침" },
+    //         // { id: 2, name: "콧물" },
+    //         // { id: 3, name: "객혈" },
+    //         { id: 4, name: "호흡곤란" },
+    //     ],
+    // },
     // {
     //     id: 4,
     //     name: "비뇨기",

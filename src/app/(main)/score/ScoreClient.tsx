@@ -69,7 +69,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
             <BottomFixButton
                 disabled={!!statusMessage || (!showReport && !isGradeReady)}
                 onClick={handleButtonClick}
-                buttonName={showReport ? 'Report 저장하기' : '상세 Report 보기'}
+                buttonName={showReport ? '채점 결과 저장하기' : '상세한 채점 결과 보기'}
             />
 
             {/* 전체 리포트 팝업 */}
