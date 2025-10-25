@@ -12,7 +12,7 @@ import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { v4 as uuidv4 } from "uuid";
 
-const INITIAL_SECONDS = 12*60; // 12분
+const INITIAL_SECONDS = 12 * 60; // 12분
 
 type Props = { category: string; caseName: string };
 
@@ -24,13 +24,14 @@ export default function RecordCPXClient({ category, caseName }: Props) {
     const [isPaused, setIsPaused] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
     const [seconds, setSeconds] = useState(INITIAL_SECONDS);
-    const [volume, setVolume] = useState(0);
-    const [audioURL, setAudioURL] = useState<string | null>(null);
-    const [mp3Blob, setMp3Blob] = useState<Blob | null>(null);
-    const [isConverting, setIsConverting] = useState(false);
+    const [volume, setVolume] = useState(0); //볼륨 탐지
+    const [audioURL, setAudioURL] = useState<string | null>(null); //녹음된 음성 URL
+    const [mp3Blob, setMp3Blob] = useState<Blob | null>(null); //mp3 변환된 파일
+    const [isConverting, setIsConverting] = useState(false); //파일 mp3로 전환 중 
     const [isConvertingDirect, setIsConvertingDirect] = useState(false) //바로 전환할 때
-    const [isPreviewReady, setIsPreviewReady] = useState(false);
-    const [isUploadingToS3, setIsUploadingToS3] = useState(false);
+    const [isPreviewReady, setIsPreviewReady] = useState(false); //미리듣기 음성 준비 상태
+    const [isUploadingToS3, setIsUploadingToS3] = useState(false); //s3로 파일 업로드
+    const [isConnecting, setIsConnencting] = useState(false); //세션 연결 상태
 
     // ref
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -85,10 +86,11 @@ export default function RecordCPXClient({ category, caseName }: Props) {
         if (seconds === 0 && !isUploadingToS3 && isFinished && !isRecording) {
             handleSubmit();
         }
-    }, [seconds, isUploadingToS3, isFinished]); 
+    }, [seconds, isUploadingToS3, isFinished]);
 
     // 🔴 녹음 시작
     async function startRecording() {
+        setIsConnencting(true)
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mediaRecorder = new MediaRecorder(stream);
@@ -129,8 +131,10 @@ export default function RecordCPXClient({ category, caseName }: Props) {
             setIsRecording(true);
             setIsPaused(false);
             setIsPreviewReady(false);
+            setIsConnencting(false)
         } catch (err) {
             alert("마이크 접근이 거부되었거나 오류가 발생했습니다.");
+            setIsConnencting(false);
             console.error(err);
         }
     }
@@ -291,7 +295,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                     <button
                         type="button"
                         onClick={toggleRecording}
-                        disabled={isFinished}
+                        disabled={isFinished || isUploadingToS3 || isConvertingDirect || isConverting || isConnecting}
                         className="outline-none relative z-10 cursor-pointer hover:opacity-70     
                         transition-transform duration-150 ease-out active:scale-90"
                     >

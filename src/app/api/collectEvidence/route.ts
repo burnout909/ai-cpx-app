@@ -123,7 +123,9 @@ export async function POST(
     }
 
     const userMsg = {
-      transcript: transcriptText,
+      transcript: transcriptText, 
+      evidenceChecklist: evidenceChecklist,
+      sectionId: sectionId
     };
 
     const openai = await getOpenAIClient();
@@ -133,14 +135,12 @@ export async function POST(
 (1) 대화 전사 텍스트(의사/환자 발화 구분 없이 시간 순서로 포함)와 
 (2) 특정 섹션(sectionId)에 해당하는 체크리스트(각 항목: id, title, criteria, example)를 받습니다. 
 당신의 목표는 각 항목의 criteria를 충족한다고 판단되는 “증거 문장”을 전사문에서 직접 인용으로 수집하여 evidence 배열로 반환하는 것입니다. 이 프롬프트는 병력청취/신체진찰/환자교육/PPI 네 섹션에 모두 사용됩니다(실행 시 sectionId로 주어짐). 다양한 임상 표현형(총 50여개)과 무관하게 동작해야 합니다.
-
 출력 형식(절대 준수)
 반드시 아래 JSON 스키마만 출력하세요. 불필요한 코멘트/설명/추가 필드는 금지합니다.
 {
   "evidenceList":[
     {
       "id": "체크리스트 항목 id",
-      ”title”: “체크리스트 제목”,
       "evidence": ["전사에서의 직접 인용 1", "직접 인용 2", ...]
     },
 ...
@@ -216,8 +216,6 @@ export async function POST(
 * evidence 배열에는 선택된 MEU “직접 인용 문자열”만 넣습니다(설명·근거유형·스코어 금지).
 * 항목 순서는 원래 checklist 순서를 유지하고, evidence 내부는 시간 순으로 정렬합니다.
 
-\n ###Section ID: ${sectionId}\n
-\n ###Checklist: ${evidenceChecklist}\n
 \n ###Transcription: \n
 `
 

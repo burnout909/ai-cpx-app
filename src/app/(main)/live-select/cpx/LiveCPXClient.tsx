@@ -15,6 +15,8 @@ import LiveClientPopup from "@/component/LiveClientPopup";
 type Props = { category: string; caseName: string };
 
 const INITIAL_SECONDS = 12 * 60; // 720s = 12분
+const INITIAL_READY_SECONDS = 60; // 준비 시간 60초
+
 /* °C 포맷 */
 const formatTemp = (t: number) => `${t.toFixed(1)}°C`;
 
@@ -29,6 +31,9 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const [seconds, setSeconds] = useState<number>(INITIAL_SECONDS);
     const [isFinished, setIsFinished] = useState(false);
     const [showPopup, setShowPopup] = useState(false); //가상환자 클릭시 popup 띄우기
+    const [readySeconds, setReadySeconds] = useState<number | null>(null); //준비 시간 타이머
+
+
     //환자 caseData
     const [caseData, setCaseData] = useState<VirtualPatient | null>(null);
     const pathname = usePathname(); // 현재 URL 경로 추적
@@ -171,6 +176,8 @@ export default function LiveCPXClient({ category, caseName }: Props) {
 
     /** 🎤 세션 시작 */
     async function startSession() {
+        setConnected(true);
+
         try {
             const res = await fetch("/api/realtime-key");
             const { value } = await res.json();
@@ -198,7 +205,6 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     min_duration_ms: 250, // 너무 짧은 음성(숨소리 등) 무시
                 },
             });
-            setConnected(true);
 
             // 🎙 마이크 스트림 수집
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -226,7 +232,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             recorder.start(500); // 500ms마다 chunk 생성
             setIsRecording(true);
         } catch (err) {
-            console.error("❌ 세션 연결 실패:", err);
+            setConnected(false); // 실패 시 다시 false로 복구
             alert("세션 연결 실패 또는 마이크 접근 거부");
         }
     }
@@ -301,11 +307,36 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         }
     }, [statusMessage]);
 
+    //팝업에서 시작하기 버튼 누른 후 자동으로 준비 시간 카운팅
+    const handleReadyStart = () => {
+        setShowPopup(false);       // 팝업 닫기
+        setReadySeconds(INITIAL_READY_SECONDS); // 준비 타이머 시작
+    };
+
+    //60초 끝난 이후 자동으로 시작할 수 있도록 설정
+    useEffect(() => {
+        if (readySeconds === null) return;
+
+        if (readySeconds > 0) {
+            const id = setInterval(() => {
+                setReadySeconds((prev) => (prev !== null ? prev - 1 : null));
+            }, 1000);
+            return () => clearInterval(id);
+        } else if (readySeconds === 0) {
+            startSession(); // 준비 완료 → 실습 시작
+            setReadySeconds(null);
+        }
+    }, [readySeconds]);
+
 
     return (
         <div className="flex flex-col min-h-dvh">
-            {showPopup && <LiveClientPopup onClose={() => setShowPopup(false)} />}
-            <div className="flex flex-col">
+            {showPopup && (
+                <LiveClientPopup
+                    onClose={() => setShowPopup(false)}
+                    onReadyStart={handleReadyStart}
+                />
+            )}            <div className="flex flex-col">
                 <SmallHeader
                     title={`${category} | ${caseName}`}
                     onClick={() => router.push("/live-select")}
@@ -374,7 +405,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                             onClick={toggleRecording}
                             className="outline-none relative cursor-pointer hover:opacity-70
                                                     transition-transform duration-150 ease-out active:scale-90"
-                            disabled={isUploading}
+                            disabled={isUploading || connected || isFinished}
                         >
                             {isRecording ? (
                                 <PauseIcon className="w-[240px] h-[240px] text-[#7553FC] opacity-70" />
@@ -385,8 +416,27 @@ export default function LiveCPXClient({ category, caseName }: Props) {
 
                     </div>
                     {/* 타이머 */}
-                    <div className="font-semibold text-[36px] text-[#7553FC] flex gap-2 items-center">
-                        {showTime(seconds)}
+                    <div className="font-semibold text-[#7553FC] flex gap-2 items-center">
+                        {readySeconds !== null && !isRecording && !isFinished ? (
+                            <div className="text-center">
+                                <span className="text-[36px] ">
+                                    {readySeconds}초
+                                </span>
+                                <span>
+                                    {" "}
+                                </span>
+                                <span className="font-medium text-[20px]">
+                                    후 실습이 시작됩니다.
+                                    <br />
+                                    준비되었다면 <span className="font-bold">플레이 버튼</span>을 눌러주세요.
+                                </span>
+
+                            </div>
+                        ) : (
+
+                            <span className="text-[36px] ">
+                                {showTime(seconds)}
+                            </span>)}
                     </div>
                 </div>
 

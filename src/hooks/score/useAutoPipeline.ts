@@ -23,15 +23,14 @@ export function useAutoPipeline(
                 ppi: evidence.PpiEvidenceChecklist || [],
             };
 
-            const scoreListBySection = {
-                history: score.HistoryScoreChecklist || [],
-                physical_exam: score.PhysicalExamScoreChecklist || [],
-                education: score.EducationScoreChecklist || [],
-                ppi: score.PpiScoreChecklist || [],
-            };
+            // const scoreListBySection = {
+            //     history: score.HistoryScoreChecklist || [],
+            //     physical_exam: score.PhysicalExamScoreChecklist || [],
+            //     education: score.EducationScoreChecklist || [],
+            //     ppi: score.PpiScoreChecklist || [],
+            // };
 
             const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
-
             // 2️⃣ 전사
             setStatusMessage('오디오 전사 중');
             const res1 = await fetch('/api/transcribe', {
@@ -79,7 +78,7 @@ export function useAutoPipeline(
                     const evidence = ev?.evidence ?? [];
                     // const maxCount = maxMap[item.id] ?? 2;
                     const point = Math.min(evidence.length, 1); //추후 점수 기준 변경 시 수정 필요
-                    return {
+                    const result = {
                         id: item.id,
                         title: item.title,
                         criteria: item.criteria,
@@ -87,6 +86,7 @@ export function useAutoPipeline(
                         point,
                         max_evidence_count: 1, //추후 점수 기준 변경 시 수정 필요
                     };
+                    return result
                 });
             }
 

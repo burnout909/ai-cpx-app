@@ -5,9 +5,10 @@ import LeftArrowIcon from "@/assets/icon/LeftArrowIcon.svg";
 
 interface Props {
     onClose: () => void;
+    onReadyStart: () => void; // ✅ 준비타이머 시작용 콜백 추가
 }
 
-export default function LiveClientPopup({ onClose }: Props) {
+export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
     const [step, setStep] = useState(0);
     const [dontShowAgain, setDontShowAgain] = useState(false);
 
@@ -15,7 +16,8 @@ export default function LiveClientPopup({ onClose }: Props) {
         if (step < 2) setStep(step + 1);
         else {
             if (dontShowAgain) localStorage.setItem("isLiveClientShow", "false");
-            onClose();
+            // ✅ 시작하기 클릭 시 → 준비 타이머 시작
+            onReadyStart();
         }
     };
 

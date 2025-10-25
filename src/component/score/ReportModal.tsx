@@ -37,7 +37,7 @@ export default function ReportModal({
       <div
         className={`fixed bottom-0 left-1/2 z-[50] w-full max-w-[450px] -translate-x-1/2 bg-[#FCFCFC] rounded-t-2xl shadow-lg overflow-y-auto pb-[220px] transform transition-transform duration-300 ${
           isVisible ? 'translate-y-20' : 'translate-y-full'
-        } h-[100vh]`}
+        } h-[90vh]`}
       >
         {/* top bar */}
         <div className="flex justify-end items-center h-[56px] px-4">
