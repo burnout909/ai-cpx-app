@@ -15,12 +15,6 @@ export default function Home() {
         <div>
             <div className="flex px-5 py-3 flex-col gap-8">
                 <HomeComponent
-                    icon={<MicroPhoneIcon className="w-[24px] h-[24px] text-[#210535]" />}
-                    title={"이미 녹음본이 있어요"}
-                    buttonName="채점 받기"
-                    onClick={() => router.push('/upload-select')}
-                />
-                <HomeComponent
                     icon={<PeopleIcon className="w-[24px] h-[24px] text-[#210535]" />}
                     title={"환자 역할 해줄 사람이 있어요"}
                     buttonName="녹음 후 채점 받기"
@@ -64,17 +58,17 @@ function HomeComponent({
             {/* 상단 타이틀 + 로딩 스피너 */}
             <div className="flex gap-2 items-center">
                 {icon}
-                <span className="font-semibold text-[20px]">{title}</span>
+                <span className="font-semibold text-[22px]">{title}</span>
             </div>
 
             {/* 버튼 영역 */}
             <button
                 onClick={handleClick}
                 disabled={isPending}
-                className={`flex cursor-pointer items-center w-full justify-between py-[14px] px-6 text-[#210535] font-semibold bg-[#DAD7E8] rounded-[12px] transition-opacity duration-200 ${isPending ? "opacity-80" : "hover:opacity-80"
+                className={`flex cursor-pointer items-center w-full justify-between py-[18px] px-6 text-[#210535] font-semibold bg-[#DAD7E8] rounded-[12px] transition-opacity duration-200 ${isPending ? "opacity-80" : "hover:opacity-80"
                     }`}
             >
-                <span className="text-[18px] font-semibold flex gap-2 items-center">
+                <span className="text-[20px] font-semibold flex gap-2 items-center">
                     {buttonName}
                     {isPending && <Spinner size={20} borderClassName="border-[#210535]" />} {/* pending 중이면 스피너 표시 */}
                 </span>
