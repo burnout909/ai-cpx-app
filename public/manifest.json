@@ -1,0 +1,21 @@
+{
+  "name": "Live CPX",
+  "short_name": "LiveCPX",
+  "description": "실시간 CPX 훈련 시뮬레이터",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#7553FC",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

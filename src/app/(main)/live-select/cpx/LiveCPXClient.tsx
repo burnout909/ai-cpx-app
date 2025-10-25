@@ -162,6 +162,13 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         return () => clearInterval(id);
     }, [isRecording, isFinished]);
 
+    //12분 초과시 자동 채점 진행
+    useEffect(() => {
+        if (seconds === 0 && !isUploading && isFinished && !isRecording) {
+            stopSession();
+        }
+    }, [seconds, isUploading, isFinished]);
+
     /** 🎤 세션 시작 */
     async function startSession() {
         try {
@@ -384,7 +391,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                 </div>
 
                 <BottomFixButton
-                    disabled={isUploading || seconds == 720}
+                    disabled={isUploading || seconds == INITIAL_SECONDS}
                     buttonName={"종료 및 채점하기"}
                     onClick={stopSession}
                     loading={isPending || isUploading}

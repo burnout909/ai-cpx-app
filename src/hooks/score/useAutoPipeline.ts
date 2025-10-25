@@ -71,21 +71,21 @@ export function useAutoPipeline(
 
             for (const { sectionId, evidenceList } of results) {
                 const evidenceChecklist = checklistMap[sectionId as SectionId];
-                const scoreList = scoreListBySection[sectionId as SectionId];
-                const maxMap = Object.fromEntries(scoreList.map((s) => [s.id, s.max_evidence_count]));
+                // const scoreList = scoreListBySection[sectionId as SectionId];
+                // const maxMap = Object.fromEntries(scoreList.map((s) => [s.id, s.max_evidence_count]));
 
                 graded[sectionId as SectionId] = evidenceChecklist.map((item: EvidenceChecklist) => {
                     const ev = evidenceList.find((e) => e.id === item.id);
                     const evidence = ev?.evidence ?? [];
-                    const maxCount = maxMap[item.id] ?? 2;
-                    const point = Math.min(evidence.length, maxCount);
+                    // const maxCount = maxMap[item.id] ?? 2;
+                    const point = Math.min(evidence.length, 1); //추후 점수 기준 변경 시 수정 필요
                     return {
                         id: item.id,
                         title: item.title,
                         criteria: item.criteria,
                         evidence,
                         point,
-                        max_evidence_count: maxCount,
+                        max_evidence_count: 1, //추후 점수 기준 변경 시 수정 필요
                     };
                 });
             }

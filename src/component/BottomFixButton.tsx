@@ -21,7 +21,7 @@ export default function BottomFixButton({
                 className={`mx-auto max-w-[410px] fixed px-6 py-[14px] rounded-[12px]
           left-[20px] right-[20px] bottom-[42px]
           text-white font-semibold text-[20px]
-          flex gap-3 justify-center items-center gap-2 transition-all z-[50]
+          flex gap-3 justify-center items-center gap-2 transition-all z-[52]
           ${!disabled && !loading
                         ? "bg-[#7553FC] hover:opacity-90"
                         : "bg-[#C4B8F6] cursor-not-allowed opacity-90"
@@ -39,7 +39,7 @@ export default function BottomFixButton({
             <div
                 className="
           fixed mx-auto max-w-[450px] h-[126px] bottom-0 left-0 right-0
-          backdrop-blur-xs z-[49]
+          backdrop-blur-xs z-[51]
         "
             />
         </>

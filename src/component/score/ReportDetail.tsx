@@ -1,7 +1,8 @@
 import { GradeItem } from "@/types/score";
+import YesIcon from "@/assets/icon/YesIcon.svg";
+import NoIcon from "@/assets/icon/NoIcon.svg";
 
 export default function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
-    const primaryColor = '#7553FC';
     const borderColor = '#DDD6FE';
 
     return (
@@ -15,8 +16,8 @@ export default function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
                         <th className="px-4 py-3 text-left font-medium text-[#555]">
                             체크리스트
                         </th>
-                        <th className="px-4 py-3 text-left font-medium whitespace-nowrap text-[#555]">
-                            점수
+                        <th className="flex justify-end px-4 py-3 text-left font-medium whitespace-nowrap text-[#555]">
+                            여부
                         </th>
                     </tr>
                 </thead>
@@ -35,16 +36,8 @@ export default function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
                                     </ul>
                                 )}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                                <span
-                                    className="inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold"
-                                    style={{
-                                        backgroundColor: primaryColor,
-                                        color: '#FFFFFF',
-                                    }}
-                                >
-                                    {g.point} / {g.max_evidence_count}
-                                </span>
+                            <td className="px-4 py-3 whitespace-nowrap flex justify-end">
+                                {g.point > 0 ? <YesIcon width={24} height={24} className="text-[#00BF40]" /> : <NoIcon width={24} height={24} className="text-[#FF4242]" />}
                             </td>
                         </tr>
                     ))}

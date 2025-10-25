@@ -12,7 +12,7 @@ import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { v4 as uuidv4 } from "uuid";
 
-const INITIAL_SECONDS = 12 * 60; // 12분
+const INITIAL_SECONDS = 12*60; // 12분
 
 type Props = { category: string; caseName: string };
 
@@ -79,6 +79,13 @@ export default function RecordCPXClient({ category, caseName }: Props) {
         }, 1000);
         return () => clearInterval(id);
     }, [isRecording, isPaused, isFinished]);
+
+    //12분 초과시 자동 채점 진행
+    useEffect(() => {
+        if (seconds === 0 && !isUploadingToS3 && isFinished && !isRecording) {
+            handleSubmit();
+        }
+    }, [seconds, isUploadingToS3, isFinished]); 
 
     // 🔴 녹음 시작
     async function startRecording() {
@@ -335,7 +342,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
             </div>
 
             <BottomFixButton
-                disabled={isRecording || isUploadingToS3 || seconds == 720}
+                disabled={isRecording || isUploadingToS3 || seconds == INITIAL_SECONDS}
                 onClick={handleSubmit}
                 buttonName={isFinished ? "채점하기" : "종료 및 채점하기"}
                 loading={isConvertingDirect || isPending || isUploadingToS3}
