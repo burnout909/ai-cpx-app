@@ -200,8 +200,8 @@ export async function POST(
                 text: {
                     format: zodTextFormat(FeedbackSchema, "feedback_schema"),
                 },
-                temperature: 0.3,
-                max_output_tokens: 3500,
+                temperature: 0,
+                max_output_tokens: 4096,
             });
 
             const data = resp.output_parsed ?? {

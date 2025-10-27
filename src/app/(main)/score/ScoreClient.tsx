@@ -34,7 +34,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
     }, [s3Key, transcriptS3Key, caseName]);
 
     const { totals, overall } = getAllTotals(gradesBySection);
-    const PART_LABEL = { history: 'History', physical_exam: 'Physical Exam', education: 'Education', ppi: 'PPI' };
+    const PART_LABEL = { history: '병력 청취', physical_exam: '신체 진찰', education: '환자 교육', ppi: '환자-의사관계' };
 
     /** grade 데이터가 준비되었는지 확인 */
     const isGradeReady = Object.keys(gradesBySection).length > 0;

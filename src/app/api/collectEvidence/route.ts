@@ -231,7 +231,7 @@ export async function POST(
           format: zodTextFormat(EvidenceSchema, "evidence_list_schema"),
         },
         temperature: 0,
-        max_output_tokens: 3000,
+        max_output_tokens: 4096,
       });
 
       // 2파싱된 결과를 그대로 사용
