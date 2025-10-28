@@ -32,6 +32,8 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const [isFinished, setIsFinished] = useState(false);
     const [showPopup, setShowPopup] = useState(false); //가상환자 클릭시 popup 띄우기
     const [readySeconds, setReadySeconds] = useState<number | null>(null); //준비 시간 타이머
+    const [conversationText, setConversationText] = useState<string[]>([]);
+
 
 
     //환자 caseData
@@ -65,6 +67,8 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             setIsFinished(false);
             setVolume(0);
             setSeconds(INITIAL_SECONDS);
+            setConversationText([]);
+
 
         } catch (err) {
             console.warn(" 세션 종료 중 오류:", err);
@@ -191,6 +195,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
 
             const session: any = new RealtimeSession(agent, {
                 model: "gpt-realtime-2025-08-28",
+                historyStoreAudio: true //오디오 출력 활성화
             });
             sessionRef.current = session;
 
@@ -206,6 +211,30 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     min_duration_ms: 250, // 너무 짧은 음성(숨소리 등) 무시
                 },
             });
+            session.on("history_updated", (history: any[]) => {
+                // message 타입만 추출
+                const parsed = history
+                    .filter((h) => h.type === "message" && Array.isArray(h.content))
+                    .map((h) => {
+                        // content 배열 안에서 transcript나 text 타입만 추출
+                        const textItem = h.content.find(
+                            (c: any) => c.transcript || c.text
+                        );
+
+                        const text = textItem?.transcript || textItem?.text || "";
+
+                        // role에 따라 prefix 붙이기
+                        if (h.role === "user") return `의사: ${text}`;
+                        if (h.role === "assistant") return `환자: ${text}`;
+                        return text;
+                    })
+                    // transcript가 비어 있으면 제외
+                    .filter((line) => line && line.trim().length > 0);
+
+                setConversationText(parsed);
+                // console.log(parsed)
+            });
+
 
             // 🎙 마이크 스트림 수집
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -238,26 +267,30 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         }
     }
 
-    /** ⏹ 세션 종료 + 사용자 음성만 업로드 */
+    /** ⏹ 세션 종료 + 사용자 음성 및 대화 로그 업로드 */
     async function stopSession() {
         try {
             setIsUploading(true);
 
-            // 녹음 중지
+            // 🔇 녹음 중지
             setIsRecording(false);
             setIsFinished(true);
-            // MediaRecorder 정지
+
             if (recorderRef.current?.state === "recording") recorderRef.current.stop();
 
-            // 세션 종료
-            if (sessionRef.current) await (sessionRef.current as any).close?.();
+            // 🧠 세션 종료
+            if (sessionRef.current) {
+                await (sessionRef.current as any).close?.();
+                sessionRef.current = null;
+            }
 
-            // 사용자 음성 webm -> mp3 변환
+            // 🎧 사용자 음성 webm → mp3 변환
             const userBlob = new Blob(userAudioChunks.current, { type: "audio/webm" });
             const userMP3 = await standardizeToMP3(userBlob);
 
-            // S3 업로드
             const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
+
+            // 🪣 사용자 음성 업로드
             const userKey = `audio/user-audio-${uuidv4()}.mp3`;
             const uploadUrl = await generateUploadUrl(bucket, userKey);
 
@@ -266,12 +299,32 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                 headers: { "Content-Type": "audio/mpeg" },
                 body: userMP3,
             });
-            if (!res.ok) throw new Error("S3 업로드 실패");
+            if (!res.ok) throw new Error("S3 업로드 실패 (음성)");
 
-            // 채점 페이지로 이동
+            const historyKey = `history/conversation-${uuidv4()}.txt`;
+
+            // 🧾 대화 로그 업로드
+            if (conversationText.length > 0) {
+                const txtBlob = conversationText.join("\n");
+
+                const uploadHistoryUrl = await generateUploadUrl(bucket, historyKey);
+
+                const histRes = await fetch(uploadHistoryUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": "text/plain" },
+                    body: txtBlob,
+                });
+                if (!histRes.ok) throw new Error("S3 업로드 실패 (히스토리)");
+            } else {
+                console.warn("⚠️ 대화 내용이 비어 있어 히스토리를 업로드하지 않았습니다.");
+            }
+
+            // 📤 채점 페이지로 이동
             startTransition(() => {
-                router.push(`/score?s3Key=${encodeURIComponent(userKey)}&caseName=${encodeURIComponent(caseName)}`);
-            })
+                router.push(
+                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}}`
+                );
+            });
         } catch (err) {
             console.error("❌ 업로드 중 오류:", err);
             alert("업로드 실패");
@@ -282,6 +335,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             setIsUploading(false);
         }
     }
+
 
     const toggleRecording = () => {
         if (isRecording) {

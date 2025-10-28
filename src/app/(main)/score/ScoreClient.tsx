@@ -25,7 +25,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
     const [showReport, setShowReport] = useState(false);
 
     const runAutoPipeline = useAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setNarrativeFeedback);
-    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection);
+    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setNarrativeFeedback);
 
     useEffect(() => {
         if (!caseName) return;

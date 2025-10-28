@@ -6,9 +6,10 @@ import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
 
 export function useLiveAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
-    setGradesBySection: (data: any) => void, 
+    setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
-    setActiveSection: (section: string) => void
+    setActiveSection: (section: string) => void,
+    setNarrativeFeedback: (data: any) => void
 ) {
     return async function runLiveAutoPipeline(key: string, caseName: string) {
         const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
@@ -33,10 +34,17 @@ export function useLiveAutoPipeline(
                 PpiScoreChecklist = [],
             } = score;
             // 이미 transcript 존재 → 다운로드 URL 생성
-            const transcript = generateDownloadUrl(bucket as string, key);
+            const transcriptUrl = await generateDownloadUrl(bucket as string, key);
 
-            // 1️⃣ 병렬 증거 수집
-            setStatusMessage('모든 섹션 증거 수집 중');
+            // URL로 실제 파일 내용 요청
+            const res = await fetch(transcriptUrl);
+            if (!res.ok) throw new Error("Transcript 다운로드 실패");
+
+            // 내용 읽기 (텍스트 파일)
+            const transcript = await res.text();
+
+            // 병렬 증거 수집
+            setStatusMessage('채점 중');
 
             const checklistMap: Record<'history' | 'physical_exam' | 'education' | 'ppi', EvidenceChecklist[]> = {
                 history: HistoryEvidenceChecklist,
@@ -105,7 +113,23 @@ export function useLiveAutoPipeline(
 
             setGradesBySection(graded);
             setActiveSection('history');
+            // 5️⃣ 채점 결과 기반으로 피드백 생성
+            setStatusMessage('피드백 생성 중');
+
+            const feedbackRes = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chief_complaint: caseName,
+                    transcript: transcript,
+                    graded, // checklist 대신 실제 채점 결과 사용
+                }),
+            });
+            const feedbackData = await readJsonOrText(feedbackRes);
+            await ensureOkOrThrow(feedbackRes, feedbackData);
+            // 6️⃣ 완료
             setStatusMessage(null);
+            setNarrativeFeedback(feedbackData);
         } catch (e: any) {
             console.error(e);
             setStatusMessage(`오류 발생: ${e.message || e}`);
