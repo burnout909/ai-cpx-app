@@ -1,7 +1,6 @@
 'use client'
 import { ReactNode, useTransition } from "react";
 import RightArrowIcon from "@/assets/icon/RightArrowIcon.svg"
-import MicroPhoneIcon from "@/assets/icon/MicrophoneIcon.svg"
 import PeopleIcon from "@/assets/icon/PeopleIcon.svg"
 import SprakleIcon from "@/assets/icon/SparkleIcon.svg"
 import { useRouter } from "next/navigation";
@@ -15,19 +14,19 @@ export default function Home() {
         <div>
             <div className="flex px-5 py-3 flex-col gap-8">
                 <HomeComponent
-                    icon={<PeopleIcon className="w-[24px] h-[24px] text-[#210535]" />}
-                    title={"환자 역할 해줄 사람이 있어요"}
-                    buttonName="녹음 후 채점 받기"
-                    onClick={() => router.push('/record-select')}
-                />
-                <HomeComponent
                     icon={<SprakleIcon className="w-[24px] h-[24px] text-[#210535]" />}
-                    title={"혼자 연습하고 싶어요"}
-                    buttonName="가상환자와 실습하기"
+                    title={"혼자 연습하기"}
+                    buttonName="💬 가상환자와 실습하기"
                     onClick={() => router.push('/live-select')}
                 />
+                <HomeComponent
+                    icon={<PeopleIcon className="w-[24px] h-[24px] text-[#210535]" />}
+                    title={"팀으로 연습하기"}
+                    buttonName="🎙 녹음 후 채점 받기"
+                    onClick={() => router.push('/record-select')}
+                />
             </div>
-            <BottomFixButton onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLScYsGU3Zuj9eHVxClKPYBA9vKQvVvbU2stElJ6zfG13A5mvvg/viewform", "_blank")} disabled={false} buttonName={"의견 남기기"} />
+            <BottomFixButton onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLScYsGU3Zuj9eHVxClKPYBA9vKQvVvbU2stElJ6zfG13A5mvvg/viewform", "_blank")} disabled={false} buttonName={"만족도 조사 이벤트!\n🎁 투썸 2만원 🎁"} />
         </div>
     );
 }
