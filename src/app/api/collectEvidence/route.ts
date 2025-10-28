@@ -162,7 +162,7 @@ export async function POST(
 
 * sectionId ∈ {history, physicalExam, education, ppi} 가 제공됩니다.
 * checklist: [{id, title, criteria, example}, ...]
-* transcript: 시간 순서의 두 명의 대화이며 의사/환자 구분이 되어 있지 않습니다. 문장부호가 불완전할 수 있습니다.
+* transcript: 시간 순서의 의사/환자 대화입니다. 문장부호가 불완전할 수 있습니다.
 
 2. 전사문(Transcript)의 “미세 증거 단위(MEU)”로 세분화
 

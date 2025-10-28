@@ -322,7 +322,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             // 📤 채점 페이지로 이동
             startTransition(() => {
                 router.push(
-                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}}`
+                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}`
                 );
             });
         } catch (err) {

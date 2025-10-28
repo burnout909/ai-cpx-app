@@ -44,7 +44,6 @@ export function useLiveAutoPipeline(
             const transcript = await res.text();
 
             // 병렬 증거 수집
-            setStatusMessage('채점 중');
 
             const checklistMap: Record<'history' | 'physical_exam' | 'education' | 'ppi', EvidenceChecklist[]> = {
                 history: HistoryEvidenceChecklist,
@@ -62,14 +61,17 @@ export function useLiveAutoPipeline(
 
             const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
 
-            const promises: Promise<SectionResult>[] = sectionIds.map(async (sectionId) => {
-                const checklist = checklistMap[sectionId];
+
+            // 3️⃣ 채점 먼저 수행
+            setStatusMessage('채점 중');
+
+            const resultsPromises: Promise<SectionResult>[] = sectionIds.map(async (sectionId) => {
                 const res = await fetch('/api/collectEvidence', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        transcript, // 이미 존재하는 텍스트 URL or 내용
-                        evidenceChecklist: checklist,
+                        transcript: transcript,
+                        evidenceChecklist: scoreChecklistMap[sectionId],
                         sectionId,
                     }),
                 });
@@ -78,42 +80,38 @@ export function useLiveAutoPipeline(
                 return { sectionId, evidenceList: data.evidenceList || [] } as SectionResult;
             });
 
-            const results = await Promise.all(promises);
+            const results = await Promise.all(resultsPromises);
             setResults(results);
 
-            // 2️⃣ 채점 계산
+            // 4️⃣ 점수 계산
             const graded: Record<'history' | 'physical_exam' | 'education' | 'ppi', GradeItem[]> = {
-                history: [],
-                physical_exam: [],
-                education: [],
-                ppi: [],
+                history: [], physical_exam: [], education: [], ppi: []
             };
 
             for (const { sectionId, evidenceList } of results) {
-                const checklist = checklistMap[sectionId as SectionId];
-                const scoreList = scoreChecklistMap[sectionId as SectionId];
-                const maxMap = Object.fromEntries(scoreList.map((s) => [s.id, s.max_evidence_count]));
+                const evidenceChecklist = checklistMap[sectionId as SectionId];
+                // const scoreList = scoreListBySection[sectionId as SectionId];
+                // const maxMap = Object.fromEntries(scoreList.map((s) => [s.id, s.max_evidence_count]));
 
-                graded[sectionId as SectionId] = checklist.map((item: EvidenceChecklist) => {
+                graded[sectionId as SectionId] = evidenceChecklist.map((item: EvidenceChecklist) => {
                     const ev = evidenceList.find((e) => e.id === item.id);
                     const evidence = ev?.evidence ?? [];
-                    const maxCount = maxMap[item.id] ?? 2;
-                    const point = Math.min(evidence.length, maxCount);
-
-                    return {
+                    // const maxCount = maxMap[item.id] ?? 2;
+                    const point = Math.min(evidence.length, 1); //추후 점수 기준 변경 시 수정 필요
+                    const result = {
                         id: item.id,
                         title: item.title,
                         criteria: item.criteria,
                         evidence,
                         point,
-                        max_evidence_count: maxCount,
+                        max_evidence_count: 1, //추후 점수 기준 변경 시 수정 필요
                     };
+                    return result
                 });
             }
 
             setGradesBySection(graded);
-            setActiveSection('history');
-            // 5️⃣ 채점 결과 기반으로 피드백 생성
+            setActiveSection('history');      // 5️⃣ 채점 결과 기반으로 피드백 생성
             setStatusMessage('피드백 생성 중');
 
             const feedbackRes = await fetch('/api/feedback', {
