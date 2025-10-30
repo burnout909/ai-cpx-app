@@ -94,6 +94,7 @@ const EvidenceSchema = z.object({
   evidenceList: z.array(
     z.object({
       id: z.string(),
+      title: z.string(),
       evidence: z.array(z.string()),
     })
   ),
@@ -107,7 +108,6 @@ export async function POST(
 ): Promise<NextResponse<CollectEvidenceResponse | CollectEvidenceError>> {
   try {
     const payload = (await req.json()) as CollectEvidenceRequest;
-
     const transcriptText = normalizeTranscriptToText(payload?.transcript);
     const evidenceChecklist = payload?.evidenceChecklist ?? [];
     const sectionId = payload?.sectionId;
@@ -123,7 +123,7 @@ export async function POST(
     }
 
     const userMsg = {
-      transcript: transcriptText, 
+      transcript: transcriptText,
       evidenceChecklist: evidenceChecklist,
       sectionId: sectionId
     };
@@ -141,6 +141,7 @@ export async function POST(
   "evidenceList":[
     {
       "id": "체크리스트 항목 id",
+      ”title”: “체크리스트 제목”,
       "evidence": ["전사에서의 직접 인용 1", "직접 인용 2", ...]
     },
 ...
@@ -241,6 +242,7 @@ export async function POST(
       const finalEvidenceList: EvidenceListItem[] =
         data?.evidenceList?.map((row) => ({
           id: row.id,
+          title: row.title,
           evidence: normalizeEvidence(row.evidence),
         })) ?? [];
 
@@ -249,7 +251,6 @@ export async function POST(
         evidenceList: finalEvidenceList,
       });
     } catch (error) {
-
       try {
         const fallback = await openai.chat.completions.create({
           model: "gpt-4o-mini",

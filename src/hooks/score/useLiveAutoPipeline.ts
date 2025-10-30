@@ -27,12 +27,12 @@ export function useLiveAutoPipeline(
             } = evidence;
 
             // score(named exports)
-            const {
-                HistoryScoreChecklist = [],
-                PhysicalExamScoreChecklist = [],
-                EducationScoreChecklist = [],
-                PpiScoreChecklist = [],
-            } = score;
+            // const {
+            //     HistoryScoreChecklist = [],
+            //     PhysicalExamScoreChecklist = [],
+            //     EducationScoreChecklist = [],
+            //     PpiScoreChecklist = [],
+            // } = score;
             // 이미 transcript 존재 → 다운로드 URL 생성
             const transcriptUrl = await generateDownloadUrl(bucket as string, key);
 
@@ -52,12 +52,12 @@ export function useLiveAutoPipeline(
                 ppi: PpiEvidenceChecklist,
             };
 
-            const scoreChecklistMap: Record<'history' | 'physical_exam' | 'education' | 'ppi', ScoreChecklist[]> = {
-                history: HistoryScoreChecklist,
-                physical_exam: PhysicalExamScoreChecklist,
-                education: EducationScoreChecklist,
-                ppi: PpiScoreChecklist,
-            };
+            // const scoreChecklistMap: Record<'history' | 'physical_exam' | 'education' | 'ppi', ScoreChecklist[]> = {
+            //     history: HistoryScoreChecklist,
+            //     physical_exam: PhysicalExamScoreChecklist,
+            //     education: EducationScoreChecklist,
+            //     ppi: PpiScoreChecklist,
+            // };
 
             const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
 
@@ -71,7 +71,7 @@ export function useLiveAutoPipeline(
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         transcript: transcript,
-                        evidenceChecklist: scoreChecklistMap[sectionId],
+                        evidenceChecklist: checklistMap[sectionId],
                         sectionId,
                     }),
                 });
