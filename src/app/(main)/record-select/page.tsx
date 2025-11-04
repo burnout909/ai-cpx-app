@@ -55,13 +55,14 @@ export default function SelectPage() {
                                     ? "bg-[#D0C7FA] text-[#210535]"
                                     : "text-[#9A8FCB] hover:bg-[#F0EEFC] hover:text-[#210535]"}`}
                         >
-                            {category.name} ({category.count})
+                            {category.name} 
+                            {/* ({category.count}) */}
                         </button>
                     ))}
                 </div>
 
                 {/* 오른쪽: 세부 케이스 */}
-                <div className="flex flex-col gap-2 w-1/2 overflow-y-auto border-l border-[#E0DEF0] pl-4 rounded-[8px]">
+                <div className="flex flex-col gap-2 w-1/2 overflow-y-auto border-l border-[#E0DEF0] pl-4">
                     {currentCategory.details.map((item) => (
                         <button
                             key={item.id}

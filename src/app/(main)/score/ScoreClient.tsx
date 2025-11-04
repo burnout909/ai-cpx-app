@@ -22,10 +22,10 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
     const [activeSection, setActiveSection] = useState<string>('history');
     const [narrativeFeedback, setNarrativeFeedback] = useState<any | null>(null);
-    const [showReport, setShowReport] = useState(false);
+    const [feedbackDone, setFeedbackDone] = useState<boolean>(false);
 
-    const runAutoPipeline = useAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setNarrativeFeedback);
-    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setNarrativeFeedback);
+    const runAutoPipeline = useAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setNarrativeFeedback, setFeedbackDone);
+    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setNarrativeFeedback, setFeedbackDone);
 
     useEffect(() => {
         if (!caseName) return;
@@ -36,20 +36,12 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
     const { totals, overall } = getAllTotals(gradesBySection);
     const PART_LABEL = { history: '병력 청취', physical_exam: '신체 진찰', education: '환자 교육', ppi: '환자-의사관계' };
 
-    /** grade 데이터가 준비되었는지 확인 */
-    const isGradeReady = Object.keys(gradesBySection).length > 0;
-
     /** 버튼 클릭 핸들러 */
     const handleButtonClick = () => {
-        if (!showReport) {
-            // 상세 보기 버튼
-            setShowReport(true);
-        } else {
-            // Report 저장하기 버튼
-            alert('준비중인 기능입니다');
-            setShowReport(false);
-        }
-    };
+
+        alert('준비중인 기능입니다');
+    }
+
 
     return (
         <div className="relative flex flex-col items-center justify-center px-4 pb-[136px]">
@@ -61,32 +53,26 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
             )}
 
             {/* 피드백 뷰 */}
-            {!showReport && narrativeFeedback && (
-                <NarrativeFeedbackView feedback={narrativeFeedback} />
-            )}
-
-            {/* 하단 버튼 */}
-            <BottomFixButton
-                disabled={!!statusMessage || (!showReport && !isGradeReady)}
-                onClick={handleButtonClick}
-                buttonName={showReport ? '채점 결과 저장하기' : '상세한 채점 결과 보기'}
-            />
-
-            {/* 전체 리포트 팝업 */}
-            {showReport && (
-                <ReportModal onClose={() => setShowReport(false)}>
+            {feedbackDone && (
+                <div className='px-4'>
+                    <NarrativeFeedbackView feedback={narrativeFeedback} />
                     <ReportSummary
                         totals={totals}
                         overall={overall}
                         active={activeSection}
                         setActive={setActiveSection}
-                        PART_LABEL={PART_LABEL}
-                    />
-                    {gradesBySection[activeSection] && (
-                        <ReportDetailTable grades={gradesBySection[activeSection]} />
-                    )}
-                </ReportModal>
+                        PART_LABEL={PART_LABEL} />
+                    <ReportDetailTable grades={gradesBySection[activeSection]} />
+                </div>
+
             )}
+            {/* 하단 버튼 */}
+            <BottomFixButton
+                disabled={!!statusMessage}
+                onClick={handleButtonClick}
+                buttonName={'채점 결과 저장하기'}
+            />
+
         </div>
     );
 }

@@ -9,7 +9,8 @@ export function useLiveAutoPipeline(
     setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
     setActiveSection: (section: string) => void,
-    setNarrativeFeedback: (data: any) => void
+    setNarrativeFeedback: (data: any) => void,
+    setFeedbackDone: (done:boolean)=>void,
 ) {
     return async function runLiveAutoPipeline(key: string, caseName: string) {
         const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
@@ -128,6 +129,7 @@ export function useLiveAutoPipeline(
             // 6️⃣ 완료
             setStatusMessage(null);
             setNarrativeFeedback(feedbackData);
+            setFeedbackDone(true);
         } catch (e: any) {
             console.error(e);
             setStatusMessage(`오류 발생: ${e.message || e}`);

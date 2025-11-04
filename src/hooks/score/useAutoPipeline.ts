@@ -8,7 +8,8 @@ export function useAutoPipeline(
     setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
     setActiveSection: (section: string) => void,
-    setNarrativeFeedback: (data: any) => void
+    setNarrativeFeedback: (data: any) => void,
+    setFeedbackDone: (done: boolean) => void,
 ) {
     return async function runAutoPipeline(key: string, caseName: string) {
         try {
@@ -110,6 +111,7 @@ export function useAutoPipeline(
             // 6️⃣ 완료
             setStatusMessage(null);
             setNarrativeFeedback(feedbackData);
+            setFeedbackDone(true);
 
 
 

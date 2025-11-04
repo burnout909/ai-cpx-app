@@ -7,7 +7,7 @@ export default function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
 
     return (
         <div
-            className="overflow-x-auto rounded-xl border"
+            className="overflow-x-auto rounded-xl border w-full"
             style={{ borderColor }}
         >
             <table className="min-w-full text-sm bg-[#FAFAFA]">

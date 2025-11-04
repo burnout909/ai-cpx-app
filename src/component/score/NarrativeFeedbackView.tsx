@@ -9,7 +9,7 @@ export default function NarrativeFeedbackView({ feedback }: { feedback: any }) {
     };
 
     return (
-        <div className="w-full px-4 pb-4 space-y-5 mt-3">
+        <div className="w-full pb-4 space-y-5 mt-3">
             <h2 className="text-[22px] font-semibold text-gray-800 mb-3">피드백</h2>
             {Object.entries(feedback).map(([k, v]) => (
                 <div key={k}>

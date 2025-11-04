@@ -16,17 +16,18 @@ export default function Home() {
                 <HomeComponent
                     icon={<SprakleIcon className="w-[24px] h-[24px] text-[#210535]" />}
                     title={"혼자 연습하기"}
-                    buttonName="💬 가상환자와 실습하기"
+                    buttonName="가상환자와 실습하기"
                     onClick={() => router.push('/live-select')}
                 />
                 <HomeComponent
                     icon={<PeopleIcon className="w-[24px] h-[24px] text-[#210535]" />}
                     title={"팀으로 연습하기"}
-                    buttonName="🎙 녹음 후 채점 받기"
+                    buttonName="녹음 후 채점 받기"
                     onClick={() => router.push('/record-select')}
                 />
             </div>
-            <BottomFixButton onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLScYsGU3Zuj9eHVxClKPYBA9vKQvVvbU2stElJ6zfG13A5mvvg/viewform", "_blank")} disabled={false} buttonName={"만족도 조사 이벤트!\n🎁 투썸 2만원 🎁"} />
+            {/* 엑스포 만족도 조사용 */}
+            {/* <BottomFixButton onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLScYsGU3Zuj9eHVxClKPYBA9vKQvVvbU2stElJ6zfG13A5mvvg/viewform", "_blank")} disabled={false} buttonName={"만족도 조사 이벤트!\n🎁 투썸 2만원 🎁"} /> */}
         </div>
     );
 }

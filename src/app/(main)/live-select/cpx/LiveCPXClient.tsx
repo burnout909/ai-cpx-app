@@ -2,7 +2,6 @@
 import { useEffect, useState, useRef, useCallback, useTransition } from "react";
 import { RealtimeAgent, RealtimeSession } from "@openai/agents/realtime";
 import { generateUploadUrl } from "@/app/api/s3/s3";
-import { v4 as uuidv4 } from "uuid";
 import SmallHeader from "@/component/SmallHeader";
 import BottomFixButton from "@/component/BottomFixButton";
 import PlayIcon from "@/assets/icon/PlayIcon.svg";
@@ -12,6 +11,10 @@ import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import buildPatientInstructions from "./buildPrompt";
 import { loadVirtualPatient, VirtualPatient } from "@/utils/loadVirtualPatient";
 import LiveClientPopup from "@/component/LiveClientPopup";
+import Image from 'next/image';
+import ProfileImage from "@/assets/virtualPatient/acute_abdominal_pain_001.png"
+import { useUserStore } from "@/store/useUserStore";
+
 type Props = { category: string; caseName: string };
 
 const INITIAL_SECONDS = 12 * 60; // 720s = 12분
@@ -34,7 +37,8 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const [readySeconds, setReadySeconds] = useState<number | null>(null); //준비 시간 타이머
     const [conversationText, setConversationText] = useState<string[]>([]);
 
-
+    // 전역상태 
+    const studentId = useUserStore((s: any) => s.studentId);
 
     //환자 caseData
     const [caseData, setCaseData] = useState<VirtualPatient | null>(null);
@@ -135,7 +139,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const userAudioChunks = useRef<Blob[]>([]);
     const rafRef = useRef<number | null>(null);
 
-    /** 🎧 볼륨 업데이트 */
+    /** 볼륨 업데이트 */
     const updateVolume = (analyser: AnalyserNode) => {
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         const loop = () => {
@@ -178,7 +182,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         }
     }, [seconds, isUploading, isFinished]);
 
-    /** 🎤 세션 시작 */
+    /** 세션 시작 */
     async function startSession() {
         if (sessionRef.current || connected || isRecording || isUploading) return;
         setConnected(true);
@@ -272,26 +276,33 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         try {
             setIsUploading(true);
 
-            // 🔇 녹음 중지
+            // 녹음 중지
             setIsRecording(false);
             setIsFinished(true);
 
             if (recorderRef.current?.state === "recording") recorderRef.current.stop();
 
-            // 🧠 세션 종료
+            // 세션 종료
             if (sessionRef.current) {
                 await (sessionRef.current as any).close?.();
                 sessionRef.current = null;
             }
 
-            // 🎧 사용자 음성 webm → mp3 변환
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}.` +
+                `${String(now.getMonth() + 1).padStart(2, "0")}.` +
+                `${String(now.getDate()).padStart(2, "0")}-` +
+                `${String(now.getHours()).padStart(2, "0")}:` +
+                `${String(now.getMinutes()).padStart(2, "0")}:` +
+                `${String(now.getSeconds()).padStart(2, "0")}`;
+            // 사용자 음성 webm → mp3 변환
             const userBlob = new Blob(userAudioChunks.current, { type: "audio/webm" });
             const userMP3 = await standardizeToMP3(userBlob);
 
             const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
 
-            // 🪣 사용자 음성 업로드
-            const userKey = `audio/user-audio-${uuidv4()}.mp3`;
+            // 사용자 음성 업로드
+            const userKey = `VP_user_audio/${studentId}-${timestamp}.mp3`;
             const uploadUrl = await generateUploadUrl(bucket, userKey);
 
             const res = await fetch(uploadUrl, {
@@ -301,9 +312,10 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             });
             if (!res.ok) throw new Error("S3 업로드 실패 (음성)");
 
-            const historyKey = `history/conversation-${uuidv4()}.txt`;
+            const historyKey = `VP_script/${studentId}-${timestamp}.txt`;
 
-            // 🧾 대화 로그 업로드
+
+            // 대화 로그 업로드
             if (conversationText.length > 0) {
                 const txtBlob = conversationText.join("\n");
 
@@ -319,14 +331,14 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                 console.warn("⚠️ 대화 내용이 비어 있어 히스토리를 업로드하지 않았습니다.");
             }
 
-            // 📤 채점 페이지로 이동
+            // 채점 페이지로 이동
             startTransition(() => {
                 router.push(
                     `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}`
                 );
             });
         } catch (err) {
-            console.error("❌ 업로드 중 오류:", err);
+            console.error("업로드 중 오류:", err);
             alert("업로드 실패");
         } finally {
             cancelAnimationFrame(rafRef.current!);
@@ -396,40 +408,62 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     title={`${category} | ${caseName}`}
                     onClick={() => router.push("/live-select")}
                 />
-
+                {/* 프로필 */}
+                <div className="px-8 pt-4 w-full flex items-center gap-4">
+                    <div className="w-12 h-12 relative">
+                        <Image
+                            src={ProfileImage}
+                            alt="ProfileImage"
+                            className="overflow-hidden rounded-full object-cover"
+                            fill />
+                    </div>
+                    <div className="text-[18px] items-center">
+                        <p>
+                            {caseData?.properties.meta.name}
+                        </p>
+                        <p className="text-[14px] text-gray-500">
+                            {caseData?.properties.meta.sex}
+                            {" | "}
+                            {caseData?.properties.meta.age}세
+                        </p>
+                    </div>
+                </div>
+                <div className="w-full px-8 pt-3">
+                    <div className="w-full border-b border-gray-300" />
+                </div>
                 {/* 설명 */}
-                <div className="px-8 pt-4">
-                    <p className="text-[#210535] text-[18px] leading-relaxed">
+                <div className="px-10 pt-3">
+                    <p className="text-[#210535] text-[16px] leading-relaxed">
                         {caseData?.description}
                     </p>
                 </div>
 
                 {/* 바이탈표 (2열 그리드) */}
-                <div className="grid grid-cols-2 gap-y-4 gap-x-4 px-8 pt-4 pb-6">
+                <div className="grid grid-cols-2 gap-y-2 gap-x-2 px-10 pt-3 pb-6">
                     <div className="flex gap-2">
-                        <div className="text-[#210535] font-semibold text-[18px]">혈압</div>
-                        <div className="text-[#210535] text-[18px]">
+                        <div className="text-[#210535] font-semibold text-[16px]">혈압</div>
+                        <div className="text-[#210535] text-[16px]">
                             {vitalData?.bp}
                         </div>
                     </div>
 
                     <div className="flex gap-2">
-                        <div className="text-[#210535] font-semibold text-[18px]">맥박</div>
-                        <div className="text-[#210535] text-[18px]">
+                        <div className="text-[#210535] font-semibold text-[16px]">맥박</div>
+                        <div className="text-[#210535] text-[16px]">
                             {vitalData?.hr}
                         </div>
                     </div>
 
                     <div className="flex gap-2">
-                        <div className="text-[#210535] font-semibold text-[18px]">호흡수</div>
-                        <div className="text-[#210535] text-[18px]">
+                        <div className="text-[#210535] font-semibold text-[16px]">호흡수</div>
+                        <div className="text-[#210535] text-[16px]">
                             {vitalData?.rr}
                         </div>
                     </div>
 
                     <div className="flex gap-2">
-                        <div className="text-[#210535] font-semibold text-[18px]">체온</div>
-                        <div className="text-[#210535] text-[18px]">
+                        <div className="text-[#210535] font-semibold text-[16px]">체온</div>
+                        <div className="text-[#210535] text-[16px]">
                             {formatTemp(Number(vitalData?.bt))}
                         </div>
                     </div>

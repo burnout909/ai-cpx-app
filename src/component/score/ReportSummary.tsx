@@ -16,7 +16,8 @@ export default function ReportSummary({
     const secondaryColor = '#E9E2FF';
 
     return (
-        <div className="bg-[#FCFCFC]">
+        <div className="bg-[#FCFCFC] w-full">
+            <h2 className="text-[22px] font-semibold text-gray-800 mb-3">체크리스트</h2>
             <div className="mb-3 rounded-xl p-4 flex justify-between "
                 style={{
                     border: `2px solid ${primaryColor}`,

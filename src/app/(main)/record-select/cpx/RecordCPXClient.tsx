@@ -3,14 +3,15 @@
 import BottomFixButton from "@/component/BottomFixButton";
 import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useRef, useTransition } from "react";
+import { useEffect, useState, useCallback, useRef, useTransition, use } from "react";
 import PlayIcon from "@/assets/icon/PlayIcon.svg";
 import PauseIcon from "@/assets/icon/PauseIcon.svg";
 import RefreshIcon from "@/assets/icon/ResetIcon.svg";
 import Spinner from "@/component/Spinner";
 import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
-import { v4 as uuidv4 } from "uuid";
+import { useUserStore } from "@/store/useUserStore";
+import StudentIdPopup from "@/component/StudentIdPopup";
 
 const INITIAL_SECONDS = 12 * 60; // 12분
 
@@ -32,6 +33,10 @@ export default function RecordCPXClient({ category, caseName }: Props) {
     const [isPreviewReady, setIsPreviewReady] = useState(false); //미리듣기 음성 준비 상태
     const [isUploadingToS3, setIsUploadingToS3] = useState(false); //s3로 파일 업로드
     const [isConnecting, setIsConnencting] = useState(false); //세션 연결 상태
+    const [showStudentPopup, setShowStudentPopup] = useState(true); //학번 팝업 상태
+
+    //전역 상태값
+    const studentId = useUserStore((s: any) => s.studentId);
 
     // ref
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -88,7 +93,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
         }
     }, [seconds, isUploadingToS3, isFinished]);
 
-    // 🔴 녹음 시작
+    // 녹음 시작
     async function startRecording() {
         setIsConnencting(true)
         try {
@@ -235,11 +240,18 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                     setIsConvertingDirect(false);
                 }
             }
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}.` +
+                `${String(now.getMonth() + 1).padStart(2, "0")}.` +
+                `${String(now.getDate()).padStart(2, "0")}-` +
+                `${String(now.getHours()).padStart(2, "0")}:` +
+                `${String(now.getMinutes()).padStart(2, "0")}:` +
+                `${String(now.getSeconds()).padStart(2, "0")}`;
 
             // 2️⃣ S3 업로드
             setIsUploadingToS3(true);
             const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
-            const key = `uploads/${uuidv4()}.mp3`;
+            const key = `SP_audio/${studentId}-${timestamp}.mp3`;
 
             const uploadUrl = await generateUploadUrl(bucket, key);
             const res = await fetch(uploadUrl, {
@@ -266,91 +278,101 @@ export default function RecordCPXClient({ category, caseName }: Props) {
 
 
     return (
-        <div className="flex flex-col">
-            <SmallHeader
-                title={`${category} | ${caseName}`}
-                onClick={() => router.push("/record-select")}
-            />
+        <>
+            <div className="flex flex-col">
+                <SmallHeader
+                    title={`${category} | ${caseName}`}
+                    onClick={() => router.push("/record-select")}
+                />
 
-            <div className="px-8 flex-1 pt-[20px] pb-[136px] flex flex-col items-center justify-center gap-[12px] relative overflow-hidden">
-                {/* 중앙 녹음 버튼 + 볼륨 애니메이션 */}
-                <div className="relative">
-                    {isRecording && (
-                        <div
-                            className="absolute rounded-full transition-transform duration-100 ease-out"
-                            style={{
-                                width: "206px",
-                                height: "206px",
-                                top: "49%",
-                                left: "50%",
-                                transform: `translate(-50%, -50%) scale(${1 + volume * 1.5})`,
-                                opacity: 0.3,
-                                background:
-                                    "radial-gradient(circle at center, #B1A5E8 0%, #B1A5E8 40%, #BBA6FF 80%, transparent 100%)",
-                                boxShadow: `0 0 ${40 + volume * 50}px #B1A5E8`,
-                            }}
-                        ></div>
-                    )}
-
-                    <button
-                        type="button"
-                        onClick={toggleRecording}
-                        disabled={isFinished || isUploadingToS3 || isConvertingDirect || isConverting || isConnecting}
-                        className="outline-none relative z-10 cursor-pointer hover:opacity-70     
-                        transition-transform duration-150 ease-out active:scale-90"
-                    >
-                        {isRecording ? (
-                            <PauseIcon className="w-[240px] h-[240px] text-[#7553FC]" />
-                        ) : (
-                            <PlayIcon className="w-[240px] h-[240px] text-[#7553FC]" />
+                <div className="px-8 flex-1 pt-[20px] pb-[136px] flex flex-col items-center justify-center gap-[12px] relative overflow-hidden">
+                    {/* 중앙 녹음 버튼 + 볼륨 애니메이션 */}
+                    <div className="relative">
+                        {isRecording && (
+                            <div
+                                className="absolute rounded-full transition-transform duration-100 ease-out"
+                                style={{
+                                    width: "206px",
+                                    height: "206px",
+                                    top: "49%",
+                                    left: "50%",
+                                    transform: `translate(-50%, -50%) scale(${1 + volume * 1.5})`,
+                                    opacity: 0.3,
+                                    background:
+                                        "radial-gradient(circle at center, #B1A5E8 0%, #B1A5E8 40%, #BBA6FF 80%, transparent 100%)",
+                                    boxShadow: `0 0 ${40 + volume * 50}px #B1A5E8`,
+                                }}
+                            ></div>
                         )}
-                    </button>
-                </div>
 
-                {/* 타이머 */}
-                <div className="font-semibold text-[36px] text-[#7553FC] flex gap-2 items-center">
-                    {showTime(seconds)}
-                    {!isRecording && seconds < INITIAL_SECONDS && (
                         <button
-                            onClick={() => {
-                                setSeconds(INITIAL_SECONDS);
-                                setIsFinished(false);
-                                setIsRecording(false);
-                                setIsPaused(false);
-                                setAudioURL(null);
-                                setIsPreviewReady(false);
-                                setMp3Blob(null);
-                                audioChunks.current = [];
-                            }}
-                            className="cursor-pointer text-[18px] text-[#7553FC] hover:text-[#5a3df0] active:text-[#4327d9] transition"
+                            type="button"
+                            onClick={toggleRecording}
+                            disabled={isFinished || isUploadingToS3 || isConvertingDirect || isConverting || isConnecting}
+                            className="outline-none relative z-10 cursor-pointer hover:opacity-70     
+                        transition-transform duration-150 ease-out active:scale-90"
                         >
-                            <RefreshIcon className="w-[32px] h-[32px] text-[#7553FC] hover:opacity-50" />
+                            {isRecording ? (
+                                <PauseIcon className="w-[240px] h-[240px] text-[#7553FC]" />
+                            ) : (
+                                <PlayIcon className="w-[240px] h-[240px] text-[#7553FC]" />
+                            )}
+                        </button>
+                    </div>
+
+                    {/* 타이머 */}
+                    <div className="font-semibold text-[36px] text-[#7553FC] flex gap-2 items-center">
+                        {showTime(seconds)}
+                        {!isRecording && seconds < INITIAL_SECONDS && (
+                            <button
+                                onClick={() => {
+                                    setSeconds(INITIAL_SECONDS);
+                                    setIsFinished(false);
+                                    setIsRecording(false);
+                                    setIsPaused(false);
+                                    setAudioURL(null);
+                                    setIsPreviewReady(false);
+                                    setMp3Blob(null);
+                                    audioChunks.current = [];
+                                }}
+                                className="cursor-pointer text-[18px] text-[#7553FC] hover:text-[#5a3df0] active:text-[#4327d9] transition"
+                            >
+                                <RefreshIcon className="w-[32px] h-[32px] text-[#7553FC] hover:opacity-50" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* “녹음된 음성 확인하기” */}
+                    {(isPaused || isFinished) && !isPreviewReady && (
+                        <button
+                            onClick={handlePreview}
+                            className="flex gap-2 items-center justify-center mt-4 px-6 py-3 bg-[#7553FC] text-white rounded-xl hover:opacity-90 transition"
+                        >
+                            <span className="text-[16px] font-medium">녹음된 음성 확인하기</span>
+                            {isConverting && <Spinner borderClassName="border-[#7553FC]" size={12} />}
                         </button>
                     )}
+
+                    {isPreviewReady && audioURL && (
+                        <audio controls src={audioURL} className="mt-4 w-full z-10" />
+                    )}
                 </div>
 
-                {/* “녹음된 음성 확인하기” */}
-                {(isPaused || isFinished) && !isPreviewReady && (
-                    <button
-                        onClick={handlePreview}
-                        className="flex gap-2 items-center justify-center mt-4 px-6 py-3 bg-[#7553FC] text-white rounded-xl hover:opacity-90 transition"
-                    >
-                        <span className="text-[16px] font-medium">녹음된 음성 확인하기</span>
-                        {isConverting && <Spinner borderClassName="border-[#7553FC]" size={12} />}
-                    </button>
-                )}
-
-                {isPreviewReady && audioURL && (
-                    <audio controls src={audioURL} className="mt-4 w-full z-10" />
-                )}
+                <BottomFixButton
+                    disabled={isRecording || isUploadingToS3 || seconds == INITIAL_SECONDS}
+                    onClick={handleSubmit}
+                    buttonName={isFinished ? "채점하기" : "종료 및 채점하기"}
+                    loading={isConvertingDirect || isPending || isUploadingToS3}
+                />
             </div>
-
-            <BottomFixButton
-                disabled={isRecording || isUploadingToS3 || seconds == INITIAL_SECONDS}
-                onClick={handleSubmit}
-                buttonName={isFinished ? "채점하기" : "종료 및 채점하기"}
-                loading={isConvertingDirect || isPending || isUploadingToS3}
-            />
-        </div>
+            {
+                showStudentPopup && (
+                    <StudentIdPopup
+                        onClose={() => setShowStudentPopup(false)}
+                        onConfirm={()=> setShowStudentPopup(false)}
+                    />
+                )
+            }
+        </>
     );
 }
