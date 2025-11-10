@@ -17,7 +17,7 @@ export default function ReportSummary({
 
     return (
         <div className="bg-[#FCFCFC] w-full">
-            <h2 className="text-[22px] font-semibold text-gray-800 mb-3">체크리스트</h2>
+            <h2 className="text-[18px] font-semibold text-gray-800 mb-3">체크리스트</h2>
             <div className="mb-3 rounded-xl p-4 flex justify-between "
                 style={{
                     border: `2px solid ${primaryColor}`,
@@ -33,14 +33,14 @@ export default function ReportSummary({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5 bg-[#FCFCFC]">
+            <div className="grid grid-cols-2 gap-2 mb-5 bg-[#FCFCFC]">
                 {Object.entries(totals).map(([key, val]) => {
                     const isActive = active === key;
                     return (
                         <button
                             key={key}
                             onClick={() => setActive(key)}
-                            className="text-left rounded-xl border p-4 transition"
+                            className="text-[14px] text-left rounded-xl border py-5 px-2 transition"
                             style={{
                                 border: isActive
                                     ? `2px solid ${primaryColor}`

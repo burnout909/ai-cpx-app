@@ -9,14 +9,17 @@ import { getAllTotals } from '@/utils/score';
 import { useEffect, useState } from 'react';
 import NarrativeFeedbackView from '@/component/score/NarrativeFeedbackView';
 import ReportModal from '@/component/score/ReportModal';
+import Header from '@/component/Header';
 
 interface Props {
     s3Key: string;
     transcriptS3Key: string | null;
     caseName: string | null;
+    studentNumber: string | null;
+    origin: "VP" | "SP"
 }
 
-export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props) {
+export default function ScoreClient({ s3Key, transcriptS3Key, caseName, studentNumber, origin }: Props) {
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
@@ -44,35 +47,37 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName }: Props)
 
 
     return (
-        <div className="relative flex flex-col items-center justify-center px-4 pb-[136px]">
-            {/* 상태 표시 */}
-            {statusMessage && (
-                <div className="fixed top-3/7 left-1/2 -translate-x-1/2 text-center text-[20px] font-semibold text-[#7553FC] animate-pulse">
-                    {statusMessage}
-                </div>
-            )}
+        <>
+            <Header />
+            <div className="relative flex flex-col items-center justify-center px-4 pb-[136px]">
+                {/* 상태 표시 */}
+                {statusMessage && (
+                    <div className="fixed top-3/7 left-1/2 -translate-x-1/2 text-center text-[20px] font-semibold text-[#7553FC] animate-pulse">
+                        {statusMessage}
+                    </div>
+                )}
 
-            {/* 피드백 뷰 */}
-            {feedbackDone && (
-                <div className='px-4'>
-                    <NarrativeFeedbackView feedback={narrativeFeedback} />
-                    <ReportSummary
-                        totals={totals}
-                        overall={overall}
-                        active={activeSection}
-                        setActive={setActiveSection}
-                        PART_LABEL={PART_LABEL} />
-                    <ReportDetailTable grades={gradesBySection[activeSection]} />
-                </div>
+                {/* 피드백 뷰 */}
+                {feedbackDone && (
+                    <div>
+                        <NarrativeFeedbackView studentNumber={studentNumber as string} feedback={narrativeFeedback} origin={origin}/>
+                        <ReportSummary
+                            totals={totals}
+                            overall={overall}
+                            active={activeSection}
+                            setActive={setActiveSection}
+                            PART_LABEL={PART_LABEL} />
+                        <ReportDetailTable grades={gradesBySection[activeSection]} />
+                    </div>
 
-            )}
-            {/* 하단 버튼 */}
-            <BottomFixButton
-                disabled={!!statusMessage}
-                onClick={handleButtonClick}
-                buttonName={'채점 결과 저장하기'}
-            />
+                )}
+                {/* 하단 버튼 */}
+                <BottomFixButton
+                    disabled={!!statusMessage}
+                    onClick={handleButtonClick}
+                    buttonName={'채점 결과 저장하기'} />
 
-        </div>
+            </div>
+        </>
     );
 }
