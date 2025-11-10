@@ -9,10 +9,10 @@ import PauseIcon from "@/assets/icon/PauseIcon.svg";
 import { usePathname, useRouter } from "next/navigation";
 import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import buildPatientInstructions from "./buildPrompt";
-import { loadVirtualPatient, VirtualPatient } from "@/utils/loadVirtualPatient";
+import { loadVirtualPatient, loadVPProfile, VirtualPatient } from "@/utils/loadVirtualPatient";
 import LiveClientPopup from "@/component/LiveClientPopup";
-import Image from 'next/image';
-import ProfileImage from "@/assets/virtualPatient/acute_abdominal_pain_001.png"
+import Image, { StaticImageData } from 'next/image';
+import FallbackProfile from "@/assets/virtualPatient/acute_abdominal_pain_001.png"
 import { useUserStore } from "@/store/useUserStore";
 
 type Props = { category: string; caseName: string };
@@ -36,6 +36,9 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const [showPopup, setShowPopup] = useState(false); //가상환자 클릭시 popup 띄우기
     const [readySeconds, setReadySeconds] = useState<number | null>(null); //준비 시간 타이머
     const [conversationText, setConversationText] = useState<string[]>([]);
+
+    const [profileImage, setProfileImage] = useState<StaticImageData>(FallbackProfile);
+
 
     // 전역상태 
     const studentId = useUserStore((s: any) => s.studentId);
@@ -86,6 +89,21 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             setShowPopup(true)
         }
     }, [setShowPopup])
+
+    // 케이스 프로필 이미지 로드
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const img = await loadVPProfile(caseName);
+                if (mounted) setProfileImage(img);
+            } catch (e) {
+                console.warn("프로필 이미지 로드 실패:", e);
+                if (mounted) setProfileImage(FallbackProfile);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [caseName]);
 
     /** 라우트 변경 시 자동 정리 */
     useEffect(() => {
@@ -334,7 +352,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             // 채점 페이지로 이동
             startTransition(() => {
                 router.push(
-                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}`
+                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("VP")}`
                 );
             });
         } catch (err) {
@@ -403,21 +421,22 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     onClose={() => setShowPopup(false)}
                     onReadyStart={handleReadyStart}
                 />
-            )}            <div className="flex flex-col">
+            )}
+            <div className="flex flex-col">
                 <SmallHeader
                     title={`${category} | ${caseName}`}
                     onClick={() => router.push("/live-select")}
                 />
                 {/* 프로필 */}
-                <div className="px-8 pt-4 w-full flex items-center gap-4">
-                    <div className="w-12 h-12 relative">
+                <div className="px-6 pt-4 w-full flex items-center gap-4">
+                    <div className="w-[56px] h-[56px] relative">
                         <Image
-                            src={ProfileImage}
+                            src={profileImage}
                             alt="ProfileImage"
                             className="overflow-hidden rounded-full object-cover"
                             fill />
                     </div>
-                    <div className="text-[18px] items-center">
+                    <div className="text-[16px] items-center">
                         <p>
                             {caseData?.properties.meta.name}
                         </p>
@@ -428,56 +447,79 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                         </p>
                     </div>
                 </div>
-                <div className="w-full px-8 pt-3">
+                <div className="w-full px-6 pt-3">
                     <div className="w-full border-b border-gray-300" />
                 </div>
                 {/* 설명 */}
-                <div className="px-10 pt-3">
-                    <p className="text-[#210535] text-[16px] leading-relaxed">
+                <div className="px-8 pt-3">
+                    <p className="text-[#210535] text-[15px] leading-relaxed">
                         {caseData?.description}
                     </p>
                 </div>
 
                 {/* 바이탈표 (2열 그리드) */}
-                <div className="grid grid-cols-2 gap-y-2 gap-x-2 px-10 pt-3 pb-6">
+                <div className="grid grid-cols-2 gap-y-2 gap-x-2 px-8 pt-3 pb-6">
                     <div className="flex gap-2">
-                        <div className="text-[#210535] font-semibold text-[16px]">혈압</div>
-                        <div className="text-[#210535] text-[16px]">
+                        <div className="text-[#210535] font-semibold text-[15px]">혈압</div>
+                        <div className="text-[#210535] text-[15px]">
                             {vitalData?.bp}
                         </div>
                     </div>
 
                     <div className="flex gap-2">
-                        <div className="text-[#210535] font-semibold text-[16px]">맥박</div>
-                        <div className="text-[#210535] text-[16px]">
+                        <div className="text-[#210535] font-semibold text-[15px]">맥박</div>
+                        <div className="text-[#210535] text-[15px]">
                             {vitalData?.hr}
                         </div>
                     </div>
 
                     <div className="flex gap-2">
-                        <div className="text-[#210535] font-semibold text-[16px]">호흡수</div>
-                        <div className="text-[#210535] text-[16px]">
+                        <div className="text-[#210535] font-semibold text-[15px]">호흡수</div>
+                        <div className="text-[#210535] text-[15px]">
                             {vitalData?.rr}
                         </div>
                     </div>
 
                     <div className="flex gap-2">
-                        <div className="text-[#210535] font-semibold text-[16px]">체온</div>
-                        <div className="text-[#210535] text-[16px]">
+                        <div className="text-[#210535] font-semibold text-[15px]">체온</div>
+                        <div className="text-[#210535] text-[15px]">
                             {formatTemp(Number(vitalData?.bt))}
                         </div>
                     </div>
                 </div>
 
                 <div className="px-8 flex-1 pb-[136px] flex flex-col items-center justify-center gap-[12px] relative overflow-hidden">
+                    {/* 타이머 */}
+                    <div className="font-semibold text-[#7553FC] flex gap-2 items-center">
+                        {readySeconds !== null && !isRecording && !isFinished ? (
+                            <div className="text-center">
+                                <span className="text-[22px] ">
+                                    {readySeconds}초
+                                </span>
+                                <span>
+                                    {" "}
+                                </span>
+                                <span className="font-medium text-[16px]">
+                                    후 실습이 시작됩니다.
+                                    <br />
+                                    준비되었다면 <span className="font-bold">플레이 버튼</span>을 눌러주세요.
+                                </span>
+
+                            </div>
+                        ) : (
+
+                            <span className="text-[22px] ">
+                                {showTime(seconds)}
+                            </span>)}
+                    </div>
                     {/* 중앙 녹음 버튼 + 볼륨 애니메이션 */}
                     <div className="relative">
                         {isRecording && (
                             <div
                                 className="absolute rounded-full transition-transform duration-100 ease-out"
                                 style={{
-                                    width: "206px",
-                                    height: "206px",
+                                    width: "170px",
+                                    height: "170px",
                                     top: "49%",
                                     left: "50%",
                                     transform: `translate(-50%, -50%) scale(${1 + volume * 1.5})`,
@@ -497,35 +539,12 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                             disabled={isUploading || connected || isFinished}
                         >
                             {isRecording ? (
-                                <PauseIcon className="w-[240px] h-[240px] text-[#7553FC] opacity-70" />
+                                <PauseIcon className="w-[180px] h-[180px] text-[#7553FC] opacity-70" />
                             ) : (
-                                <PlayIcon className="w-[240px] h-[240px] text-[#7553FC]" />
+                                <PlayIcon className="w-[180px] h-[180px] text-[#7553FC]" />
                             )}
                         </button>
 
-                    </div>
-                    {/* 타이머 */}
-                    <div className="font-semibold text-[#7553FC] flex gap-2 items-center">
-                        {readySeconds !== null && !isRecording && !isFinished ? (
-                            <div className="text-center">
-                                <span className="text-[36px] ">
-                                    {readySeconds}초
-                                </span>
-                                <span>
-                                    {" "}
-                                </span>
-                                <span className="font-medium text-[20px]">
-                                    후 실습이 시작됩니다.
-                                    <br />
-                                    준비되었다면 <span className="font-bold">플레이 버튼</span>을 눌러주세요.
-                                </span>
-
-                            </div>
-                        ) : (
-
-                            <span className="text-[36px] ">
-                                {showTime(seconds)}
-                            </span>)}
                     </div>
                 </div>
 

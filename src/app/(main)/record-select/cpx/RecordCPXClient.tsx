@@ -12,6 +12,7 @@ import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { useUserStore } from "@/store/useUserStore";
 import StudentIdPopup from "@/component/StudentIdPopup";
+import Header from "@/component/Header";
 
 const INITIAL_SECONDS = 12 * 60; // 12분
 
@@ -265,7 +266,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
             // 3️⃣ 업로드 완료 → 채점 페이지 이동
             startTransition(() => {
                 router.push(
-                    `/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`
+                    `/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("SP")}`
                 );
             });
         } catch (err: any) {
@@ -286,14 +287,35 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                 />
 
                 <div className="px-8 flex-1 pt-[20px] pb-[136px] flex flex-col items-center justify-center gap-[12px] relative overflow-hidden">
+                    {/* 타이머 */}
+                    <div className="font-semibold text-[22px] text-[#7553FC] flex gap-2 items-center">
+                        {showTime(seconds)}
+                        {!isRecording && seconds < INITIAL_SECONDS && (
+                            <button
+                                onClick={() => {
+                                    setSeconds(INITIAL_SECONDS);
+                                    setIsFinished(false);
+                                    setIsRecording(false);
+                                    setIsPaused(false);
+                                    setAudioURL(null);
+                                    setIsPreviewReady(false);
+                                    setMp3Blob(null);
+                                    audioChunks.current = [];
+                                }}
+                                className="cursor-pointer text-[18px] text-[#7553FC] hover:text-[#5a3df0] active:text-[#4327d9] transition"
+                            >
+                                <RefreshIcon className="w-[20px] h-[20px] text-[#7553FC] hover:opacity-50" />
+                            </button>
+                        )}
+                    </div>
                     {/* 중앙 녹음 버튼 + 볼륨 애니메이션 */}
                     <div className="relative">
                         {isRecording && (
                             <div
                                 className="absolute rounded-full transition-transform duration-100 ease-out"
                                 style={{
-                                    width: "206px",
-                                    height: "206px",
+                                    width: "170px",
+                                    height: "170px",
                                     top: "49%",
                                     left: "50%",
                                     transform: `translate(-50%, -50%) scale(${1 + volume * 1.5})`,
@@ -313,40 +335,18 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                         transition-transform duration-150 ease-out active:scale-90"
                         >
                             {isRecording ? (
-                                <PauseIcon className="w-[240px] h-[240px] text-[#7553FC]" />
+                                <PauseIcon className="w-[180px] h-[180px] text-[#7553FC]" />
                             ) : (
-                                <PlayIcon className="w-[240px] h-[240px] text-[#7553FC]" />
+                                <PlayIcon className="w-[180px] h-[180px] text-[#7553FC]" />
                             )}
                         </button>
-                    </div>
-
-                    {/* 타이머 */}
-                    <div className="font-semibold text-[36px] text-[#7553FC] flex gap-2 items-center">
-                        {showTime(seconds)}
-                        {!isRecording && seconds < INITIAL_SECONDS && (
-                            <button
-                                onClick={() => {
-                                    setSeconds(INITIAL_SECONDS);
-                                    setIsFinished(false);
-                                    setIsRecording(false);
-                                    setIsPaused(false);
-                                    setAudioURL(null);
-                                    setIsPreviewReady(false);
-                                    setMp3Blob(null);
-                                    audioChunks.current = [];
-                                }}
-                                className="cursor-pointer text-[18px] text-[#7553FC] hover:text-[#5a3df0] active:text-[#4327d9] transition"
-                            >
-                                <RefreshIcon className="w-[32px] h-[32px] text-[#7553FC] hover:opacity-50" />
-                            </button>
-                        )}
                     </div>
 
                     {/* “녹음된 음성 확인하기” */}
                     {(isPaused || isFinished) && !isPreviewReady && (
                         <button
                             onClick={handlePreview}
-                            className="flex gap-2 items-center justify-center mt-4 px-6 py-3 bg-[#7553FC] text-white rounded-xl hover:opacity-90 transition"
+                            className="flex gap-2 items-center justify-center px-6 py-3 bg-[#7553FC] text-white rounded-xl hover:opacity-90 transition"
                         >
                             <span className="text-[16px] font-medium">녹음된 음성 확인하기</span>
                             {isConverting && <Spinner borderClassName="border-[#7553FC]" size={12} />}
@@ -356,6 +356,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                     {isPreviewReady && audioURL && (
                         <audio controls src={audioURL} className="mt-4 w-full z-10" />
                     )}
+                    <div className="text-[16px] font-medium text-gray-600">{`${studentId}님의 SP 평가`}</div>
                 </div>
 
                 <BottomFixButton
@@ -369,7 +370,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                 showStudentPopup && (
                     <StudentIdPopup
                         onClose={() => setShowStudentPopup(false)}
-                        onConfirm={()=> setShowStudentPopup(false)}
+                        onConfirm={() => setShowStudentPopup(false)}
                     />
                 )
             }
