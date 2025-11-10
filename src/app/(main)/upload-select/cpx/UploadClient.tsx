@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import Spinner from "@/component/Spinner";
+import Header from "@/component/Header";
 
 type Props = { category: string; caseName: string };
 
@@ -86,6 +87,7 @@ export default function UploadClient({ category, caseName }: Props) {
 
     return (
         <div className="flex flex-col relative min-h-screen">
+            <Header />
             <SmallHeader
                 title={`${caseName} 파일 업로드`}
                 onClick={() => router.push('/home')}

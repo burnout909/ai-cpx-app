@@ -5,13 +5,14 @@ import PeopleIcon from "@/assets/icon/PeopleIcon.svg"
 import SprakleIcon from "@/assets/icon/SparkleIcon.svg"
 import { useRouter } from "next/navigation";
 import Spinner from "@/component/Spinner";
-import BottomFixButton from "@/component/BottomFixButton";
+import Header from "@/component/Header";
 
 export default function Home() {
     const router = useRouter();
 
     return (
         <div>
+            <Header />
             <div className="flex px-5 py-3 flex-col gap-8">
                 <HomeComponent
                     icon={<SprakleIcon className="w-[24px] h-[24px] text-[#210535]" />}
@@ -54,25 +55,25 @@ function HomeComponent({
     };
 
     return (
-        <div className="w-full flex flex-col gap-4 px-2">
+        <div className="w-full flex flex-col gap-2 px-2">
             {/* 상단 타이틀 + 로딩 스피너 */}
             <div className="flex gap-2 items-center">
                 {icon}
-                <span className="font-semibold text-[22px]">{title}</span>
+                <span className="font-semibold text-[20px]">{title}</span>
             </div>
 
             {/* 버튼 영역 */}
             <button
                 onClick={handleClick}
                 disabled={isPending}
-                className={`flex cursor-pointer items-center w-full justify-between py-[18px] px-6 text-[#210535] font-semibold bg-[#DAD7E8] rounded-[12px] transition-opacity duration-200 ${isPending ? "opacity-80" : "hover:opacity-80"
+                className={`flex cursor-pointer items-center w-full justify-between py-[14px] px-6 text-[#210535] font-semibold bg-[#DAD7E8] rounded-[12px] transition-opacity duration-200 ${isPending ? "opacity-80" : "hover:opacity-80"
                     }`}
             >
-                <span className="text-[20px] font-semibold flex gap-2 items-center">
+                <span className="text-[18px] font-semibold flex gap-2 items-center">
                     {buttonName}
                     {isPending && <Spinner size={20} borderClassName="border-[#210535]" />} {/* pending 중이면 스피너 표시 */}
                 </span>
-                <RightArrowIcon className="w-[24px] h-[24px]" />
+                <RightArrowIcon className="w-[22px] h-[22px]" />
 
             </button>
         </div>

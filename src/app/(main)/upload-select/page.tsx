@@ -4,6 +4,7 @@ import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
 import { UPLOAD_RECORD_CASE_CATEGORIES } from "@/constants/caseData";
 import BottomFixButton from "@/component/BottomFixButton";
+import Header from "@/component/Header";
 
 type SelectedCaseState = {
     category: string;
@@ -40,6 +41,7 @@ export default function SelectPage() {
 
     return (
         <div className="flex flex-col relative">
+            <Header />
             <SmallHeader title="Case 선택" onClick={() => router.push('/home')} />
 
             <div className="flex flex-row flex-1 px-7 pt-[10px] gap-4 overflow-y-auto pb-[136px]">

@@ -18,9 +18,9 @@ export default function BottomFixButton({
             <button
                 disabled={disabled || loading}
                 onClick={onClick}
-                className={`mx-auto max-w-[410px] fixed px-6 py-[14px] rounded-[12px]
-          left-[20px] right-[20px] bottom-[42px]
-          text-white font-semibold text-[20px]
+                className={`mx-auto max-w-[418px] fixed px-6 py-[10px] rounded-[12px]
+          left-[16px] right-[16px] bottom-[32px]
+          text-white font-semibold text-[18px]
           flex gap-3 justify-center items-center gap-2 transition-all z-[52] whitespace-pre-line
           ${!disabled && !loading
                         ? "bg-[#7553FC] hover:opacity-90"
@@ -38,7 +38,7 @@ export default function BottomFixButton({
             {/* 하단 블러 배경 */}
             <div
                 className="
-          fixed mx-auto max-w-[450px] h-[126px] bottom-0 left-0 right-0
+          fixed mx-auto max-w-[450px] h-[90px] bottom-0 left-0 right-0
           backdrop-blur-xs z-[51]
         "
             />

@@ -11,15 +11,15 @@ export default function SmallHeader({ title, onClick }: { title: string, onClick
     }
 
     return (
-        <div className="flex justify-between px-4 items-center">
+        <div className="flex justify-between px-4 items-center pt-4">
             <div className="relative flex items-center justify-center items-center w-[48px] h-[48px] cursor-pointer">
-                <LeftArrowIcon className="w-[24px] h-[24px] text-[#210535]" onClick={handleClick} />
+                <LeftArrowIcon className="w-[22px] h-[22px] text-[#210535]" onClick={handleClick} />
                 {isPending && (
                     <div className="absolute left-[40px] top-1/2 -translate-y-1/2 flex items-center justify-center">
                         <Spinner size={16} borderClassName="border-[#210535]" />
                     </div>
                 )}            </div>
-            <div className="text-[20px] font-semibold text-[#210535]">
+            <div className="text-[18px] font-semibold text-[#210535]">
                 {title}
             </div>
             <div className="w-[24px] h-[24px]" />

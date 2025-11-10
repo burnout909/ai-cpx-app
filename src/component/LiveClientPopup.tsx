@@ -37,7 +37,7 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
         },
         {
             title: "준비되셨나요?",
-            content: "이제 가상환자와 대화를 시작해볼까요?",
+            content: "자기소개로 대화를 시작해보세요!",
         },
     ];
 
