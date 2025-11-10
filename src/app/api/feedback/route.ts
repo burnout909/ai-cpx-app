@@ -19,7 +19,6 @@ export interface FeedbackResponse {
     physical_exam_feedback: string;
     patient_education_feedback: string;
     ppi_feedback: string;
-    overall_summary: string;
 }
 
 /** Error DTO */
@@ -34,8 +33,7 @@ const FeedbackSchema = z.object({
     history_taking_feedback: z.string(),
     physical_exam_feedback: z.string(),
     patient_education_feedback: z.string(),
-    ppi_feedback: z.string(),
-    overall_summary: z.string(),
+    ppi_feedback: z.string()
 });
 
 /* =========================
@@ -69,14 +67,12 @@ export async function POST(
                     physical_exam_feedback: { type: "string" },
                     patient_education_feedback: { type: "string" },
                     ppi_feedback: { type: "string" },
-                    overall_summary: { type: "string" },
                 },
                 required: [
                     "history_taking_feedback",
                     "physical_exam_feedback",
                     "patient_education_feedback",
-                    "ppi_feedback",
-                    "overall_summary",
+                    "ppi_feedback"
                 ],
             },
             strict: true,
@@ -86,7 +82,7 @@ export async function POST(
            System Prompt
         ========================== */
         const sys = `
-시스템 지시]
+[시스템 지시]
 너는 의과대학 CPX 평가위원이며, 표준화환자와 학생 간의 대화 전사문과 체크리스트 결과를 분석하여
 학생에게 따뜻하고 구체적인 피드백을 제공하는 역할을 맡고 있다.
 피드백은 교수님처럼 자연스럽지만 무겁지 않게, 😊🌿💬 같은 이모티콘을 약간 곁들여 격려하는 말투로 작성한다. 
@@ -127,8 +123,7 @@ export async function POST(
 "history_taking_feedback": "string",
 "physical_exam_feedback": "string",
 "patient_education_feedback": "string",
-"ppi_feedback": "string",
-"overall_summary": "string"
+"ppi_feedback": "string"
 }
 
 ---
@@ -152,6 +147,7 @@ export async function POST(
 
 - 교수의 코멘트처럼 존중·격려 어조.
 - 문장은 짧고 자연스럽게.
+- 강조를 위한 적절한 마크다운 **볼드체** 사용.
 - emoji 예시: 😊🌿💬✨👍
 - “다음엔~” “좋았습니다!” “한 단계 더 발전할 수 있겠어요” 등의 표현 활용.
 
@@ -166,15 +162,13 @@ export async function POST(
 [출력 예시]
 
 {
-"history_taking_feedback": "통증의 위치와 지속 기간을 명확히 확인한 점이 좋았습니다😊 다만 통증의 양상(찌르는 통증인지, 둔한 통증인지)을 묻지 않아 감별 범위가 넓어질 수 있었습니다. 다음엔 통증의 성격과 악화·완화 요인을 함께 물어보면 더 정확한 판단이 가능할 거예요🌿",
+"history_taking_feedback": "**통증의 위치**와 **지속 기간**을 명확히 확인한 점이 좋았습니다😊 다만 통증의 **양상(찌르는 통증인지, 둔한 통증인지)**을 묻지 않아 감별 범위가 넓어질 수 있었습니다. 다음엔 통증의 **성격**과 **악화·완화 요인**을 함께 물어보면 더 정확한 판단이 가능할 거예요🌿",
 
-"physical_exam_feedback": "복부 진찰 시 환자의 불편을 최소화하려는 태도가 인상적이었습니다✨ 촉진 전 검사 과정을 간단히 설명하거나 손을 따뜻하게 해주는 작은 배려가 더해진다면 환자 신뢰를 높일 수 있겠어요💬",
+"physical_exam_feedback": "복부 진찰 시 **환자의 불편을 최소화**하려는 태도가 인상적이었습니다✨ 촉진 전 **검사 과정을 간단히 설명**하거나 **손을 따뜻하게** 해주는 작은 배려가 더해진다면 환자 신뢰를 높일 수 있겠어요💬",
 
-"patient_education_feedback": "복통 원인과 향후 검사 계획을 잘 설명했어요👍 다만 식이 조절과 약물 복용법에 대해 조금 더 구체적인 안내가 있었다면 환자가 더 안심했을 거예요😊",
+"patient_education_feedback": "복통 **원인**과 **향후 검사 계획**을 잘 설명했어요👍 다만 **식이 조절**과 **약물 복용법**에 대해 조금 더 구체적인 안내가 있었다면 환자가 더 안심했을 거예요😊",
 
-"ppi_feedback": "차분하고 공감 어린 태도로 환자의 이야기를 경청한 점이 아주 좋았습니다🌿 간혹 의학 용어가 그대로 사용되어 환자가 이해하기 어려웠을 수도 있으니, 다음엔 평이한 표현으로 풀어주면 좋겠어요✨",
-
-"overall_summary": "전반적으로 매우 따뜻하고 체계적인 진료 태도를 보여주었습니다😊 작은 부분만 다듬으면 실제 진료에서도 환자와 신뢰감 있는 관계를 형성할 수 있을 거예요🌿"
+"ppi_feedback": "**차분**하고 **공감 어린 태도**로 환자의 이야기를 경청한 점이 아주 좋았습니다🌿 간혹 **의학 용어가 그대로 사용**되어 환자가 이해하기 어려웠을 수도 있으니, 다음엔 **평이한 표현**으로 풀어주면 좋겠어요✨"
 }
 `;
 
@@ -209,7 +203,6 @@ export async function POST(
                 physical_exam_feedback: "",
                 patient_education_feedback: "",
                 ppi_feedback: "",
-                overall_summary: "",
             };
 
             return NextResponse.json<FeedbackResponse>(data);
@@ -238,7 +231,6 @@ export async function POST(
                 physical_exam_feedback: parsed.physical_exam_feedback ?? "",
                 patient_education_feedback: parsed.patient_education_feedback ?? "",
                 ppi_feedback: parsed.ppi_feedback ?? "",
-                overall_summary: parsed.overall_summary ?? "",
             });
         }
     } catch (e: unknown) {
