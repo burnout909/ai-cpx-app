@@ -131,7 +131,7 @@ export async function POST(
     const openai = await getOpenAIClient();
 
     const sys =
-      `당신은 한국 의대 CPX 자동 채점기를 위한 “증거 수집기(Evidence Collector)”입니다. 입력으로 
+      `당신은 한국 의대 CPX 자동 채점기를 위한 “증거 수집기(Evidence Collector)”입니다. 이 채점은 정확도가 중요하므로 깊이 생각해주세요. 입력으로 
 (1) 대화 전사 텍스트(의사/환자 발화 구분 없이 시간 순서로 포함)와 
 (2) 특정 섹션(sectionId)에 해당하는 체크리스트(각 항목: id, title, criteria, example)를 받습니다. 
 당신의 목표는 각 항목의 criteria를 충족한다고 판단되는 “증거 문장”을 전사문에서 직접 인용으로 수집하여 evidence 배열로 반환하는 것입니다. 이 프롬프트는 병력청취/신체진찰/환자교육/PPI 네 섹션에 모두 사용됩니다(실행 시 sectionId로 주어짐). 다양한 임상 표현형(총 50여개)과 무관하게 동작해야 합니다.
@@ -215,7 +215,7 @@ export async function POST(
 
 * 각 checklist 항목마다 {id, title, evidence[]}를 생성합니다.
 * evidence 배열에는 선택된 MEU “직접 인용 문자열”만 넣습니다(설명·근거유형·스코어 금지).
-* 항목 순서는 원래 checklist 순서를 유지하고, evidence 내부는 시간 순으로 정렬합니다.
+* 항목 순서는 원래 checklist 순서를 유지하고, evidence 내부는 시간 순으로 정렬합니다. 아래 transcript를 바탕으로 깊이 생각해주세요.
 
 \n ###Transcription: \n
 `
