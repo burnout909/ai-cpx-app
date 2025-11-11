@@ -135,7 +135,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName, studentN
                 )} */}
                 <div ref={feedbackAnchorRef} className="w-full" />
 
-
+                <div className='my-2 h-[1.5px] bg-[#333333] w-full'/>
                 {/* 피드백 뷰 */}
                 {feedbackDone && (
                     <div>
