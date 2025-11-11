@@ -227,7 +227,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                 prewarm: true, // 세션 handshake 미리 완료
                 turnDetection: {
                     type: "client_vad",
-                    silence_duration_ms: 0,   // 0.2초 침묵 → 턴 종료 판단
+                    silence_duration_ms: 0,  
                     autoStart: false, //먼저 발화하지 않도록 설정
                     prefix_padding_ms: 80, //AI 발화시 앞부분 잘리지 않게 padding
                     min_duration_ms: 250, // 너무 짧은 음성(숨소리 등) 무시
@@ -555,16 +555,19 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     loading={isPending || isUploading}
                 />
                 {statusMessage && (
-                    <div
-                        className="
+                    <>
+                        <div
+                            className="
                         fixed bottom-30 left-1/2 -translate-x-1/2 
                         bg-[#c7beeeff] text-[#210535] text-[18px] font-medium 
                         px-4 py-3 rounded-xl shadow-lg flex z-[100]
                         animate-slideUpFade flex justify-center items-center w-[calc(100%-40px)]
                         "
-                    >
-                        {statusMessage}
-                    </div>
+                        >
+                            {statusMessage}
+                        </div>
+                    </>
+
                 )}
             </div>
         </div >

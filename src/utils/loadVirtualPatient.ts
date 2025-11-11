@@ -82,3 +82,24 @@ export async function loadVPProfile(caseName: string): Promise<VPProfile> {
   const mod = await loader();
   return mod.default; // StaticImageData
 }
+
+type VPSolutionModule = { default: string };
+
+// 케이스 이름 → solution 로더 매핑
+const CASE_TO_SOLUTION: Record<string, () => Promise<VPSolutionModule>> = {
+  "급성복통": () => import("@/assets/virtualPatient/acute_abdominal_pain_001_solution"),
+  "호흡곤란": () => import("@/assets/virtualPatient/dyspnea_001_solution"),
+  "가슴통증": () => import("@/assets/virtualPatient/chest_pain_001_solution"),
+  "어지럼": () => import("@/assets/virtualPatient/dizziness_001_solution"),
+};
+
+
+
+export async function loadVPSolution(caseName: string): Promise<string> {
+  const loader = CASE_TO_SOLUTION[caseName];
+  if(!loader) {
+    throw new Error(`해당 케이스(${caseName})에 대한 프로필 이미지가 없습니다.`);
+  }
+  const mod = await loader();
+  return mod.default; // StaticImageData
+}
