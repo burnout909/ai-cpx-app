@@ -2,7 +2,7 @@ export interface EvidenceChecklist {
   id: string;
   title: string;
   criteria: string;
-  example?: string[];
+  example: string[];
 }
 
 export const HistoryEvidenceChecklist: EvidenceChecklist[] = [
@@ -125,12 +125,6 @@ export const HistoryEvidenceChecklist: EvidenceChecklist[] = [
     "title": "외상/수술/입원력",
     "criteria": "수술 유무, 골절, 입원 유무를 확인하였는가?",
     "example": ["수술 받은 적 있으신가요?", "골절이 있으신가요?", "입원하신 적 있으신가요?"]
-  },
-  {
-    "id": "HX-21",
-    "title": "[여성] 월경 양상",
-    "criteria": "여성의 경우 생리량, 임신 가능성 등에 대해 물어보았는가?",
-    "example": ["최근 생리량은 어떠세요?", "임신 가능성은 있으신가요?"]
   }
 ];
 
@@ -182,12 +176,6 @@ export const PhysicalexamEvidenceChecklist: EvidenceChecklist[] = [
     "title": "충수돌기염 감별 검사",
     "criteria": "급성 충수돌기염 감별을 위한 이학적 검사를 시행하였는가? (예: Psoas sign, McBurney's point tenderness, Rovsing sign 중 2가지 이상)",
     "example": ["왼 쪽으로 돌아누워주시겠어요? 오른쪽 다리 한 번 뒤로 해볼텐데, 아프시면 말씀해주세요.","배꼽과 돌기의 2대 1 지점 한 번 눌러보겠습니다. 왼쪽 아래 눌러볼텐데, 오른쪽 아래가 아프시면 말씀해주세요."]
-  },
-  {
-    "id": "PE-09",
-    "title": "여성 환자 골반내진",
-    "criteria": "여성이면서 아랫배 통증이 있는 경우 골반내진 검사를 시행하였는가?",
-    "example": ["골반내진 검사를 시행하겠습니다."]
   }
 ];
 
@@ -275,18 +263,26 @@ export const PpiEvidenceChecklist: EvidenceChecklist[] = [
   },
   {
     "id": "PPI-08",
+    "title": "환자 입장 파악",
+    "criteria": "환자의 관점과 걱정을 파악하기 위한 질문을 하였는가?",
+    "example": [
+      "혹시 걱정되시는 것이 있으신가요?"
+    ]
+  },
+  {
+    "id": "PPI-09",
     "title": "이해하기 쉬운 설명",
     "criteria": "비전문 용어로 핵심을 설명하고 과도한 의학 용어 사용을 자제하였는가?",
     "example": []
   },
   {
-    "id": "PPI-09",
+    "id": "PPI-10",
     "title": "이해도 확인",
     "criteria": "환자의 이해도를 확인하였는가?",
     "example": ["지금까지 이해 안 되는 것 있나요?"]
   },
   {
-    "id": "PPI-10",
+    "id": "PPI-11",
     "title": "질문 기회 제공",
     "criteria": "환자에게 질문할 기회를 명확히 제공하였는가?",
     "example": ["궁금한 것 있으신가요?"]

@@ -22,8 +22,7 @@ export const HistoryScoreChecklist: ScoreChecklist[] = [
     { "id": "HX-17", "max_evidence_count": 1 },
     { "id": "HX-18", "max_evidence_count": 1 },
     { "id": "HX-19", "max_evidence_count": 1 },
-    { "id": "HX-20", "max_evidence_count": 1 },
-    { "id": "HX-21", "max_evidence_count": 1 }
+    { "id": "HX-20", "max_evidence_count": 1 }
 ];
 
 export const PhysicalExamScoreChecklist: ScoreChecklist[] = [
@@ -34,8 +33,7 @@ export const PhysicalExamScoreChecklist: ScoreChecklist[] = [
     { "id": "PE-05", "max_evidence_count": 1 },
     { "id": "PE-06", "max_evidence_count": 1 },
     { "id": "PE-07", "max_evidence_count": 1 },
-    { "id": "PE-08", "max_evidence_count": 1 },
-    { "id": "PE-09", "max_evidence_count": 1 }
+    { "id": "PE-08", "max_evidence_count": 1 }
 ];
 
 export const EducationScoreChecklist: ScoreChecklist[] = [
@@ -57,5 +55,6 @@ export const PpiScoreChecklist: ScoreChecklist[] = [
     { "id": "PPI-07", "max_evidence_count": 1 },
     { "id": "PPI-08", "max_evidence_count": 1 },
     { "id": "PPI-09", "max_evidence_count": 1 },
-    { "id": "PPI-10", "max_evidence_count": 1 }
+    { "id": "PPI-10", "max_evidence_count": 1 },
+    { "id": "PPI-11", "max_evidence_count": 1 }
 ];
