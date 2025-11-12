@@ -44,19 +44,19 @@ export const HistoryEvidenceChecklist: EvidenceChecklist[] = [
   },
   {
     "id": "HX-07",
-    "title": "동반되는 안이비인후과적 증상",
-    "criteria": "귀 먹먹함, 청력 저하, 이명 등 안이비인후과 증상을 2가지 이상 질문하였는가?",
-    "example": ["귀가 먹먹하신가요?", "청력이 떨어지신가요?", "이명 있으신가요?"]
+    "title": "귀/전정기관관 증상",
+    "criteria": "귀 먹먹함, 이충만감, 청력 저하, 이명 등 안이비인후과 증상을 2가지 이상 질문하였는가?",
+    "example": ["귀가 먹먹하신가요?", "귀가 꽉 찬 느낌이이 있으신가요?", "청력이 떨어지신가요?", "이상한 소리가 들리거나 하진 않으신가요?"]
   },
   {
     "id": "HX-08",
-    "title": "동반되는 신경학적 증상",
+    "title": "신경학적 증상",
     "criteria": "손떨림, 근육 경직, 팔다리 힘 빠짐 등 신경학적 증상을 2가지 이상 질문하였는가?",
     "example": ["손이 떨리시나요?", "몸이 뻣뻣하신가요?", "팔다리에 힘이 빠지신 적 있나요?"]
   },
   {
     "id": "HX-09",
-    "title": "동반되는 간접적인 전신 증상",
+    "title": "두통, 구역, 구토토",
     "criteria": "두통, 구역, 구토 등 전신 증상을 2가지 이상 질문하였는가?",
     "example": ["두통은 없으세요?", "구역감이 나거나 실제로 구토를 하신 적 있나요?"]
   },
@@ -81,8 +81,8 @@ export const HistoryEvidenceChecklist: EvidenceChecklist[] = [
   {
     "id": "HX-13",
     "title": "약물 복용력",
-    "criteria": "정신건강의학과 약물 복용 여부나 기간을 1가지 이상 질문하였는가?",
-    "example": ["정신과 약 드시나요?", "얼마나 오래 드셨나요?"]
+    "criteria": "약물 복용 여부나 기간을 1가지 이상 질문하였는가?",
+    "example": ["약 드시는 것 있으신가요?", "얼마나 오래 드셨나요?"]
   },
   {
     "id": "HX-14",
@@ -94,7 +94,7 @@ export const HistoryEvidenceChecklist: EvidenceChecklist[] = [
     "id": "HX-15",
     "title": "가족력",
     "criteria": "고혈압, 당뇨병, 뇌혈관 질환, 편두통 등 가족력을 1가지 이상 질문하였는가?",
-    "example": ["가족 중에 고혈압이나 당뇨병 있으신 분 계신가요?", "뇌혈관 질환이나 편두통 있으신 분 계신가요?"]
+    "example": ["가족 중에 앓고 계신 질환이 있으신 분 계신가요?"]
   },
   {
     "id": "HX-16",
@@ -132,7 +132,7 @@ export const PhysicalexamEvidenceChecklist: EvidenceChecklist[] = [
   {
     "id": "PE-04",
     "title": "뇌압 상승여부 확인",
-    "criteria": "시신경 유두 부종 또는 수막자극 징후 등 뇌압 상승 여부를 확인하였는가?",
+    "criteria": "검안경을 통한 시신경 유두 부종 또는 수막자극 징후 등 뇌압 상승 여부를 확인하였는가?",
     "example": ["검안경을 통해 눈 안쪽을 확인해보겠습니다.", "누워서 목을 앞으로 숙여보겠습니다."]
   },
   {
@@ -151,7 +151,7 @@ export const PhysicalexamEvidenceChecklist: EvidenceChecklist[] = [
     "title": "소뇌기능 검사",
     "criteria": "finger to nose, alternating hand movement, heel to shin, Romberg, 일자걸음검사 중 3항목 이상 시행하였는가?",
     "example": [
-      "손가락으로 코 찍어보세요.",
+      "손가락으로 본인 코랑 제 손가락을 번갈아서서 찍어보세요.",
       "손 빨리 뒤집어보세요.",
       "뒤꿈치로 정강이 쓸어내려보세요.",
       "눈 감고 서 계세요.",
