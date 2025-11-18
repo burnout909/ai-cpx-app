@@ -212,7 +212,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             const agent = new RealtimeAgent({
                 name: "표준화 환자 AI",
                 instructions: buildPatientInstructions(caseData as VirtualPatient),
-                voice: caseData?.properties.meta.sex === "남성" ? "alloy" : "coral"
+                voice: caseData?.properties.meta.sex === "남성" ? "ash" : "coral"
             });
 
             const session: any = new RealtimeSession(agent, {
