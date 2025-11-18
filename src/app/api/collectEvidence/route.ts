@@ -223,7 +223,7 @@ export async function POST(
     try {
       // Structured Output API 호출
       const resp = await openai.responses.parse({
-        model: "gpt-5-2025-08-07",
+        model: "gpt-5.1-2025-11-13",
         input: [
           { role: "system", content: sys },
           { role: "user", content: JSON.stringify(userMsg) },
@@ -231,10 +231,8 @@ export async function POST(
         text: {
           format: zodTextFormat(EvidenceSchema, "evidence_list_schema"),
         },
-        temperature: 0,
         max_output_tokens: 4096,
       });
-
       // 2파싱된 결과를 그대로 사용
       const data = resp.output_parsed; // 이미 Zod 검증 통과된 객체이므로 불러오기
 
@@ -245,12 +243,12 @@ export async function POST(
           title: row.title,
           evidence: normalizeEvidence(row.evidence),
         })) ?? [];
-
       // 결과 반환
       return NextResponse.json<CollectEvidenceResponse>({
         evidenceList: finalEvidenceList,
       });
     } catch (error) {
+      console.error(error)
       try {
         const fallback = await openai.chat.completions.create({
           model: "gpt-4o-mini",
