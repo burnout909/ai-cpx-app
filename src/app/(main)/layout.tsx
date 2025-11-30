@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 
 export default function Layout({ children }: { children: ReactNode }) {
     return (
-        <div className="flex flex-col min-h-dvh">
+        <div className="flex flex-col min-h-dvh w-full max-w-[450px] mx-auto bg-[#FCFCFC]">
             {children}
             <Toaster reverseOrder={false} />
         </div>

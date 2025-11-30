@@ -9,7 +9,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body>
-        <div className="w-full max-w-[450px] min-h-screen mx-auto bg-[#FCFCFC]">
+        <div>
           {children}
         </div>
       </body>
