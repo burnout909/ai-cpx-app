@@ -51,7 +51,7 @@ export function useAutoPipeline(
                     console.warn('[script upload skipped] bucket not set');
                 } else {
                     const scriptKey = key.startsWith('SP_audio/')
-                        ? key.replace(/^SP_audio\//, 'SP_script/')
+                        ? key.replace(/^SP_audio\//, 'SP_script/').replace(/\.mp3$/i, '.txt')
                         : key;
                     const uploadUrl = await generateUploadUrl(bucket, scriptKey);
                     const body = new Blob([text], { type: 'text/plain; charset=utf-8' });
