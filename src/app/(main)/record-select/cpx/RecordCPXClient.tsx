@@ -12,9 +12,8 @@ import { standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { useUserStore } from "@/store/useUserStore";
 import StudentIdPopup from "@/component/StudentIdPopup";
-import Header from "@/component/Header";
 
-const INITIAL_SECONDS = 12 * 60; // 12분
+const INITIAL_SECONDS = 15 * 60; // 12분
 
 type Props = { category: string; caseName: string };
 
@@ -87,12 +86,12 @@ export default function RecordCPXClient({ category, caseName }: Props) {
         return () => clearInterval(id);
     }, [isRecording, isPaused, isFinished]);
 
-    //12분 초과시 자동 채점 진행
-    useEffect(() => {
-        if (seconds === 0 && !isUploadingToS3 && isFinished && !isRecording) {
-            handleSubmit();
-        }
-    }, [seconds, isUploadingToS3, isFinished]);
+    // //INITAL TIME 소진시 자동 채점 진행
+    // useEffect(() => {
+    //     if (seconds === 0 && !isUploadingToS3 && isFinished && !isRecording) {
+    //         handleSubmit();
+    //     }
+    // }, [seconds, isUploadingToS3, isFinished]);
 
     // 녹음 시작
     async function startRecording() {
