@@ -2,6 +2,7 @@ import { SectionId } from "@/app/api/collectEvidence/route";
 import { GradeItem, SectionResult } from "@/types/score";
 import { EvidenceChecklist, loadChecklistByCase } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
+import { generateUploadUrl } from "@/app/api/s3/s3";
 
 export function useAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
@@ -13,7 +14,7 @@ export function useAutoPipeline(
 ) {
     return async function runAutoPipeline(key: string, caseName: string) {
         try {
-            // 1️⃣ 체크리스트 로드
+            // 체크리스트 로드
             setStatusMessage('채점 기준 로드 중');
             const { evidence, score } = await loadChecklistByCase(caseName!);
 
@@ -32,7 +33,7 @@ export function useAutoPipeline(
             // };
 
             const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
-            // 2️⃣ 전사
+            // 전사
             setStatusMessage('오디오 전사 중');
             const res1 = await fetch('/api/transcribe', {
                 method: 'POST',
@@ -43,7 +44,29 @@ export function useAutoPipeline(
             await ensureOkOrThrow(res1, data1);
             const text = data1?.text || '';
 
-            // 3️⃣ 채점 먼저 수행
+            // 전사 결과를 S3에 저장 (SP_script/ 경로로 교체, 나머지는 동일하게 유지)
+            try {
+                const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
+                if (!bucket) {
+                    console.warn('[script upload skipped] bucket not set');
+                } else {
+                    const scriptKey = key.startsWith('SP_audio/')
+                        ? key.replace(/^SP_audio\//, 'SP_script/')
+                        : key;
+                    const uploadUrl = await generateUploadUrl(bucket, scriptKey);
+                    const body = new Blob([text], { type: 'text/plain; charset=utf-8' });
+
+                    await fetch(uploadUrl, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+                        body,
+                    });
+                }
+            } catch (err) {
+                console.warn('[script upload failed]', err);
+            }
+
+            // 채점 먼저 수행
             setStatusMessage('채점 중');
 
             const resultsPromises: Promise<SectionResult>[] = sectionIds.map(async (sectionId) => {
@@ -64,7 +87,7 @@ export function useAutoPipeline(
             const results = await Promise.all(resultsPromises);
             setResults(results);
 
-            // 4️⃣ 점수 계산
+            // 점수 계산
             const graded: Record<'history' | 'physical_exam' | 'education' | 'ppi', GradeItem[]> = {
                 history: [], physical_exam: [], education: [], ppi: []
             };
@@ -94,7 +117,7 @@ export function useAutoPipeline(
             setGradesBySection(graded);
             setActiveSection('history');
 
-            // 5️⃣ 채점 결과 기반으로 피드백 생성
+            // 채점 결과 기반으로 피드백 생성
             setStatusMessage('피드백 생성 중');
 
             const feedbackRes = await fetch('/api/feedback', {
@@ -108,7 +131,7 @@ export function useAutoPipeline(
             });
             const feedbackData = await readJsonOrText(feedbackRes);
             await ensureOkOrThrow(feedbackRes, feedbackData);
-            // 6️⃣ 완료
+            // 완료
             setStatusMessage(null);
             setNarrativeFeedback(feedbackData);
             setFeedbackDone(true);

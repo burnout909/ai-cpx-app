@@ -34,13 +34,13 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName, studentN
     const [narrativeFeedback, setNarrativeFeedback] = useState<any | null>(null);
     const [feedbackDone, setFeedbackDone] = useState<boolean>(false);
 
-    // 👇 새로 추가: 솔루션 마크다운/HTML 상태
+    // 새로 추가: 솔루션 마크다운/HTML 상태
     const [solutionHtml, setSolutionHtml] = useState<string>("");
     const [showSolution, setShowSolution] = useState<boolean>(true); //솔루션 보기 여부
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const feedbackAnchorRef = useRef<HTMLDivElement>(null);
-    const solutionAnchorRef = useRef<HTMLDivElement>(null); // 👈 해설 섹션 상단 ref 추가
+    const solutionAnchorRef = useRef<HTMLDivElement>(null); // 해설 섹션 상단 ref 추가
     // 컴포넌트 내부 맨 위 근처에 helper/refs 추가
     const uploadedNarrativeRef = useRef(false);
     const uploadedScoreRef = useRef(false);
@@ -58,7 +58,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName, studentN
 
                 const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
                 const timestamp = getKSTTimestamp();
-                const key = `narrative/${studentNumber}-${timestamp}.json`;
+                const key = `${origin}_narrative/${studentNumber}-${timestamp}.json`;
 
                 const uploadUrl = await generateUploadUrl(bucket, key);
                 const body = new Blob([JSON.stringify(narrativeFeedback, null, 2)], {
@@ -95,7 +95,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName, studentN
 
                 const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
                 const timestamp = getKSTTimestamp();
-                const key = `structuredScore/${studentNumber}-${timestamp}.json`;
+                const key = `${origin}_structuredScore/${studentNumber}-${timestamp}.json`;
 
                 const uploadUrl = await generateUploadUrl(bucket, key);
                 const body = new Blob([JSON.stringify(gradesBySection, null, 2)], {
