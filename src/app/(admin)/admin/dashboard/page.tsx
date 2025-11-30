@@ -237,6 +237,47 @@ export default function AdminDashboardPage() {
         }
     };
 
+    const versionsForDate = (group: { byDate: DateMap; versions: VersionItem[] }, date: string | null) =>
+        date ? (group.byDate[date] || []) : group.versions;
+
+    const firstKeyForDate = (group: { byDate: DateMap }, date: string | null) =>
+        date && group.byDate[date]?.[0]?.key ? group.byDate[date][0].key : null;
+
+    const formatTime = (ts?: number) => {
+        if (!ts) return '';
+        return new Intl.DateTimeFormat('ko-KR', {
+            timeZone: 'Asia/Seoul',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        }).format(ts);
+    };
+
+    const renderTimeChips = (versions: VersionItem[], selectedKey: string | null, onSelect: (k: string) => void) => {
+        if (versions.length <= 1) return null;
+        return (
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                {versions.map((v) => {
+                    const isActive = v.key === selectedKey;
+                    return (
+                        <button
+                            key={v.key}
+                            onClick={() => onSelect(v.key)}
+                            className="whitespace-nowrap rounded-full border px-3 py-1 text-[13px] transition-colors"
+                            style={{
+                                borderColor: isActive ? PRIMARY : '#E5E7EB',
+                                backgroundColor: isActive ? '#F4F0FF' : '#FFFFFF',
+                                color: isActive ? PRIMARY : '#374151',
+                            }}
+                        >
+                            {formatTime(v.lastModified)}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    };
+
     const renderStructuredBlock = (
         structured: StructuredScores | null,
         active: string,
@@ -308,8 +349,8 @@ export default function AdminDashboardPage() {
         );
     };
 
-    const pickKeyForDate = (group: { latestKey: string | null; byDate: DateMap }, date: string | null) =>
-        (date && group.byDate[date]?.[0]?.key) || group.latestKey;
+    const pickKeyForDate = (group: { byDate: DateMap }, date: string | null) =>
+        firstKeyForDate(group, date);
 
     const applyDateSelection = (origin: 'vp' | 'sp', date: string | null) => {
         if (!data) return;
@@ -352,22 +393,24 @@ export default function AdminDashboardPage() {
     ) => {
         const dateList = Object.keys(artifacts.script.byDate || {}).sort().reverse();
         const selectedDate = dateKey || dateList[0] || null;
-        const pickFromDate = (group?: { latestKey: string | null; byDate: DateMap }) =>
-            group ? ((selectedDate && group.byDate[selectedDate]?.[0]?.key) || null) : null;
+        const scriptVersions = versionsForDate(artifacts.script, selectedDate);
+        const narrativeVersions = versionsForDate(artifacts.narrative, selectedDate);
+        const structuredVersions = versionsForDate(artifacts.structured, selectedDate);
+        const audioVersions = 'audio' in artifacts ? versionsForDate(artifacts.audio!, selectedDate) : [];
 
         const selectedSet = origin === 'VP' ? selectedKeys.vp : selectedKeys.sp;
-        const selectedScriptKey = selectedSet.script || pickFromDate(artifacts.script);
-        const selectedNarrKey = selectedSet.narrative || pickFromDate(artifacts.narrative);
-        const selectedStructKey = selectedSet.structured || pickFromDate(artifacts.structured);
+        const selectedScriptKey = scriptVersions.find((v) => v.key === selectedSet.script)?.key || scriptVersions[0]?.key || null;
+        const selectedNarrKey = narrativeVersions.find((v) => v.key === selectedSet.narrative)?.key || narrativeVersions[0]?.key || null;
+        const selectedStructKey = structuredVersions.find((v) => v.key === selectedSet.structured)?.key || structuredVersions[0]?.key || null;
         const selectedAudioKey = 'audio' in artifacts
-            ? (selectedSet.audio || pickFromDate(artifacts.audio))
+            ? (audioVersions.find((v) => v.key === selectedSet.audio)?.key || audioVersions[0]?.key || null)
             : null;
         const scriptText =
             selectedScriptKey === artifacts.script.latestKey
                 ? artifacts.script.latestText
                 : (selectedScriptKey
                     ? contentCache[selectedScriptKey]?.text
-                        ?? (contentCache[selectedScriptKey]?.json ? JSON.stringify(contentCache[selectedScriptKey]?.json, null, 2) : null)
+                    ?? (contentCache[selectedScriptKey]?.json ? JSON.stringify(contentCache[selectedScriptKey]?.json, null, 2) : null)
                     : null);
         const narrativeData =
             selectedNarrKey === artifacts.narrative.latestKey
@@ -379,25 +422,29 @@ export default function AdminDashboardPage() {
                 : (selectedStructKey ? contentCache[selectedStructKey]?.json || null : null);
         const computedTotals = structuredData ? getAllTotals(structuredData) : null;
 
+        const handleTimeSelect = (artifact: 'script' | 'narrative' | 'structured' | 'audio', key: string) => {
+            setSelectedKeys((prev) => ({
+                ...prev,
+                [origin === 'VP' ? 'vp' : 'sp']: {
+                    ...prev[origin === 'VP' ? 'vp' : 'sp'],
+                    [artifact]: key,
+                },
+            }));
+            if (artifact === 'script' || artifact === 'narrative' || artifact === 'structured') {
+                void ensureContent(key);
+            }
+        };
+
         return (
             <div className="rounded-xl border border-gray-200 bg-white p-4">
                 <div className="flex items-center justify-between mb-3">
                     <h2 className="text-lg font-semibold text-gray-800">{label}</h2>
-                    {showAudioButton && (
-                        <button
-                            onClick={() => selectedAudioKey && handleDownloadKey(selectedAudioKey)}
-                            disabled={downloadLoading || !selectedAudioKey}
-                            className="rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-colors hover:brightness-95"
-                            style={{ backgroundColor: PRIMARY, ...(downloadLoading ? {} : { cursor: 'pointer' }) }}
-                        >
-                            {downloadLoading ? '다운로드 중...' : 'SP 오디오 다운로드'}
-                        </button>
-                    )}
                 </div>
 
                 <div className="space-y-4 mt-3">
                     <div>
                         <h3 className="text-base font-semibold text-gray-700 mb-1">스크립트</h3>
+                        {renderTimeChips(scriptVersions, selectedScriptKey, (k) => handleTimeSelect('script', k))}
                         {renderScriptBlock(
                             selectedScriptKey,
                             scriptText || (selectedScriptKey === artifacts.script.latestKey ? artifacts.script.latestText : null),
@@ -405,22 +452,44 @@ export default function AdminDashboardPage() {
                         )}
                     </div>
 
+
+                    {'audio' in artifacts && audioVersions.length > 1 && (
+                        <div>
+                            <div className='w-full flex gap-4 items-center'>
+                                <h3 className="text-base font-semibold text-gray-700 mb-1">오디오</h3>
+                            </div>
+                            {renderTimeChips(audioVersions, selectedAudioKey, (k) => handleTimeSelect('audio', k))}
+                            {showAudioButton && (
+                                <button
+                                    onClick={() => selectedAudioKey && handleDownloadKey(selectedAudioKey)}
+                                    disabled={downloadLoading || !selectedAudioKey}
+                                    className="mt-2 rounded-md px-3 py-1 text-sm font-medium text-white disabled:opacity-60 transition-colors hover:brightness-95"
+                                    style={{ backgroundColor: PRIMARY, ...(downloadLoading ? {} : { cursor: 'pointer' }) }}
+                                >
+                                    {downloadLoading ? '다운로드 중...' : '오디오 다운로드'}
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     <div>
-                    <h3 className="text-base font-semibold text-gray-700 mb-1">피드백</h3>
-                    <div className="text-[14px] text-gray-500">
-                        {findTimestamp(artifacts.narrative.versions, selectedNarrKey)}
+                        <h3 className="text-base font-semibold text-gray-700 mb-1">피드백</h3>
+                        <div className="text-[14px] text-gray-500">
+                            {findTimestamp(artifacts.narrative.versions, selectedNarrKey)}
+                        </div>
+                        {renderTimeChips(narrativeVersions, selectedNarrKey, (k) => handleTimeSelect('narrative', k))}
+                        {renderNarrativeBlock(
+                            narrativeData,
+                            origin
+                        ) || <div className="text-[14px] text-gray-500">데이터가 없습니다.</div>}
                     </div>
-                    {renderNarrativeBlock(
-                        narrativeData,
-                        origin
-                    ) || <div className="text-[14px] text-gray-500">데이터가 없습니다.</div>}
-                </div>
 
                     <div>
                         <h3 className="text-base font-semibold text-gray-700 mb-1">체크리스트</h3>
                         <div className="text-[14px] text-gray-500">
                             {findTimestamp(artifacts.structured.versions, selectedStructKey)}
                         </div>
+                        {renderTimeChips(structuredVersions, selectedStructKey, (k) => handleTimeSelect('structured', k))}
                         {renderStructuredBlock(structuredData || null, active, setActive, computedTotals) || (
                             <div className="text-[14px] text-gray-500">데이터가 없습니다.</div>
                         )}
