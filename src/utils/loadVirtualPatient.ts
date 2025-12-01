@@ -39,7 +39,7 @@ export interface VirtualPatient {
   physical_exam: string | Record<string, any>;
 
   // questions는 string으로 통일
-  questions: string | string[];
+  questions?: string | string[];
 }
 
 
