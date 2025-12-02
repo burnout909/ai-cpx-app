@@ -3,7 +3,6 @@ import { useState } from "react";
 import RightArrowIcon from "@/assets/icon/RightArrowIcon.svg";
 import LeftArrowIcon from "@/assets/icon/LeftArrowIcon.svg";
 import StudentIdPopup from "./StudentIdPopup";
-import { marked } from "marked";
 
 interface Props {
     onClose: () => void;
@@ -27,8 +26,25 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
         if (step > 0) setStep(step - 1);
     };
 
-    marked.setOptions({ breaks: true, async: false });
-    const renderMarkdown = (md: string) => marked.parseInline(md) as string;
+    // 단순 마크다운(**bold**)만 처리해서 여백 이슈 없이 볼드 유지
+    const renderContent = (md: string) => {
+        const renderLine = (line: string, lineIdx: number, last: boolean) => {
+            const segments = line.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+            return (
+                <span key={lineIdx}>
+                    {segments.map((seg, idx) => {
+                        const boldMatch = seg.match(/^\*\*(.+)\*\*$/);
+                        if (boldMatch) return <strong key={idx}>{boldMatch[1]}</strong>;
+                        return <span key={idx}>{seg}</span>;
+                    })}
+                    {!last && <br />}
+                </span>
+            );
+        };
+
+        const lines = md.split("\n");
+        return lines.map((line, idx) => renderLine(line, idx, idx === lines.length - 1));
+    };
 
     const slides = [
         {
@@ -37,7 +53,7 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
         },
         {
             title: "혼잣말은 No!",
-            content: `가상환자는 **혼잣말**에도 대답해요.\nex) 가만 있어보자... : 네, 가만히 있을게요.\n\n생각 정리도 혼잣말 없이 해주세요!`,
+            content: `가상환자는 **혼잣말**에도 대답해요.\nex) "가만 있어보자..." → "네, 가만히 있을게요."\n\n생각 정리도 혼잣말 없이 해주세요!`,
         },
         {
             title: "환자의 응답이 느릴 수 있어요.",
@@ -45,7 +61,7 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
         },
         {
             title: "신체진찰은 '말로' 진행해주세요.",
-            content: `ex) 눈 결막 보도록 하겠습니다.\n\n말하면 진찰 결과까지 알려줍니다!\n만약 결과를 듣지 못하셨다면\n"결과는 어떤가요?"라고 물어보시면 됩니다!`,
+            content: `ex) 눈 결막 보도록 하겠습니다.\n\n말하면 진찰 결과까지 알려줍니다!\n만약 결과를 듣지 못하셨다면\n**"결과는 어떤가요?"**라고 물어보시면 됩니다!`,
         },
         {
             title: "준비되셨나요?",
@@ -59,10 +75,9 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
                 <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-[400px] p-6 h-[423px] text-center flex flex-col gap-4 relative">
                     <h1 className="text-[22px] font-bold text-red-600">⚠️ 필독 ⚠️</h1>
                     <h2 className="text-[20px] font-semibold text-[#210535]">{slides[step].title}</h2>
-                    <p
-                        className="text-[18px] text-[#4b3d6e] whitespace-pre-line flex flex-1 flex-col"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(slides[step].content) }}
-                    />
+                    <p className="text-[18px] text-[#4b3d6e] flex flex-1 flex-col">
+                        {renderContent(slides[step].content)}
+                    </p>
 
                     <div className="flex justify-center gap-2 mt-3">
                         {slides.map((_, i) => (
