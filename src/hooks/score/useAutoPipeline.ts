@@ -12,8 +12,21 @@ export function useAutoPipeline(
     setNarrativeFeedback: (data: any) => void,
     setFeedbackDone: (done: boolean) => void,
 ) {
-    return async function runAutoPipeline(key: string, caseName: string) {
+    function deriveScriptKey(audioKeys: string[]): string | null {
+        const first = audioKeys[0];
+        if (!first) return null;
+        const normalized = first.replace(/-part\d+(?=\.mp3$)/i, '');
+        const base = normalized.replace(/\.mp3$/i, '.txt');
+        if (normalized.startsWith('SP_audio/')) {
+            return base.replace(/^SP_audio\//, 'SP_script/');
+        }
+        return base;
+    }
+
+    return async function runAutoPipeline(keys: string | string[], caseName: string) {
+        const audioKeys = (Array.isArray(keys) ? keys : [keys]).filter(Boolean);
         try {
+            if (audioKeys.length === 0) throw new Error('오디오 키가 없습니다.');
             // 체크리스트 로드
             setStatusMessage('채점 기준 로드 중');
             const { evidence, score } = await loadChecklistByCase(caseName!);
@@ -33,16 +46,21 @@ export function useAutoPipeline(
             // };
 
             const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
-            // 전사
-            setStatusMessage('오디오 전사 중');
-            const res1 = await fetch('/api/transcribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ s3_key: key }),
-            });
-            const data1 = await readJsonOrText(res1);
-            await ensureOkOrThrow(res1, data1);
-            const text = data1?.text || '';
+            // 전사 (병렬 수행, 결과 순서 보장)
+            setStatusMessage(`오디오 전사 중`);
+            const transcriptParts = await Promise.all(
+                audioKeys.map(async (key) => {
+                    const res1 = await fetch('/api/transcribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ s3_key: key }),
+                    });
+                    const data1 = await readJsonOrText(res1);
+                    await ensureOkOrThrow(res1, data1);
+                    return data1?.text || '';
+                })
+            );
+            const text = transcriptParts.join('\n');
 
             // 전사 결과를 S3에 저장 (SP_script/ 경로로 교체, 나머지는 동일하게 유지)
             try {
@@ -50,9 +68,8 @@ export function useAutoPipeline(
                 if (!bucket) {
                     console.warn('[script upload skipped] bucket not set');
                 } else {
-                    const scriptKey = key.startsWith('SP_audio/')
-                        ? key.replace(/^SP_audio\//, 'SP_script/').replace(/\.mp3$/i, '.txt')
-                        : key;
+                    const scriptKey = deriveScriptKey(audioKeys);
+                    if (!scriptKey) throw new Error('scriptKey missing');
                     const uploadUrl = await generateUploadUrl(bucket, scriptKey);
                     const body = new Blob([text], { type: 'text/plain; charset=utf-8' });
 

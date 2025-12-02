@@ -8,7 +8,7 @@ import PlayIcon from "@/assets/icon/PlayIcon.svg";
 import PauseIcon from "@/assets/icon/PauseIcon.svg";
 import RefreshIcon from "@/assets/icon/ResetIcon.svg";
 import Spinner from "@/component/Spinner";
-import { standardizeToMP3 } from "@/utils/audioPreprocessing";
+import { splitMp3ByDuration, standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { useUserStore } from "@/store/useUserStore";
 import StudentIdPopup from "@/component/StudentIdPopup";
@@ -220,7 +220,8 @@ export default function RecordCPXClient({ category, caseName }: Props) {
     async function handleSubmit() {
         try {
             // 1️⃣ 변환 준비
-            if (!mp3Blob) {
+            let finalMp3: Blob | null = mp3Blob;
+            if (!finalMp3) {
                 if (audioChunks.current.length === 0) {
                     alert("녹음된 음성이 없습니다. 먼저 녹음을 완료해주세요!");
                     return;
@@ -229,8 +230,8 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                 setIsConvertingDirect(true);
                 try {
                     const blob = new Blob(audioChunks.current, { type: "audio/webm" });
-                    const mp3 = await standardizeToMP3(blob);
-                    setMp3Blob(mp3);
+                    finalMp3 = await standardizeToMP3(blob);
+                    setMp3Blob(finalMp3);
                 } catch (err) {
                     console.error(err);
                     alert("MP3 변환 중 오류가 발생했습니다.");
@@ -251,21 +252,33 @@ export default function RecordCPXClient({ category, caseName }: Props) {
             // 2️⃣ S3 업로드
             setIsUploadingToS3(true);
             const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
-            const key = `SP_audio/${studentId}-${timestamp}.mp3`;
+            const baseKey = `SP_audio/${studentId}-${timestamp}.mp3`;
 
-            const uploadUrl = await generateUploadUrl(bucket, key);
-            const res = await fetch(uploadUrl, {
-                method: "PUT",
-                headers: { "Content-Type": "audio/mpeg" },
-                body: mp3Blob ?? (await standardizeToMP3(new Blob(audioChunks.current, { type: "audio/webm" }))),
-            });
+            const { parts, partCount } = await splitMp3ByDuration(finalMp3!);
+            const audioKeys: string[] = [];
 
-            if (!res.ok) throw new Error("S3 업로드 실패");
+            for (let i = 0; i < partCount; i += 1) {
+                const key = partCount === 1
+                    ? baseKey
+                    : baseKey.replace(/\.mp3$/i, `-part${i + 1}.mp3`);
+                const uploadUrl = await generateUploadUrl(bucket, key);
+                const res = await fetch(uploadUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": "audio/mpeg" },
+                    body: parts[i],
+                });
+
+                if (!res.ok) throw new Error("S3 업로드 실패");
+                audioKeys.push(key);
+            }
 
             // 3️⃣ 업로드 완료 → 채점 페이지 이동
             startTransition(() => {
+                const query = audioKeys.length === 1
+                    ? `s3Key=${encodeURIComponent(audioKeys[0])}`
+                    : `s3KeyList=${encodeURIComponent(JSON.stringify(audioKeys))}`;
                 router.push(
-                    `/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("SP")}`
+                    `/score?${query}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("SP")}`
                 );
             });
         } catch (err: any) {

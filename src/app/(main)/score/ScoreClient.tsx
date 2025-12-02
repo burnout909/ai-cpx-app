@@ -19,14 +19,14 @@ import getKSTTimestamp from '@/utils/getKSTTimestamp';
 marked.setOptions({ async: false });
 
 interface Props {
-    s3Key: string;
+    audioKeys: string[];
     transcriptS3Key: string | null;
     caseName: string | null;
     studentNumber: string | null;
     origin: "VP" | "SP";
 }
 
-export default function ScoreClient({ s3Key, transcriptS3Key, caseName, studentNumber, origin }: Props) {
+export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin }: Props) {
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
@@ -123,8 +123,8 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName, studentN
     useEffect(() => {
         if (!caseName) return;
         if (transcriptS3Key) runLiveAutoPipeline(transcriptS3Key, caseName);
-        else if (s3Key) runAutoPipeline(s3Key, caseName);
-    }, [s3Key, transcriptS3Key, caseName]);
+        else if (audioKeys.length > 0) runAutoPipeline(audioKeys, caseName);
+    }, [audioKeys, transcriptS3Key, caseName]);
 
     // 👇 비동기 로드: caseName 바뀌면 솔루션 로드
     useEffect(() => {
@@ -193,7 +193,7 @@ export default function ScoreClient({ s3Key, transcriptS3Key, caseName, studentN
             >
                 <div ref={solutionAnchorRef} />
                 {/* 상태 표시 + 솔루션 뷰 */}
-                {!!solutionHtml && (
+                {origin == "VP" && !!solutionHtml && (
                     <div className='pt-2'>
                         <h2 className='text-[20px] font-semibold mb-2'>해설</h2>
                         <div

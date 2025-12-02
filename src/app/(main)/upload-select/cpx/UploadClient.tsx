@@ -6,7 +6,7 @@ import BottomFixButton from "@/component/BottomFixButton";
 import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
-import { standardizeToMP3 } from "@/utils/audioPreprocessing";
+import { splitMp3ByDuration, standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import Spinner from "@/component/Spinner";
 import Header from "@/component/Header";
@@ -59,23 +59,33 @@ export default function UploadClient({ category, caseName }: Props) {
 
             const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
             const fileName = uploadFileName.replace(/\.[^/.]+$/, ""); // 확장자 제거
-            const key = `uploads/${uuidv4()}-${fileName}.mp3`;
+            const baseKey = `uploads/${uuidv4()}-${fileName}.mp3`;
 
-            // Presigned URL 생성
-            const uploadUrl = await generateUploadUrl(bucket, key);
+            const { parts, partCount } = await splitMp3ByDuration(mp3Blob);
+            const audioKeys: string[] = [];
 
-            // 업로드 실행
-            const res = await fetch(uploadUrl, {
-                method: "PUT",
-                headers: { "Content-Type": "audio/mpeg" },
-                body: mp3Blob,
-            });
+            for (let i = 0; i < partCount; i += 1) {
+                const key = partCount === 1
+                    ? baseKey
+                    : baseKey.replace(/\.mp3$/i, `-part${i + 1}.mp3`);
+                const uploadUrl = await generateUploadUrl(bucket, key);
 
-            if (!res.ok) throw new Error("S3 업로드 실패");
+                const res = await fetch(uploadUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": "audio/mpeg" },
+                    body: parts[i],
+                });
+
+                if (!res.ok) throw new Error("S3 업로드 실패");
+                audioKeys.push(key);
+            }
 
             // 3️⃣ 성공 시 채점 페이지로 이동
             startTransition(() => {
-                router.push(`/score?s3Key=${encodeURIComponent(key)}&caseName=${encodeURIComponent(caseName)}`);
+                const query = audioKeys.length === 1
+                    ? `s3Key=${encodeURIComponent(audioKeys[0])}`
+                    : `s3KeyList=${encodeURIComponent(JSON.stringify(audioKeys))}`;
+                router.push(`/score?${query}&caseName=${encodeURIComponent(caseName)}`);
             })
         } catch (err: any) {
             console.error(err);
