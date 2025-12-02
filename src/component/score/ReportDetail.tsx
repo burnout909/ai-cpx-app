@@ -2,8 +2,17 @@ import { GradeItem } from "@/types/score";
 import YesIcon from "@/assets/icon/YesIcon.svg";
 import NoIcon from "@/assets/icon/NoIcon.svg";
 
-export default function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
+export default function ReportDetailTable({ grades }: { grades?: GradeItem[] }) {
     const borderColor = '#DDD6FE';
+    const items = grades || [];
+
+    if (!items.length) {
+        return (
+            <div className="w-full rounded-xl border px-4 py-6 text-center text-sm text-gray-500" style={{ borderColor }}>
+                체크리스트 항목을 선택하면 상세가 표시됩니다.
+            </div>
+        );
+    }
 
     return (
         <div
@@ -22,7 +31,7 @@ export default function ReportDetailTable({ grades }: { grades: GradeItem[] }) {
                     </tr>
                 </thead>
                 <tbody style={{ color: '#333' }}>
-                    {grades.map((g) => (
+                    {items.map((g) => (
                         <tr key={g.id} className="align-top border-t" style={{ borderColor }}>
                             <td className="px-4 py-3">
                                 <div className="font-medium">{g.title}</div>

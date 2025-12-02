@@ -8,7 +8,7 @@ export function useLiveAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
     setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
-    setActiveSection: (section: string) => void,
+    setActiveSection: (section: string | null) => void,
     setNarrativeFeedback: (data: any) => void,
     setFeedbackDone: (done:boolean)=>void,
 ) {
@@ -112,7 +112,7 @@ export function useLiveAutoPipeline(
             }
 
             setGradesBySection(graded);
-            setActiveSection('history');      // 5️⃣ 채점 결과 기반으로 피드백 생성
+            setActiveSection(null);      // 5️⃣ 채점 결과 기반으로 피드백 생성
             setStatusMessage('피드백 생성 중');
 
             const feedbackRes = await fetch('/api/feedback', {

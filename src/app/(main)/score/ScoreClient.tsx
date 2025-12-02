@@ -30,7 +30,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
-    const [activeSection, setActiveSection] = useState<string>('history');
+    const [activeSection, setActiveSection] = useState<string | null>(null);
     const [narrativeFeedback, setNarrativeFeedback] = useState<any | null>(null);
     const [feedbackDone, setFeedbackDone] = useState<boolean>(false);
 
@@ -212,10 +212,11 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                 )} */}
                 <div ref={feedbackAnchorRef} className="w-full" />
 
-                <div className='my-2 h-[1.5px] bg-[#333333] w-full' />
                 {/* 피드백 뷰 */}
                 {feedbackDone && (
+
                     <div>
+                        {origin == "VP" && <div className='h-[1px] bg-gray-300 w-full mt-4' />}
                         <NarrativeFeedbackView studentNumber={studentNumber as string} feedback={narrativeFeedback} origin={origin} />
                         <ReportSummary
                             totals={totals}
@@ -224,7 +225,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                             setActive={setActiveSection}
                             PART_LABEL={PART_LABEL}
                         />
-                        <ReportDetailTable grades={gradesBySection[activeSection]} />
+                        <ReportDetailTable grades={activeSection ? gradesBySection[activeSection] : []} />
                     </div>
                 )}
 

@@ -8,7 +8,7 @@ export default function ReportSummary({
 }: {
     totals: Record<string, { got: number; max: number }>;
     overall: { got: number; max: number };
-    active: string;
+    active: string | null;
     setActive: (s: string) => void;
     PART_LABEL: Record<string, string>;
 }) {

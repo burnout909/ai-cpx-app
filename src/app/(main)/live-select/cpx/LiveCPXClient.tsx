@@ -14,6 +14,7 @@ import LiveClientPopup from "@/component/LiveClientPopup";
 import Image, { StaticImageData } from 'next/image';
 import FallbackProfile from "@/assets/virtualPatient/acute_abdominal_pain_001.png"
 import { useUserStore } from "@/store/useUserStore";
+import toast from "react-hot-toast";
 
 type Props = { category: string; caseName: string };
 
@@ -50,6 +51,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const [isPending, startTransition] = useTransition()
     //일시정지 안된다는 상태메시지
     const [statusMessage, setStatusMessage] = useState<string | undefined>(undefined)
+    const connectedToastShownRef = useRef(false);
 
     /**stopSession */
     const stopAndResetSession = useCallback(async () => {
@@ -203,8 +205,6 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     /** 세션 시작 */
     async function startSession() {
         if (sessionRef.current || connected || isRecording || isUploading) return;
-        setConnected(true);
-
         try {
             const res = await fetch("/api/realtime-key");
             const { value } = await res.json();
@@ -227,7 +227,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                 prewarm: true, // 세션 handshake 미리 완료
                 turnDetection: {
                     type: "client_vad",
-                    silence_duration_ms: 0,  
+                    silence_duration_ms: 0,
                     autoStart: false, //먼저 발화하지 않도록 설정
                     prefix_padding_ms: 80, //AI 발화시 앞부분 잘리지 않게 padding
                     min_duration_ms: 250, // 너무 짧은 음성(숨소리 등) 무시
@@ -283,6 +283,8 @@ export default function LiveCPXClient({ category, caseName }: Props) {
 
             recorder.start(500); // 500ms마다 chunk 생성
             setIsRecording(true);
+            setConnected(true);
+
         } catch (err) {
             setConnected(false); // 실패 시 다시 false로 복구
             alert("세션 연결 실패 또는 마이크 접근 거부");
@@ -412,6 +414,20 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             setReadySeconds(null);
         }
     }, [readySeconds]);
+
+    // 연결 완료 알림 토스트
+    useEffect(() => {
+        if (connected && !connectedToastShownRef.current) {
+            connectedToastShownRef.current = true;
+            toast.success("지금 시작하세요! 자기소개 및 환자분 성함, 나이를 확인해주세요.", {
+                duration: 4000,
+                position: "top-center",
+            });
+        }
+        if (!connected) {
+            connectedToastShownRef.current = false;
+        }
+    }, [connected]);
 
 
     return (
