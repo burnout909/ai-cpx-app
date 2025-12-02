@@ -13,6 +13,7 @@ import AdminReportSummary from '@/component/admin/AdminReportSummary';
 type StructuredScores = Record<string, GradeItem[]>;
 type VersionItem = { key: string; lastModified: number };
 type DateMap = Record<string, VersionItem[]>;
+type AudioGroup = { baseKey: string; parts: VersionItem[] };
 
 interface ArtifactGroup<T> {
     latestKey: string | null;
@@ -253,6 +254,57 @@ export default function AdminDashboardPage() {
         }).format(ts);
     };
 
+    const getAudioBaseKey = (key: string) => key.replace(/-part\d+(?=\.mp3$)/i, '');
+    const getAudioPartNumber = (key: string) => {
+        const m = key.match(/-part(\d+)(?=\.mp3$)/i);
+        return m ? Number(m[1]) : 1;
+    };
+    const groupAudioVersions = (versions: VersionItem[]): AudioGroup[] => {
+        const map = new Map<string, VersionItem[]>();
+        versions.forEach((v) => {
+            const base = getAudioBaseKey(v.key);
+            const arr = map.get(base) || [];
+            arr.push(v);
+            map.set(base, arr);
+        });
+        return Array.from(map.entries()).map(([baseKey, parts]) => ({
+            baseKey,
+            parts: parts.sort((a, b) => getAudioPartNumber(a.key) - getAudioPartNumber(b.key)),
+        }));
+    };
+
+    const downloadMergedAudio = async (group: AudioGroup) => {
+        try {
+            setDownloadLoading(true);
+            const buffers: ArrayBuffer[] = [];
+            for (const part of group.parts) {
+                const res = await fetch('/api/admin/download-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: part.key }),
+                });
+                const json = await res.json();
+                if (!res.ok) throw new Error(json?.error || 'URL 생성 실패');
+                const fileRes = await fetch(json.url);
+                if (!fileRes.ok) throw new Error('파일 다운로드 실패');
+                buffers.push(await fileRes.arrayBuffer());
+            }
+            const merged = new Blob(buffers.map((b) => new Uint8Array(b)), { type: 'audio/mpeg' });
+            const url = URL.createObjectURL(merged);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = group.baseKey.split('/').pop() || 'merged-audio.mp3';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            setError(err?.message || '병합 다운로드에 실패했습니다.');
+        } finally {
+            setDownloadLoading(false);
+        }
+    };
+
     const renderTimeChips = (versions: VersionItem[], selectedKey: string | null, onSelect: (k: string) => void) => {
         if (versions.length <= 1) return null;
         return (
@@ -405,6 +457,7 @@ export default function AdminDashboardPage() {
         const selectedAudioKey = 'audio' in artifacts
             ? (audioVersions.find((v) => v.key === selectedSet.audio)?.key || audioVersions[0]?.key || null)
             : null;
+        const audioGroups = 'audio' in artifacts ? groupAudioVersions(audioVersions) : [];
         const scriptText =
             selectedScriptKey === artifacts.script.latestKey
                 ? artifacts.script.latestText
@@ -453,22 +506,43 @@ export default function AdminDashboardPage() {
                     </div>
 
 
-                    {'audio' in artifacts && audioVersions.length > 1 && (
+                    {'audio' in artifacts && audioVersions.length > 0 && (
                         <div>
                             <div className='w-full flex gap-4 items-center'>
                                 <h3 className="text-base font-semibold text-gray-700 mb-1">오디오</h3>
                             </div>
                             {renderTimeChips(audioVersions, selectedAudioKey, (k) => handleTimeSelect('audio', k))}
-                            {showAudioButton && (
-                                <button
-                                    onClick={() => selectedAudioKey && handleDownloadKey(selectedAudioKey)}
-                                    disabled={downloadLoading || !selectedAudioKey}
-                                    className="mt-2 rounded-md px-3 py-1 text-sm font-medium text-white disabled:opacity-60 transition-colors hover:brightness-95"
-                                    style={{ backgroundColor: PRIMARY, ...(downloadLoading ? {} : { cursor: 'pointer' }) }}
-                                >
-                                    {downloadLoading ? '다운로드 중...' : '오디오 다운로드'}
-                                </button>
-                            )}
+                            {showAudioButton && audioGroups.map((group) => (
+                                <div key={group.baseKey} className="mt-2 space-y-2 border border-gray-200 rounded-md p-2">
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-sm font-medium text-gray-800 break-all">
+                                            {group.baseKey.split('/').pop()}
+                                        </div>
+                                        {group.parts.length > 1 && (
+                                            <button
+                                                onClick={() => downloadMergedAudio(group)}
+                                                disabled={downloadLoading}
+                                                className="rounded-md px-3 py-1 text-sm font-medium text-white disabled:opacity-60 transition-colors hover:brightness-95"
+                                                style={{ backgroundColor: PRIMARY, ...(downloadLoading ? {} : { cursor: 'pointer' }) }}
+                                            >
+                                                {downloadLoading ? '병합 중...' : '병합 다운로드'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {group.parts.map((p, idx) => (
+                                            <button
+                                                key={p.key}
+                                                onClick={() => handleDownloadKey(p.key)}
+                                                disabled={downloadLoading}
+                                                className="rounded-md border border-gray-200 px-3 py-1 text-sm transition-colors hover:bg-gray-50 disabled:opacity-60"
+                                            >
+                                                파트 {idx + 1} 다운로드
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
 
