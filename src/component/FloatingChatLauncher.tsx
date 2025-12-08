@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Chat, useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import CloseIcon from "@/assets/icon/CloseIcon.svg";
+import ArrowUpIcon from "@/assets/icon/ArrowUpIcon.svg";
 import FloatingButton from "./FloatingButton";
 
 export default function FloatingChatLauncher() {
@@ -58,7 +59,7 @@ export default function FloatingChatLauncher() {
       <div className="absolute inset-x-0 bottom-0">
         <div className="relative z-[2] mx-auto w-full max-w-[450px]">
           {open && (
-            <div className="pointer-events-auto absolute left-5 right-5 bottom-[180px] flex h-[calc((100vh-180px)*0.8)] max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
+            <div className="pointer-events-auto absolute left-5 right-5 bottom-[180px] flex h-[calc((100vh-180px)*0.9)] max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="w-4 h-4" />
@@ -121,34 +122,36 @@ export default function FloatingChatLauncher() {
                 </div>
               )}
 
-              <div className="mt-3 flex items-start gap-2 sticky bottom-0 bg-white pt-2">
-                <textarea
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  placeholder="질문을 입력하세요"
-                  disabled={status !== "ready"}
-                  rows={2}
-                  className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 text-sm outline-none focus:border-[#7553FC] focus:ring-1 focus:ring-[#7553FC] resize-none"
-                />
-                {isLoading ? (
-                  <button
-                    type="button"
-                    onClick={stop}
-                    disabled={!isLoading}
-                    className="shrink-0 rounded-full bg-[#F3F4F6] px-3 py-2 text-xs text-[#374151] hover:bg-[#E5E7EB]"
-                  >
-                    중지
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={!input.trim()}
-                    className="shrink-0 rounded-full bg-[#7553FC] px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
-                  >
-                    보내기
-                  </button>
-                )}
+              <div className="mt-3 sticky bottom-0 bg-white pt-2">
+                <div className="relative">
+                  <textarea
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    placeholder="질문을 입력하세요"
+                    disabled={status !== "ready"}
+                    rows={3}
+                    className="w-full rounded-2xl border border-[#E5E7EB] bg-white pr-[82px] pl-4 py-2 text-sm outline-none focus:border-[#7553FC] focus:ring-1 focus:ring-[#7553FC] resize-none"
+                  />
+                  {isLoading ? (
+                    <button
+                      type="button"
+                      onClick={stop}
+                      disabled={!isLoading}
+                      className="absolute bottom-2 right-2 rounded-full bg-[#F3F4F6] px-3 py-2 text-xs text-[#374151] hover:bg-[#E5E7EB]"
+                    >
+                      중지
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={!input.trim()}
+                      className="rounded-full absolute bottom-3 right-2 rounded-full bg-[#7553FC] px-1.5 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                    >
+                      <ArrowUpIcon width={16} height={16}/>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
