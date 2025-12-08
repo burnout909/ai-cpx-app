@@ -137,16 +137,16 @@ export default function FloatingChatLauncher() {
                       type="button"
                       onClick={stop}
                       disabled={!isLoading}
-                      className="absolute bottom-2 right-2 rounded-full bg-[#F3F4F6] px-3 py-2 text-xs text-[#374151] hover:bg-[#E5E7EB]"
+                      className="absolute bottom-3 right-2 rounded-full w-[26px] h-[26px] flex items-center justify-center text-xs text-[#374151] hover:opacity-90 bg-[#7553FC]"
                     >
-                      중지
+                      <div className="w-2.5 h-2.5 rounded-[2px] bg-white"/>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={handleSubmit}
                       disabled={!input.trim()}
-                      className="rounded-full absolute bottom-3 right-2 rounded-full bg-[#7553FC] px-1.5 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                      className="rounded-full absolute bottom-3 right-2 rounded-full bg-[#7553FC] w-[26px] h-[26px] flex items-center justify-center text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                     >
                       <ArrowUpIcon width={16} height={16}/>
                     </button>
