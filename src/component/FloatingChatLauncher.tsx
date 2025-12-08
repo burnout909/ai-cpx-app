@@ -61,8 +61,7 @@ export default function FloatingChatLauncher() {
             <div className="pointer-events-auto absolute left-5 right-5 bottom-[180px] flex h-[calc((100vh-180px)*0.7)] max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-[#111827]">CPXmate</p>
-                  <p className="text-xs text-[#6B7280]">현재 페이지 컨텍스트를 포함해 대화합니다.</p>
+                  <div className="w-4 h-4"/>
                 </div>
                 <button
                   type="button"
