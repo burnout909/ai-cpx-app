@@ -36,8 +36,8 @@ export default function FloatingChatLauncher() {
 
   const isLoading = status === "submitted" || status === "streaming";
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = (event?: FormEvent<HTMLButtonElement>) => {
+    event?.preventDefault();
     const text = input.trim();
     if (!text || isLoading) return;
     void sendMessage({ text });
@@ -58,10 +58,10 @@ export default function FloatingChatLauncher() {
       <div className="absolute inset-x-0 bottom-0">
         <div className="relative z-[2] mx-auto w-full max-w-[450px]">
           {open && (
-            <div className="pointer-events-auto absolute left-5 right-5 bottom-[180px] flex h-[calc((100vh-180px)*0.7)] max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
+            <div className="pointer-events-auto absolute left-5 right-5 bottom-[180px] flex h-[calc((100vh-180px)*0.8)] max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="w-4 h-4"/>
+                  <div className="w-4 h-4" />
                 </div>
                 <button
                   type="button"
@@ -94,17 +94,19 @@ export default function FloatingChatLauncher() {
                       const displayText = messageText || (isThinking ? "생각 중..." : "");
 
                       return (
-                        <div
-                          key={message.id}
-                          className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
-                            message.role === "user"
+                        messageText.length > 0 && (
+                          <div
+                            key={message.id}
+                            className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${message.role === "user"
                               ? "self-end bg-[#7553FC] text-white"
                               : "self-start border border-[#E5E7EB] bg-white text-[#111827] shadow-sm"
-                          } ${isThinking ? "animate-pulse" : ""}`}
-                        >
-                          {displayText}
-                        </div>
-                      );
+                              } ${isThinking ? "animate-pulse" : ""}`}
+                          >
+                            {displayText}
+                          </div>
+                        )
+                        )
+
                     })}
                     {isLoading && (
                       <div className="self-start text-[14px] text-[#6B7280] animate-pulse">생각 중...</div>
@@ -119,33 +121,35 @@ export default function FloatingChatLauncher() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="mt-3 flex items-center gap-2">
-                <input
+              <div className="mt-3 flex items-start gap-2 sticky bottom-0 bg-white pt-2">
+                <textarea
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
                   placeholder="질문을 입력하세요"
                   disabled={status !== "ready"}
-                  className="flex-1 rounded-full border border-[#E5E7EB] bg-white px-4 py-2 text-sm outline-none focus:border-[#7553FC] focus:ring-1 focus:ring-[#7553FC]"
+                  rows={2}
+                  className="flex-1 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 text-sm outline-none focus:border-[#7553FC] focus:ring-1 focus:ring-[#7553FC] resize-none"
                 />
                 {isLoading ? (
                   <button
                     type="button"
                     onClick={stop}
                     disabled={!isLoading}
-                    className="rounded-full bg-[#F3F4F6] px-3 py-2 text-xs text-[#374151] hover:bg-[#E5E7EB]"
+                    className="shrink-0 rounded-full bg-[#F3F4F6] px-3 py-2 text-xs text-[#374151] hover:bg-[#E5E7EB]"
                   >
                     중지
                   </button>
                 ) : (
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleSubmit}
                     disabled={!input.trim()}
-                    className="rounded-full bg-[#7553FC] px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
+                    className="shrink-0 rounded-full bg-[#7553FC] px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
                   >
                     보내기
                   </button>
                 )}
-              </form>
+              </div>
             </div>
           )}
 
