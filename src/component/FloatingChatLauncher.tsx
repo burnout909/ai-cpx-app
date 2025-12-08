@@ -67,15 +67,15 @@ export default function FloatingChatLauncher() {
                   type="button"
                   aria-label="Close chat"
                   onClick={() => setOpen(false)}
-                  className="rounded-md px-2 py-1 text-xs text-[#6B7280] hover:bg-[#F3F4F6]"
+                  className="rounded-md px-2 py-0.5 text-xs text-[#6B7280] hover:bg-[#F3F4F6]"
                 >
                   <CloseIcon width={16} height={16} />
                 </button>
               </div>
 
-              <div className="mt-3 flex-1 overflow-y-auto rounded-lg bg-[#F9FAFB] p-3 text-sm text-[#111827]">
+              <div className="mt-3 flex-1 overflow-y-auto rounded-lg bg-[#F9FAFB] p-2 text-sm text-[#111827]">
                 {messages.length === 0 && (
-                  <p className="text-[16px] text-[#6B7280]">궁금한 내용을 물어보세요!</p>
+                  <p className="text-[14px] text-[#6B7280]">궁금한 내용을 물어보세요!</p>
                 )}
                 {messages.length > 0 && (
                   <div className="flex flex-col gap-3">
