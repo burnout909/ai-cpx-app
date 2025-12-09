@@ -14,7 +14,7 @@ export default function NarrativeFeedbackView({ feedback, studentNumber, origin 
 
   return (
     <div className="w-full pb-4 space-y-5 mt-3">
-      <h2 className="text-[18px] font-semibold text-gray-800 mb-3">{`${studentNumber}님의 실습 피드백 (${origin==="VP"? "가상환자": "SP"})`}</h2>
+      <h2 className="text-[22px] font-semibold text-[#7553FC] mb-2">실습 피드백</h2>
 
       {Object.entries(feedback).map(([k, v]) => {
         const markdownText = String(v ?? '');

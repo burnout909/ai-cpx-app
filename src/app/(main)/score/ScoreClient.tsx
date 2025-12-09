@@ -215,8 +215,8 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                 {/* 피드백 뷰 */}
                 {feedbackDone && (
 
-                    <div>
-                        {origin == "VP" && <div className='h-[1px] bg-gray-300 w-full mt-4' />}
+                    <div className='mt-2'>
+                        {/* {origin == "VP" && <div className='h-[1px] bg-gray-300 w-full mt-4' />} */}
                         <NarrativeFeedbackView studentNumber={studentNumber as string} feedback={narrativeFeedback} origin={origin} />
                         <ReportSummary
                             totals={totals}
