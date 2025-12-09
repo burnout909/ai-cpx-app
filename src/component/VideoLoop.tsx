@@ -7,8 +7,7 @@ export function Instruction1Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
-            style={{ transform: "scale(1.04)" }}
+            className="w-[80%] h-full object-cover border-0 outline-none bg-transparent mx-auto"
         />
     )
 }
@@ -22,8 +21,7 @@ export function Instruction2Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
-            style={{ transform: "scale(1.04)" }}
+            className="w-[80%] h-full object-cover border-0 outline-none bg-transparent mx-auto"
         />
     )
 }
@@ -37,8 +35,7 @@ export function Instruction3Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
-            style={{ transform: "scale(1.04)" }}
+            className="w-[80%] h-full object-cover border-0 outline-none bg-transparent mx-auto"
         />
     )
 }
@@ -52,8 +49,7 @@ export function Instruction4Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
-            style={{ transform: "scale(1.04)" }}
+            className="w-[80%] h-full object-cover border-0 outline-none bg-transparent mx-auto"
         />
     )
 }
@@ -67,8 +63,7 @@ export function Instruction5Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
-            style={{ transform: "scale(1.04)" }}
+            className="w-[80%] h-full object-cover border-0 outline-none bg-transparent mx-auto"
         />
     )
 }

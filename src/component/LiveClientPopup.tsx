@@ -126,7 +126,7 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
                         ))}
                     </div>
 
-                    <div className="flex w-full justify-between items-center mt-2">
+                    <div className="flex w-full justify-between items-center my-1">
                         <button
                             onClick={prevStep}
                             disabled={step === 0}
