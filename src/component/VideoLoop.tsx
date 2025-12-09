@@ -7,7 +7,8 @@ export function Instruction1Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent"
+            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
+            style={{ transform: "scale(1.02)" }}
         />
     )
 }
@@ -21,7 +22,8 @@ export function Instruction2Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent"
+            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
+            style={{ transform: "scale(1.02)" }}
         />
     )
 }
@@ -35,7 +37,8 @@ export function Instruction3Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent"
+            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
+            style={{ transform: "scale(1.02)" }}
         />
     )
 }
@@ -49,7 +52,8 @@ export function Instruction4Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent"
+            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
+            style={{ transform: "scale(1.02)" }}
         />
     )
 }
@@ -63,7 +67,8 @@ export function Instruction5Video() {
             muted
             playsInline
             preload="auto"
-            className="block w-full h-auto border-0 outline-none bg-transparent"
+            className="block w-full h-auto border-0 outline-none bg-transparent transform-gpu"
+            style={{ transform: "scale(1.02)" }}
         />
     )
 }
