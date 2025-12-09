@@ -79,17 +79,17 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
         },
         {
             title: "혼잣말은 No!",
-            content: `가상환자는 **혼잣말**에도 대답해요.\nex) "가만 있어보자..." → "네, 가만히 있을게요."\n\n생각 정리도 혼잣말 없이 해주세요!`,
+            content: `가상환자는 **혼잣말**에도 대답해요.\nex) "가만 있어보자..."\n→ "네, 가만히 있을게요."\n\n생각 정리도 혼잣말 없이 해주세요!`,
             video: Instruction2Video
         },
         {
             title: "환자의 응답이 느릴 수 있어요.",
-            content: "환자도 가끔 생각을 하거든요.\n답변이 오지 않아도 **잠시만 기다려주세요!**",
+            content: "답변이 오지 않아도\n**잠시만 기다려주세요!**",
             video: Instruction3Video
         },
         {
             title: "신체진찰은 '말로' 진행해주세요.",
-            content: `ex) 눈 결막 보도록 하겠습니다.\n\n말하면 진찰 결과까지 알려줍니다!\n만약 결과를 듣지 못하셨다면\n**"결과는 어떤가요?"**라고 물어보시면 됩니다!`,
+            content: `ex) "심장소리 들어볼게요"\n→ "정상입니다." \n만약 결과를 듣지 못하셨다면\n**"결과는 어떤가요?"** 해주세요!`,
             video: Instruction4Video
         },
         {
