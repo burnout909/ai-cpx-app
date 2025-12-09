@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import RightArrowIcon from "@/assets/icon/RightArrowIcon.svg";
 import LeftArrowIcon from "@/assets/icon/LeftArrowIcon.svg";
 import StudentIdPopup from "./StudentIdPopup";
@@ -20,6 +20,24 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
     const [step, setStep] = useState(0);
     // const [dontShowAgain, setDontShowAgain] = useState(false);
     const [showStudentPopup, setShowStudentPopup] = useState<boolean>(false); // 새 팝업 상태 추가
+
+    // 미리 영상 버퍼를 채워서 슬라이드 전환 지연을 최소화
+    useEffect(() => {
+        const sources = [
+            "/video/instruction1.mp4",
+            "/video/instruction2.mp4",
+            "/video/instruction3.mp4",
+            "/video/instruction4.mp4",
+            "/video/instruction5.mp4",
+        ];
+
+        sources.forEach((src) => {
+            const video = document.createElement("video");
+            video.src = src;
+            video.preload = "auto";
+            video.load();
+        });
+    }, []);
 
     const nextStep = () => {
         if (step < 4) setStep(step + 1);
@@ -92,7 +110,11 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
                         {renderContent(slides[step].content)}
                     </p>
                     <div className="flex flex-1 h-full justify-center items-center">
-                        {CurrentVideo ? <CurrentVideo /> : null}
+                        {CurrentVideo ? (
+                            <div className="w-full max-w-[360px] rounded-xl overflow-hidden bg-transparent">
+                                <CurrentVideo />
+                            </div>
+                        ) : null}
                     </div>
                     <div className="flex justify-center gap-2 mt-2">
                         {slides.map((_, i) => (

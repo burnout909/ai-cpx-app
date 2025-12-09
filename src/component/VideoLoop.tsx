@@ -6,7 +6,8 @@ export function Instruction1Video() {
             loop
             muted
             playsInline
-            className="w-[90%] h-auto"
+            preload="auto"
+            className="block w-full h-auto border-0 outline-none bg-transparent"
         />
     )
 }
@@ -19,7 +20,8 @@ export function Instruction2Video() {
             loop
             muted
             playsInline
-            className="w-[90%] h-auto"
+            preload="auto"
+            className="block w-full h-auto border-0 outline-none bg-transparent"
         />
     )
 }
@@ -32,7 +34,8 @@ export function Instruction3Video() {
             loop
             muted
             playsInline
-            className="w-[90%] h-auto"
+            preload="auto"
+            className="block w-full h-auto border-0 outline-none bg-transparent"
         />
     )
 }
@@ -45,7 +48,8 @@ export function Instruction4Video() {
             loop
             muted
             playsInline
-            className="w-[90%] h-auto"
+            preload="auto"
+            className="block w-full h-auto border-0 outline-none bg-transparent"
         />
     )
 }
@@ -58,7 +62,8 @@ export function Instruction5Video() {
             loop
             muted
             playsInline
-            className="w-[90%] h-auto"
+            preload="auto"
+            className="block w-full h-auto border-0 outline-none bg-transparent"
         />
     )
 }
