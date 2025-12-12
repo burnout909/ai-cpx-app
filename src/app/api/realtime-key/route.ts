@@ -7,7 +7,7 @@ export async function GET() {
     }
 
     try {
-        const response = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+        const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -16,7 +16,7 @@ export async function GET() {
             body: JSON.stringify({
                 session: {
                     type: "realtime",
-                    model: "gpt-realtime-mini-2025-10-06",
+                    model: "gpt-realtime-2025-08-28",
                 },
             }),
         });
