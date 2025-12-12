@@ -7,7 +7,7 @@ export async function GET() {
     }
 
     try {
-        const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
+        const response = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${OPENAI_API_KEY}`,
