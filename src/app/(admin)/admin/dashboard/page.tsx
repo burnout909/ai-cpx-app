@@ -411,9 +411,9 @@ export default function AdminDashboardPage() {
             setSelectedKeys((prev) => ({
                 ...prev,
                 vp: {
-                    script: pickKeyForDate(source.script, date),
-                    narrative: pickKeyForDate(source.narrative, date),
-                    structured: pickKeyForDate(source.structured, date),
+                    script: pickKeyForDate(source.script, date) || source.script.latestKey,
+                    narrative: pickKeyForDate(source.narrative, date) || source.narrative.latestKey,
+                    structured: pickKeyForDate(source.structured, date) || source.structured.latestKey,
                     audio: null,
                 }
             }));
@@ -423,10 +423,10 @@ export default function AdminDashboardPage() {
             setSelectedKeys((prev) => ({
                 ...prev,
                 sp: {
-                    script: pickKeyForDate(source.script, date),
-                    narrative: pickKeyForDate(source.narrative, date),
-                    structured: pickKeyForDate(source.structured, date),
-                    audio: source.audio ? pickKeyForDate(source.audio, date) : null,
+                    script: pickKeyForDate(source.script, date) || source.script.latestKey,
+                    narrative: pickKeyForDate(source.narrative, date) || source.narrative.latestKey,
+                    structured: pickKeyForDate(source.structured, date) || source.structured.latestKey,
+                    audio: source.audio ? (pickKeyForDate(source.audio, date) || source.audio.latestKey) : null,
                 }
             }));
             setSpDateKey(date);
@@ -443,7 +443,13 @@ export default function AdminDashboardPage() {
         dateKey?: string | null,
         onDateChange?: (k: string) => void
     ) => {
-        const dateList = Object.keys(artifacts.script.byDate || {}).sort().reverse();
+        const dateSet = new Set<string>([
+            ...Object.keys(artifacts.script.byDate || {}),
+            ...Object.keys(artifacts.narrative.byDate || {}),
+            ...Object.keys(artifacts.structured.byDate || {}),
+            ...('audio' in artifacts && artifacts.audio?.byDate ? Object.keys(artifacts.audio.byDate) : []),
+        ]);
+        const dateList = Array.from(dateSet).sort().reverse();
         const selectedDate = dateKey || dateList[0] || null;
         const scriptVersions = versionsForDate(artifacts.script, selectedDate);
         const narrativeVersions = versionsForDate(artifacts.narrative, selectedDate);
@@ -492,6 +498,14 @@ export default function AdminDashboardPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-4">
                 <div className="flex items-center justify-between mb-3">
                     <h2 className="text-lg font-semibold text-gray-800">{label}</h2>
+                </div>
+                <div className="mb-3">
+                    <div className="text-sm font-medium text-gray-700">날짜 선택</div>
+                    {renderDateChips(
+                        dateList,
+                        selectedDate,
+                        (d) => onDateChange?.(d)
+                    )}
                 </div>
 
                 <div className="space-y-4 mt-3">
@@ -621,27 +635,6 @@ export default function AdminDashboardPage() {
                             </div>
                         </form>
 
-                        {data && (
-                            <div className="mt-4">
-                                <div className="text-base font-semibold text-gray-700 mb-2">날짜 선택</div>
-                                {renderDateChips(
-                                    Array.from(new Set([
-                                        ...Object.keys(data.vp.script.byDate || {}),
-                                        ...Object.keys(data.vp.narrative.byDate || {}),
-                                        ...Object.keys(data.vp.structured.byDate || {}),
-                                        ...Object.keys(data.sp.script.byDate || {}),
-                                        ...Object.keys(data.sp.narrative.byDate || {}),
-                                        ...Object.keys(data.sp.structured.byDate || {}),
-                                        ...(data.sp.audio?.byDate ? Object.keys(data.sp.audio.byDate) : []),
-                                    ])).sort().reverse(),
-                                    vpDateKey || spDateKey,
-                                    (d) => {
-                                        applyDateSelection('vp', d);
-                                        applyDateSelection('sp', d);
-                                    }
-                                )}
-                            </div>
-                        )}
                     </div>
                     {error && <div className="text-sm text-red-600">{error}</div>}
 

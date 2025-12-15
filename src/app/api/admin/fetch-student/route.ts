@@ -7,6 +7,16 @@ const BUCKET = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
 type StructuredScores = Record<string, any[]>;
 type VersionItem = { key: string; lastModified: number };
 
+// S3의 LastModified가 비어있을 때를 대비해 파일명에 포함된 타임스탬프를 파싱한다.
+const parseTimestampFromKey = (key: string): number | null => {
+    const m = key.match(/-(\d{4}-\d{2}-\d{2})[_T](\d{2})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const [, date, hh, mm, ss] = m;
+    const iso = `${date}T${hh}:${mm}:${ss}+09:00`;
+    const ts = Date.parse(iso);
+    return Number.isNaN(ts) ? null : ts;
+};
+
 async function streamToString(body: any) {
     if (!body) return '';
     if (typeof body.transformToString === 'function') {
@@ -34,7 +44,11 @@ async function listKeys(prefix: string, allowedExts?: string[]): Promise<Version
             return allowedExts.some((ext) => c.Key!.toLowerCase().endsWith(ext.toLowerCase()));
         }).map((c) => ({
             key: c.Key!,
-            lastModified: c.LastModified?.getTime() ?? 0,
+            lastModified: (() => {
+                const direct = c.LastModified?.getTime();
+                if (typeof direct === 'number' && !Number.isNaN(direct) && direct > 0) return direct;
+                return parseTimestampFromKey(c.Key!) ?? 0;
+            })(),
         })) || [];
     return items.sort((a, b) => b.lastModified - a.lastModified);
 }
@@ -133,7 +147,8 @@ export async function POST(req: Request) {
         const groupByDate = (versions: VersionItem[]) => {
             const map: Record<string, VersionItem[]> = {};
             versions.forEach((v) => {
-                const dateKey = toDateKey(v.lastModified);
+                const ts = v.lastModified || parseTimestampFromKey(v.key) || 0;
+                const dateKey = toDateKey(ts);
                 if (!map[dateKey]) map[dateKey] = [];
                 map[dateKey].push(v);
             });
