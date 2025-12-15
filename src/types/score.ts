@@ -1,5 +1,7 @@
 export interface EvidenceListItem {
     id: string;
+    title?: string;
+    criteria?: string;
     evidence: string[];
 }
 
