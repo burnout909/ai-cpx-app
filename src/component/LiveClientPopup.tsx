@@ -3,7 +3,7 @@ import { useEffect, useState, type ComponentType } from "react";
 import RightArrowIcon from "@/assets/icon/RightArrowIcon.svg";
 import LeftArrowIcon from "@/assets/icon/LeftArrowIcon.svg";
 import StudentIdPopup from "./StudentIdPopup";
-import { Instruction1Video, Instruction2Video, Instruction3Video, Instruction4Video, Instruction5Video } from "./VideoLoop";
+import { Instruction1Video, Instruction2Video, Instruction4Video, Instruction5Video } from "./VideoLoop";
 
 interface Props {
     onClose: () => void;
@@ -26,7 +26,6 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
         const sources = [
             "/video/instruction1.mp4",
             "/video/instruction2.mp4",
-            "/video/instruction3.mp4",
             "/video/instruction4.mp4",
             "/video/instruction5.mp4",
         ];
@@ -40,7 +39,7 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
     }, []);
 
     const nextStep = () => {
-        if (step < 4) setStep(step + 1);
+        if (step < slides.length - 1) setStep(step + 1);
         else {
             // if (dontShowAgain) localStorage.setItem("isLiveClientShow", "false");
             setShowStudentPopup(true); // 학번 입력 팝업 띄우기
@@ -81,11 +80,6 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
             title: "혼잣말은 No!",
             content: `가상환자는 **혼잣말**에도 대답해요.\nex) "가만 있어보자..."\n→ "네, 가만히 있을게요."\n\n생각 정리도 혼잣말 없이 해주세요!`,
             video: Instruction2Video
-        },
-        {
-            title: "환자의 응답이 느릴 수 있어요.",
-            content: "답변이 오지 않아도\n**잠시만 기다려주세요!**",
-            video: Instruction3Video
         },
         {
             title: "신체진찰은 '말로' 진행해주세요.",
@@ -136,7 +130,7 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
                             <LeftArrowIcon className="w-6 h-6 text-[#7553FC]" />
                         </button>
 
-                        {step < 4 ? (
+                        {step < slides.length - 1 ? (
                             <button
                                 onClick={nextStep}
                                 className="px-2 rounded-full hover:bg-gray-100 transition-all"
