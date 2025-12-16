@@ -1,3 +1,5 @@
+import { SectionKey } from "./NarrativeFeedbackView";
+
 // 총점 & 섹션 요약 카드
 export default function ReportSummary({
     totals,
@@ -9,7 +11,7 @@ export default function ReportSummary({
     totals: Record<string, { got: number; max: number }>;
     overall: { got: number; max: number };
     active: string | null;
-    setActive: (s: string) => void;
+    setActive: (s: SectionKey | null) => void;
     PART_LABEL: Record<string, string>;
 }) {
     const primaryColor = '#7553FC';
@@ -39,7 +41,7 @@ export default function ReportSummary({
                     return (
                         <button
                             key={key}
-                            onClick={() => setActive(key)}
+                            onClick={() => setActive(key as SectionKey)}
                             className="text-[14px] text-left rounded-xl border py-5 px-2 transition"
                             style={{
                                 border: isActive

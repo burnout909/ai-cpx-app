@@ -3,12 +3,13 @@ import { GradeItem, SectionResult } from "@/types/score";
 import { EvidenceChecklist, loadChecklistByCase } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
 import { generateUploadUrl } from "@/app/api/s3/s3";
+import { SectionKey } from "@/component/score/NarrativeFeedbackView";
 
 export function useAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
     setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
-    setActiveSection: (section: string | null) => void,
+    setActiveSection: (section: SectionKey | null) => void,
     setNarrativeFeedback: (data: any) => void,
     setFeedbackDone: (done: boolean) => void,
 ) {

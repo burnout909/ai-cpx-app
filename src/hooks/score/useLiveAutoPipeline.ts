@@ -1,5 +1,6 @@
 import { SectionId } from "@/app/api/collectEvidence/route";
 import { generateDownloadUrl } from "@/app/api/s3/s3";
+import { SectionKey } from "@/component/score/NarrativeFeedbackView";
 import { GradeItem, SectionResult } from "@/types/score";
 import { EvidenceChecklist, loadChecklistByCase, ScoreChecklist } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
@@ -8,9 +9,9 @@ export function useLiveAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
     setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
-    setActiveSection: (section: string | null) => void,
+    setActiveSection: (section: SectionKey | null) => void,
     setNarrativeFeedback: (data: any) => void,
-    setFeedbackDone: (done:boolean)=>void,
+    setFeedbackDone: (done: boolean) => void,
 ) {
     return async function runLiveAutoPipeline(key: string, caseName: string) {
         const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;

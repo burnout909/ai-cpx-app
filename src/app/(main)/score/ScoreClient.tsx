@@ -26,11 +26,13 @@ interface Props {
     origin: "VP" | "SP";
 }
 
+type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
+
 export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin }: Props) {
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
-    const [activeSection, setActiveSection] = useState<string | null>(null);
+    const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
     const [narrativeFeedback, setNarrativeFeedback] = useState<any | null>(null);
     const [feedbackDone, setFeedbackDone] = useState<boolean>(false);
 
@@ -215,9 +217,10 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                 {/* 피드백 뷰 */}
                 {feedbackDone && (
 
-                    <div className='mt-2'>
-                        {/* {origin == "VP" && <div className='h-[1px] bg-gray-300 w-full mt-4' />} */}
-                        <NarrativeFeedbackView studentNumber={studentNumber as string} feedback={narrativeFeedback} origin={origin} />
+                    <div className='mt-3 w-full'>
+                        <div className="mb-1">
+                            <h2 className="text-[22px] font-semibold text-[#7553FC]">실습 피드백</h2>
+                        </div>
                         <ReportSummary
                             totals={totals}
                             overall={overall}
@@ -225,6 +228,17 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                             setActive={setActiveSection}
                             PART_LABEL={PART_LABEL}
                         />
+                        {activeSection && narrativeFeedback && (
+                            <div className='my-3'>
+                                <NarrativeFeedbackView
+                                    studentNumber={studentNumber as string}
+                                    feedback={narrativeFeedback}
+                                    origin={origin}
+                                    sectionFilter={activeSection}
+                                hideTitle
+                                />
+                            </div>
+                        )}
                         <ReportDetailTable grades={activeSection ? gradesBySection[activeSection] : []} />
                     </div>
                 )}
