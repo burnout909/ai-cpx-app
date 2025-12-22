@@ -123,8 +123,8 @@ export const HistoryEvidenceChecklist: EvidenceChecklist[] = [
   {
     "id": "HX-20",
     "title": "외상/수술/입원력",
-    "criteria": "수술 유무, 골절, 입원 유무를 확인하였는가?",
-    "example": ["수술 받은 적 있으신가요?", "골절이 있으신가요?", "입원하신 적 있으신가요?"]
+    "criteria": "복부 외상, 수술 유무, 입원 유무를 확인하였는가?",
+    "example": ["배 다친 적 있으신가요?", "수술 받은 적 있으신가요?", "입원하신 적 있으신가요?"]
   }
 ];
 
@@ -175,7 +175,7 @@ export const PhysicalexamEvidenceChecklist: EvidenceChecklist[] = [
     "id": "PE-08",
     "title": "충수돌기염 감별 검사",
     "criteria": "급성 충수돌기염 감별을 위한 이학적 검사를 시행하였는가? (예: Psoas sign, McBurney's point tenderness, Rovsing sign 중 2가지 이상)",
-    "example": ["왼 쪽으로 돌아누워주시겠어요? 오른쪽 다리 한 번 뒤로 해볼텐데, 아프시면 말씀해주세요.", "배꼽과 돌기의 2대 1 지점 한 번 눌러보겠습니다. 왼쪽 아래 눌러볼텐데, 오른쪽 아래가 아프시면 말씀해주세요."]
+    "example": ["왼 쪽으로 돌아누워주시겠어요? 오른쪽 다리 한 번 뒤로 해볼텐데, 아프시면 말씀해주세요.","배꼽과 돌기의 2대 1 지점 한 번 눌러보겠습니다. 왼쪽 아래 눌러볼텐데, 오른쪽 아래가 아프시면 말씀해주세요."]
   }
 ];
 
@@ -253,21 +253,19 @@ export const PpiEvidenceChecklist: EvidenceChecklist[] = [
     "id": "PPI-06",
     "title": "신체진찰 설명 및 동의",
     "criteria": "본격적인 신체 진찰 전에, 신체 진찰 내용을 설명하고 동의까지 구하였는가?",
-    "example": []
+    "example": ["신체 진찰을 수행할텐데, 손이 좀 닿을 수 있습니다. 괜찮으실까요?"]
   },
   {
     "id": "PPI-07",
     "title": "신체진찰 후 환자 배려",
-    "criteria": "안내하였는가?",
+    "criteria": "신체진찰 후 환자에게 시간을 주고 다음 진료를 이어나갈 수 있도록 옷 정리나 자리 이동을 지시하거나, 신체 진찰 도중에 불편한 점 있었는지 확인하였는가?",
     "example": ["옷 정리하셔도 됩니다", "자리로 가서 앉아주시면 됩니다"]
   },
   {
     "id": "PPI-08",
     "title": "환자 입장 파악",
     "criteria": "환자의 관점과 걱정을 파악하기 위한 질문을 하였는가?",
-    "example": [
-      "혹시 걱정되시는 것이 있으신가요?"
-    ]
+    "example": ["혹시 걱정되시는 것이 있으신가요?"]
   },
   {
     "id": "PPI-09",
@@ -277,9 +275,9 @@ export const PpiEvidenceChecklist: EvidenceChecklist[] = [
   },
   {
     "id": "PPI-10",
-    "title": "이해도 확인",
-    "criteria": "환자의 이해도를 확인하였는가?",
-    "example": ["지금까지 이해 안 되는 것 있나요?"]
+    "title": "환자 이해도 확인",
+    "criteria": "환자가 의사의 설명을 잘 이해했는지 재확인하고, 이해 못한 부분이 있다고 하면 다시 설명해주었는가?",
+    "example": ["환자분, 지금까지 이해 안 되는 것 있었나요?"]
   },
   {
     "id": "PPI-11",
