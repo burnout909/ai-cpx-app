@@ -17,6 +17,14 @@ export async function GET() {
                 session: {
                     type: "realtime",
                     model: "gpt-realtime-2025-08-28",
+                    audio: {
+                        input: {
+                            transcription: {
+                                language: "ko",
+                                "model": "gpt-4o-transcribe"
+                            }
+                        },
+                    },
                 },
             }),
         });
