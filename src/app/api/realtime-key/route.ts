@@ -16,7 +16,7 @@ export async function GET() {
             body: JSON.stringify({
                 session: {
                     type: "realtime",
-                    model: "gpt-realtime-2025-08-28",
+                    model: "gpt-realtime-mini",
                     audio: {
                         input: {
                             transcription: {
