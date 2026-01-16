@@ -21,7 +21,7 @@ export async function GET() {
                         input: {
                             transcription: {
                                 language: "ko",
-                                "model": "gpt-4o-transcribe"
+                                "model": "whisper-1"
                             }
                         },
                     },
