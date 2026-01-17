@@ -20,6 +20,14 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## User Flow
+
+- User opens the app and signs in with Google or Kakao via Supabase Auth.
+- On first login (or missing profile data), the user completes onboarding: name, student number, and student ID image upload.
+- While verification is pending, practice actions are blocked with a notice; when approved, Live/Record CPX features are available.
+- If verification is rejected, the user is prompted to re-register the student ID.
+- Admins access `/admin/dashboard` to review, approve, or reject student ID verifications.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
