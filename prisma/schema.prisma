@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum UploadType {
+  AUDIO
+  VIDEO
+  IMAGE
+  TRANSCRIPT
+  OTHER
+}
+
+enum TranscriptSource {
+  LIVE
+  UPLOAD
+}
+
+enum CpxOrigin {
+  VP
+  SP
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model Profile {
+  id            String   @id @db.Uuid
+  email         String?  @unique
+  displayName   String?  @map("display_name")
+  studentNumber String?  @map("student_number")
+  role          UserRole @default(STUDENT)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  sessions      CpxSession[]
+  uploads       Upload[]
+  transcripts   Transcript[]
+  feedbacks     Feedback[]
+  scores        Score[]
+  idVerifications StudentIdVerification[] @relation("UserVerifications")
+  reviews       StudentIdVerification[] @relation("ReviewerVerifications")
+  auditLogs     AuditLog[] @relation("ActorAuditLogs")
+
+  @@map("profiles")
+}
+
+model Case {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  sessions    CpxSession[]
+  uploads     Upload[]
+
+  @@map("cases")
+}
+
+model CpxSession {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @db.Uuid @map("user_id")
+  caseId    String?       @db.Uuid @map("case_id")
+  origin    CpxOrigin     @default(VP)
+  status    SessionStatus @default(IN_PROGRESS)
+  startedAt DateTime      @default(now()) @map("started_at")
+  endedAt   DateTime?     @map("ended_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  user       Profile      @relation(fields: [userId], references: [id])
+  case       Case?        @relation(fields: [caseId], references: [id])
+  uploads    Upload[]
+  transcripts Transcript[]
+  feedbacks  Feedback[]
+  scores     Score[]
+
+  @@index([userId])
+  @@index([caseId])
+  @@map("cpx_sessions")
+}
+
+model Upload {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @db.Uuid @map("user_id")
+  sessionId   String?    @db.Uuid @map("session_id")
+  caseId      String?    @db.Uuid @map("case_id")
+  origin      CpxOrigin? @map("origin")
+  type        UploadType
+  s3Key       String     @map("s3_key")
+  fileName    String?    @map("file_name")
+  contentType String?    @map("content_type")
+  sizeBytes   Int?       @map("size_bytes")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  user        Profile    @relation(fields: [userId], references: [id])
+  session     CpxSession? @relation(fields: [sessionId], references: [id])
+  case        Case?      @relation(fields: [caseId], references: [id])
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([caseId])
+  @@map("uploads")
+}
+
+model Transcript {
+  id           String           @id @default(uuid()) @db.Uuid
+  userId       String           @db.Uuid @map("user_id")
+  sessionId    String?          @db.Uuid @map("session_id")
+  source       TranscriptSource @default(UPLOAD)
+  origin       CpxOrigin?       @map("origin")
+  s3Key        String           @map("s3_key")
+  language     String?          @map("language")
+  durationSec  Int?             @map("duration_sec")
+  textExcerpt  String?          @map("text_excerpt")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  user         Profile          @relation(fields: [userId], references: [id])
+  session      CpxSession?      @relation(fields: [sessionId], references: [id])
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("transcripts")
+}
+
+model Feedback {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid @map("user_id")
+  sessionId  String?  @db.Uuid @map("session_id")
+  origin     CpxOrigin? @map("origin")
+  s3Key      String   @map("s3_key")
+  model      String?  @map("model")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       Profile  @relation(fields: [userId], references: [id])
+  session    CpxSession? @relation(fields: [sessionId], references: [id])
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("feedback")
+}
+
+model Score {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid @map("user_id")
+  sessionId String?  @db.Uuid @map("session_id")
+  origin    CpxOrigin? @map("origin")
+  s3Key     String   @map("s3_key")
+  total     Float?   @map("total")
+  dataJson  Json?    @map("data_json")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      Profile  @relation(fields: [userId], references: [id])
+  session   CpxSession? @relation(fields: [sessionId], references: [id])
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("scores")
+}
+
+model StudentIdVerification {
+  id          String             @id @default(uuid()) @db.Uuid
+  userId      String             @db.Uuid @map("user_id")
+  s3Key       String             @map("s3_key")
+  status      VerificationStatus @default(PENDING)
+  submittedAt DateTime           @default(now()) @map("submitted_at")
+  reviewedBy  String?            @db.Uuid @map("reviewed_by")
+  reviewedAt  DateTime?          @map("reviewed_at")
+  rejectReason String?           @map("reject_reason")
+
+  user        Profile            @relation("UserVerifications", fields: [userId], references: [id])
+  reviewer    Profile?           @relation("ReviewerVerifications", fields: [reviewedBy], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("student_id_verifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid @map("actor_id")
+  action     String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor      Profile? @relation("ActorAuditLogs", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
