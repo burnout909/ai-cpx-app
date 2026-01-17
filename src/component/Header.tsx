@@ -16,7 +16,7 @@ export default function Header() {
                 </div>
                 <div className="relative w-[106px] h-[16px]">
                     <Image
-                        src="/LogoLetterIcon.svg"
+                        src="/LogoLetterIcon.png"
                         alt="logo"
                         fill
                     />

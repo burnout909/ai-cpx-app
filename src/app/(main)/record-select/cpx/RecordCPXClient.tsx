@@ -12,6 +12,9 @@ import { splitMp3ByDuration, standardizeToMP3 } from "@/utils/audioPreprocessing
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { useUserStore } from "@/store/useUserStore";
 import StudentIdPopup from "@/component/StudentIdPopup";
+import { fetchOnboardingStatus } from "@/lib/onboarding";
+import toast from "react-hot-toast";
+import IdRejectedPopup from "@/component/IdRejectedPopup";
 
 const INITIAL_SECONDS = 15 * 60; // 12분
 
@@ -34,6 +37,10 @@ export default function RecordCPXClient({ category, caseName }: Props) {
     const [isUploadingToS3, setIsUploadingToS3] = useState(false); //s3로 파일 업로드
     const [isConnecting, setIsConnencting] = useState(false); //세션 연결 상태
     const [showStudentPopup, setShowStudentPopup] = useState(true); //학번 팝업 상태
+    const [verificationPopup, setVerificationPopup] = useState<{
+        kind: "missing" | "rejected";
+        reason?: string | null;
+    } | null>(null);
 
     //전역 상태값
     const studentId = useUserStore((s: any) => s.studentId);
@@ -181,10 +188,34 @@ export default function RecordCPXClient({ category, caseName }: Props) {
         }
     }
 
+    const ensureOnboarding = async () => {
+        const result = await fetchOnboardingStatus();
+        if (result.status === "missing") {
+            setVerificationPopup({ kind: "missing" });
+            return false;
+        }
+        if (result.status === "rejected") {
+            setVerificationPopup({
+                kind: "rejected",
+                reason: result.rejectReason ?? null,
+            });
+            return false;
+        }
+        if (result.status === "pending") {
+            toast("학생증 확인 중입니다. 승인 완료 후 이용해주세요.", {
+                duration: 2500,
+            });
+            return false;
+        }
+        return true;
+    };
+
     // 토글
-    const toggleRecording = () => {
+    const toggleRecording = async () => {
         if (isFinished) return;
         if (!isRecording && !isPaused && seconds === INITIAL_SECONDS) {
+            const ok = await ensureOnboarding();
+            if (!ok) return;
             startRecording();
         } else if (isRecording && !isPaused) {
             pauseRecording();
@@ -292,6 +323,28 @@ export default function RecordCPXClient({ category, caseName }: Props) {
 
     return (
         <>
+            {verificationPopup && (
+                <IdRejectedPopup
+                    title={
+                        verificationPopup.kind === "missing"
+                            ? "실습 기능 이용에는 학생인증이 필요합니다."
+                            : undefined
+                    }
+                    description={
+                        verificationPopup.kind === "missing" ? null : undefined
+                    }
+                    reason={
+                        verificationPopup.kind === "rejected"
+                            ? verificationPopup.reason ?? null
+                            : null
+                    }
+                    onClose={() => setVerificationPopup(null)}
+                    onRegister={() => {
+                        setVerificationPopup(null);
+                        router.push("/onboarding");
+                    }}
+                />
+            )}
             <div className="flex flex-col">
                 <SmallHeader
                     title={`${category} | ${caseName}`}

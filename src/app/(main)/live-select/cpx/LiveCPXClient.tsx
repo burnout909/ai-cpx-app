@@ -15,6 +15,8 @@ import Image, { StaticImageData } from 'next/image';
 import FallbackProfile from "@/assets/virtualPatient/acute_abdominal_pain_001.png"
 import { useUserStore } from "@/store/useUserStore";
 import toast from "react-hot-toast";
+import { fetchOnboardingStatus } from "@/lib/onboarding";
+import IdRejectedPopup from "@/component/IdRejectedPopup";
 
 type Props = { category: string; caseName: string };
 
@@ -37,6 +39,10 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     const [showPopup, setShowPopup] = useState(false); //가상환자 클릭시 popup 띄우기
     const [readySeconds, setReadySeconds] = useState<number | null>(null); //준비 시간 타이머
     const [conversationText, setConversationText] = useState<string[]>([]);
+    const [verificationPopup, setVerificationPopup] = useState<{
+        kind: "missing" | "rejected";
+        reason?: string | null;
+    } | null>(null);
 
     const [profileImage, setProfileImage] = useState<StaticImageData>(FallbackProfile);
 
@@ -369,7 +375,33 @@ export default function LiveCPXClient({ category, caseName }: Props) {
     }
 
 
-    const toggleRecording = () => {
+    const ensureOnboarding = async () => {
+        const result = await fetchOnboardingStatus();
+        if (result.status === "missing") {
+            setVerificationPopup({ kind: "missing" });
+            return false;
+        }
+        if (result.status === "rejected") {
+            setVerificationPopup({
+                kind: "rejected",
+                reason: result.rejectReason ?? null,
+            });
+            return false;
+        }
+        if (result.status === "pending") {
+            toast("학생증 확인 중입니다. 승인 완료 후 이용해주세요.", {
+                duration: 2500,
+            });
+            return false;
+        }
+        return true;
+    };
+
+    const toggleRecording = async () => {
+        if (!isRecording) {
+            const ok = await ensureOnboarding();
+            if (!ok) return;
+        }
         if (isRecording) {
             setStatusMessage('가상환자와의 대화는 일시정지할 수 없어요');
             return;
@@ -432,6 +464,28 @@ export default function LiveCPXClient({ category, caseName }: Props) {
 
     return (
         <div className="flex flex-col min-h-dvh">
+            {verificationPopup && (
+                <IdRejectedPopup
+                    title={
+                        verificationPopup.kind === "missing"
+                            ? "실습 기능 이용에는 학생인증이 필요합니다."
+                            : undefined
+                    }
+                    description={
+                        verificationPopup.kind === "missing" ? null : undefined
+                    }
+                    reason={
+                        verificationPopup.kind === "rejected"
+                            ? verificationPopup.reason ?? null
+                            : null
+                    }
+                    onClose={() => setVerificationPopup(null)}
+                    onRegister={() => {
+                        setVerificationPopup(null);
+                        router.push("/onboarding");
+                    }}
+                />
+            )}
             {showPopup && (
                 <LiveClientPopup
                     onClose={() => setShowPopup(false)}

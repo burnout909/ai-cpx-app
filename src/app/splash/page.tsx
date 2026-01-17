@@ -25,7 +25,7 @@ export default function SplashPage() {
             </div>
             <div className="relative w-[130px] h-[19px] mt-[-20px]">
                 <Image
-                    src="/LogoLetterIcon.svg"
+                    src="/LogoLetterIcon.png"
                     alt="letterLogo"
                     fill
                 />

@@ -14,6 +14,17 @@ type StructuredScores = Record<string, GradeItem[]>;
 type VersionItem = { key: string; lastModified: number };
 type DateMap = Record<string, VersionItem[]>;
 type AudioGroup = { baseKey: string; parts: VersionItem[] };
+type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+type VerificationItem = {
+    id: string;
+    status: VerificationStatus;
+    s3Key: string;
+    submittedAt: string;
+    reviewedAt: string | null;
+    rejectReason: string | null;
+    user: { displayName: string | null; studentNumber: string | null; email: string | null };
+    reviewer?: { displayName: string | null; email: string | null } | null;
+};
 
 interface ArtifactGroup<T> {
     latestKey: string | null;
@@ -74,6 +85,11 @@ export default function AdminDashboardPage() {
         sp: { script: null, narrative: null, structured: null, audio: null },
     });
     const [contentCache, setContentCache] = useState<Record<string, { text?: string; json?: any }>>({});
+    const [verificationList, setVerificationList] = useState<VerificationItem[]>([]);
+    const [verificationLoading, setVerificationLoading] = useState(false);
+    const [verificationError, setVerificationError] = useState<string | null>(null);
+    const [rejectReasons, setRejectReasons] = useState<Record<string, string>>({});
+    const [updatingVerificationId, setUpdatingVerificationId] = useState<string | null>(null);
 
     const vpStructured = data?.vp?.structured?.latest || null;
     const spStructured = data?.sp?.structured?.latest || null;
@@ -183,6 +199,61 @@ export default function AdminDashboardPage() {
         }
     };
 
+    const loadVerifications = async () => {
+        setVerificationLoading(true);
+        setVerificationError(null);
+        try {
+            const res = await fetch('/api/admin/id-verifications', {
+                method: 'GET',
+                credentials: 'include',
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                throw new Error(json?.error || '불러오기 실패');
+            }
+            setVerificationList(json.items || []);
+        } catch (err: any) {
+            setVerificationError(err?.message || '불러오기 중 오류가 발생했습니다.');
+        } finally {
+            setVerificationLoading(false);
+        }
+    };
+
+    const handleVerificationUpdate = async (id: string, status: VerificationStatus) => {
+        const rejectReason = rejectReasons[id]?.trim() || '';
+        if (status === 'REJECTED' && !rejectReason) {
+            setVerificationError('거절 사유를 입력해주세요.');
+            return;
+        }
+        setVerificationError(null);
+        setUpdatingVerificationId(id);
+        try {
+            const res = await fetch('/api/admin/id-verifications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ id, status, rejectReason }),
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                throw new Error(json?.error || '처리에 실패했습니다.');
+            }
+            setVerificationList((prev) =>
+                prev.map((item) => (item.id === id ? json.item : item))
+            );
+        } catch (err: any) {
+            setVerificationError(err?.message || '처리 중 오류가 발생했습니다.');
+        } finally {
+            setUpdatingVerificationId(null);
+        }
+    };
+
+    useEffect(() => {
+        if (isAuthed) {
+            void loadVerifications();
+        }
+    }, [isAuthed]);
+
     useEffect(() => {
         const keysToLoad = [
             selectedKeys.vp.script,
@@ -207,6 +278,8 @@ export default function AdminDashboardPage() {
             second: '2-digit',
         }).format(ts);
     };
+    const formatIso = (value?: string | null) =>
+        value ? formatTimestamp(Date.parse(value)) : '';
 
     const findTimestamp = (versions: VersionItem[], key?: string | null) => {
         if (!key) return '';
@@ -618,6 +691,127 @@ export default function AdminDashboardPage() {
                 </div>
             ) : (
                 <>
+                    <div className="rounded-xl bg-white px-5 pb-5">
+                        <div className="flex items-center justify-between pt-5">
+                            <h2 className="text-lg font-semibold text-gray-800">학생증 인증 요청</h2>
+                            <button
+                                onClick={loadVerifications}
+                                className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                                새로고침
+                            </button>
+                        </div>
+
+                        {verificationError && (
+                            <div className="mt-3 text-sm text-red-600">{verificationError}</div>
+                        )}
+                        {verificationLoading && (
+                            <div className="mt-3 flex items-center gap-2 text-sm text-gray-700">
+                                <Spinner size={18} />
+                                불러오는 중...
+                            </div>
+                        )}
+
+                        {!verificationLoading && verificationList.length === 0 && (
+                            <div className="mt-4 text-sm text-gray-500">요청이 없습니다.</div>
+                        )}
+
+                        <div className="mt-4 space-y-3">
+                            {verificationList.map((item) => {
+                                const statusLabel =
+                                    item.status === 'APPROVED'
+                                        ? '승인'
+                                        : item.status === 'REJECTED'
+                                            ? '반려'
+                                            : '대기';
+                                const statusColor =
+                                    item.status === 'APPROVED'
+                                        ? '#16A34A'
+                                        : item.status === 'REJECTED'
+                                            ? '#DC2626'
+                                            : '#D97706';
+                                const isUpdating = updatingVerificationId === item.id;
+
+                                return (
+                                    <div key={item.id} className="rounded-lg border border-gray-200 p-4">
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                            <div className="space-y-1 text-sm text-gray-700">
+                                                <div className="text-base font-semibold text-gray-900">
+                                                    {item.user?.displayName || '이름 미입력'}
+                                                    {item.user?.studentNumber ? ` (${item.user.studentNumber})` : ''}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {item.user?.email || '이메일 없음'}
+                                                </div>
+                                                <div className="text-sm">
+                                                    상태:{' '}
+                                                    <span style={{ color: statusColor }}>{statusLabel}</span>
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    제출일: {formatIso(item.submittedAt)}
+                                                </div>
+                                                {item.reviewedAt && (
+                                                    <div className="text-xs text-gray-500">
+                                                        처리일: {formatIso(item.reviewedAt)}
+                                                    </div>
+                                                )}
+                                                {item.rejectReason && (
+                                                    <div className="text-xs text-red-600">
+                                                        거절 사유: {item.rejectReason}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <button
+                                                    onClick={() => handleDownloadKey(item.s3Key)}
+                                                    disabled={downloadLoading}
+                                                    className="rounded-md border border-gray-200 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-60"
+                                                >
+                                                    학생증 보기
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {item.status === 'PENDING' && (
+                                            <div className="mt-4 flex flex-col gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="거절 사유를 입력하세요"
+                                                    value={rejectReasons[item.id] || ''}
+                                                    onChange={(e) =>
+                                                        setRejectReasons((prev) => ({
+                                                            ...prev,
+                                                            [item.id]: e.target.value,
+                                                        }))
+                                                    }
+                                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
+                                                    style={{ ['--primary' as any]: PRIMARY }}
+                                                />
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handleVerificationUpdate(item.id, 'APPROVED')}
+                                                        disabled={isUpdating}
+                                                        className="rounded-md px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                                                        style={{ backgroundColor: PRIMARY }}
+                                                    >
+                                                        승인
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleVerificationUpdate(item.id, 'REJECTED')}
+                                                        disabled={isUpdating}
+                                                        className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                                    >
+                                                        반려
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     <div className="rounded-xl bg-white px-5 pb-5">
                         <form onSubmit={handleFetch}>
                             <div
