@@ -30,7 +30,7 @@ export default function AuthCallbackClient() {
         });
         const data = await res.json().catch(() => ({}));
         if (isCancelled) return;
-        if (data?.needsOnboarding) {
+        if (data?.status === "missing") {
           router.replace("/onboarding");
           return;
         }

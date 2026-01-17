@@ -41,7 +41,18 @@ export async function POST() {
     },
   });
 
-  const needsOnboarding = !profile.displayName || !profile.studentNumber;
+  const verification = await prisma.studentIdVerification.findFirst({
+    where: { userId: user.id },
+    orderBy: { submittedAt: "desc" },
+    select: { status: true },
+  });
 
-  return NextResponse.json({ ok: true, needsOnboarding });
+  if (!profile.displayName || !profile.studentNumber || !verification) {
+    return NextResponse.json({ ok: true, status: "missing" });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    status: verification.status.toLowerCase(),
+  });
 }
