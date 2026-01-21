@@ -10,6 +10,7 @@ import { splitMp3ByDuration, standardizeToMP3 } from "@/utils/audioPreprocessing
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import Spinner from "@/component/Spinner";
 import Header from "@/component/Header";
+import { postMetadata } from "@/lib/metadata";
 
 type Props = { category: string; caseName: string };
 
@@ -63,6 +64,7 @@ export default function UploadClient({ category, caseName }: Props) {
 
             const { parts, partCount } = await splitMp3ByDuration(mp3Blob);
             const audioKeys: string[] = [];
+            let sessionId: string | null = null;
 
             for (let i = 0; i < partCount; i += 1) {
                 const key = partCount === 1
@@ -78,6 +80,18 @@ export default function UploadClient({ category, caseName }: Props) {
 
                 if (!res.ok) throw new Error("S3 업로드 실패");
                 audioKeys.push(key);
+
+                const meta = await postMetadata({
+                    type: "audio",
+                    s3Key: key,
+                    sessionId,
+                    caseName,
+                    origin: "SP",
+                    fileName: uploadFileName,
+                    contentType: "audio/mpeg",
+                    sizeBytes: parts[i]?.size,
+                });
+                if (meta.sessionId) sessionId = meta.sessionId;
             }
 
             // 3️⃣ 성공 시 채점 페이지로 이동
@@ -85,7 +99,10 @@ export default function UploadClient({ category, caseName }: Props) {
                 const query = audioKeys.length === 1
                     ? `s3Key=${encodeURIComponent(audioKeys[0])}`
                     : `s3KeyList=${encodeURIComponent(JSON.stringify(audioKeys))}`;
-                router.push(`/score?${query}&caseName=${encodeURIComponent(caseName)}`);
+                const sessionParam = sessionId
+                    ? `&sessionId=${encodeURIComponent(sessionId)}`
+                    : "";
+                router.push(`/score?${query}&caseName=${encodeURIComponent(caseName)}${sessionParam}`);
             })
         } catch (err: any) {
             console.error(err);

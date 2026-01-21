@@ -15,6 +15,7 @@ import DOMPurify from 'dompurify';
 import toast from 'react-hot-toast';
 import { generateUploadUrl } from '@/app/api/s3/s3';
 import getKSTTimestamp from '@/utils/getKSTTimestamp';
+import { postMetadata } from '@/lib/metadata';
 
 marked.setOptions({ async: false });
 
@@ -24,17 +25,19 @@ interface Props {
     caseName: string | null;
     studentNumber: string | null;
     origin: "VP" | "SP";
+    sessionId: string | null;
 }
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
-export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin }: Props) {
+export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin, sessionId: initialSessionId }: Props) {
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
     const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
     const [narrativeFeedback, setNarrativeFeedback] = useState<any | null>(null);
     const [feedbackDone, setFeedbackDone] = useState<boolean>(false);
+    const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
 
     // 새로 추가: 솔루션 마크다운/HTML 상태
     const [solutionHtml, setSolutionHtml] = useState<string>("");
@@ -46,6 +49,13 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
     // 컴포넌트 내부 맨 위 근처에 helper/refs 추가
     const uploadedNarrativeRef = useRef(false);
     const uploadedScoreRef = useRef(false);
+    const { totals, overall } = getAllTotals(gradesBySection);
+
+    useEffect(() => {
+        if (initialSessionId && initialSessionId !== sessionId) {
+            setSessionId(initialSessionId);
+        }
+    }, [initialSessionId, sessionId]);
 
     // 1) Narrative 자동 업로드: narrative/studentId-datetimeStamp(korea)
     useEffect(() => {
@@ -67,11 +77,26 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                     type: 'application/json; charset=utf-8',
                 });
 
-                await fetch(uploadUrl, {
+                const uploadRes = await fetch(uploadUrl, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json; charset=utf-8' },
                     body,
                 });
+                if (uploadRes.ok) {
+                    const meta = await postMetadata({
+                        type: "feedback",
+                        s3Key: key,
+                        sessionId,
+                        caseName,
+                        origin,
+                        model: "gpt-4o-mini",
+                        sizeBytes: body.size,
+                        textLength: JSON.stringify(narrativeFeedback).length,
+                    });
+                    if (meta.sessionId && meta.sessionId !== sessionId) {
+                        setSessionId(meta.sessionId);
+                    }
+                }
                 // 성공 시 아무 것도 안 함 (요청: 실패해도 에러 X)
             } catch (e) {
                 console.warn('[narrative upload skipped]', e);
@@ -79,7 +104,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
             }
         })();
         // narrativeFeedback이 세팅되는 시점에 1회 시도
-    }, [narrativeFeedback, studentNumber]);
+    }, [narrativeFeedback, studentNumber, caseName, origin, sessionId]);
 
 
     // 2) 구조화 점수 자동 업로드: structuredScore/studentId-datetimeStamp(korea)
@@ -104,28 +129,53 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                     type: 'application/json; charset=utf-8',
                 });
 
-                await fetch(uploadUrl, {
+                const uploadRes = await fetch(uploadUrl, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json; charset=utf-8' },
                     body,
                 });
+                if (uploadRes.ok) {
+                    const total = Number.isFinite(overall?.got) ? overall.got : undefined;
+                    const meta = await postMetadata({
+                        type: "score",
+                        s3Key: key,
+                        sessionId,
+                        caseName,
+                        origin,
+                        total,
+                        sizeBytes: body.size,
+                        textLength: JSON.stringify(gradesBySection).length,
+                        dataJson: gradesBySection,
+                    });
+                    if (meta.sessionId && meta.sessionId !== sessionId) {
+                        setSessionId(meta.sessionId);
+                    }
+                }
             } catch (e) {
                 console.warn('[structuredScore upload skipped]', e);
             }
         })();
         // gradesBySection이 채워지는 시점에 1회 시도
-    }, [gradesBySection, studentNumber]);
+    }, [gradesBySection, studentNumber, caseName, origin, sessionId]);
 
 
 
 
-    const runAutoPipeline = useAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setNarrativeFeedback, setFeedbackDone);
+    const runAutoPipeline = useAutoPipeline(
+        setStatusMessage,
+        setGradesBySection,
+        setResults,
+        setActiveSection,
+        setNarrativeFeedback,
+        setFeedbackDone,
+        (id) => setSessionId(id)
+    );
     const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setNarrativeFeedback, setFeedbackDone);
 
     useEffect(() => {
         if (!caseName) return;
         if (transcriptS3Key) runLiveAutoPipeline(transcriptS3Key, caseName);
-        else if (audioKeys.length > 0) runAutoPipeline(audioKeys, caseName);
+        else if (audioKeys.length > 0) runAutoPipeline(audioKeys, caseName, sessionId, origin);
     }, [audioKeys, transcriptS3Key, caseName]);
 
     // 👇 비동기 로드: caseName 바뀌면 솔루션 로드
@@ -149,7 +199,6 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
         return () => { cancelled = true; };
     }, [caseName]);
 
-    const { totals, overall } = getAllTotals(gradesBySection);
     const PART_LABEL = { history: '병력 청취', physical_exam: '신체 진찰', education: '환자 교육', ppi: '환자-의사관계' };
 
     const handleButtonClick = () => {

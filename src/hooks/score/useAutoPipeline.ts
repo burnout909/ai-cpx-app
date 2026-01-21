@@ -4,6 +4,7 @@ import { EvidenceChecklist, loadChecklistByCase } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { SectionKey } from "@/component/score/NarrativeFeedbackView";
+import { postMetadata } from "@/lib/metadata";
 
 export function useAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
@@ -12,6 +13,7 @@ export function useAutoPipeline(
     setActiveSection: (section: SectionKey | null) => void,
     setNarrativeFeedback: (data: any) => void,
     setFeedbackDone: (done: boolean) => void,
+    onSessionId?: (sessionId: string) => void,
 ) {
     function deriveScriptKey(audioKeys: string[]): string | null {
         const first = audioKeys[0];
@@ -24,8 +26,14 @@ export function useAutoPipeline(
         return base;
     }
 
-    return async function runAutoPipeline(keys: string | string[], caseName: string) {
+    return async function runAutoPipeline(
+        keys: string | string[],
+        caseName: string,
+        sessionId?: string | null,
+        origin: "VP" | "SP" = "SP"
+    ) {
         const audioKeys = (Array.isArray(keys) ? keys : [keys]).filter(Boolean);
+        let activeSessionId = sessionId ?? null;
         try {
             if (audioKeys.length === 0) throw new Error('오디오 키가 없습니다.');
             // 체크리스트 로드
@@ -74,11 +82,30 @@ export function useAutoPipeline(
                     const uploadUrl = await generateUploadUrl(bucket, scriptKey);
                     const body = new Blob([text], { type: 'text/plain; charset=utf-8' });
 
-                    await fetch(uploadUrl, {
+                    const uploadRes = await fetch(uploadUrl, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
                         body,
                     });
+                    if (!uploadRes.ok) {
+                        throw new Error('script upload failed');
+                    }
+
+                    const meta = await postMetadata({
+                        type: "transcript",
+                        s3Key: scriptKey,
+                        sessionId: activeSessionId,
+                        caseName,
+                        origin,
+                        source: "UPLOAD",
+                        textExcerpt: text.slice(0, 200),
+                        textLength: text.length,
+                        sizeBytes: body.size,
+                    });
+                    if (meta.sessionId && meta.sessionId !== activeSessionId) {
+                        activeSessionId = meta.sessionId;
+                        onSessionId?.(meta.sessionId);
+                    }
                 }
             } catch (err) {
                 console.warn('[script upload failed]', err);

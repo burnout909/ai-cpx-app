@@ -14,7 +14,16 @@ export default function buildPatientInstructions(caseData: VirtualPatient): stri
     if (vitals.bt) vsParts.push(`Temp: ${vitals.bt}`);
     const vitalsStr = vsParts.length > 0 ? vsParts.join(", ") : "기본 활력징후는 아직 측정되지 않았습니다.";
 
-    const factsJson = JSON.stringify(caseData, null, 2);
+    const sanitizedMeta = { ...meta } as Record<string, unknown>;
+    if ("diagnosis" in sanitizedMeta) delete sanitizedMeta.diagnosis;
+    const sanitizedCaseData = {
+        ...caseData,
+        properties: {
+            ...props,
+            meta: sanitizedMeta,
+        },
+    } as VirtualPatient;
+    const factsJson = JSON.stringify(sanitizedCaseData, null, 2);
 
     return `
 당신은 '표준화 환자(Virtual Standardized Patient)' 입니다. OSCE/CPX 시뮬레이션에서 의대생이 면담을 연습할 수 있도록 실제 환자처럼 대화하세요.

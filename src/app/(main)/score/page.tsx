@@ -3,9 +3,9 @@ import ScoreClient from "./ScoreClient";
 export default async function Page({
     searchParams,
 }: {
-    searchParams: Promise<{ s3Key?: string, s3KeyList?: string, transcriptS3Key?: string, caseName?: string, studentNumber?: string, origin?: string }>;
+    searchParams: Promise<{ s3Key?: string, s3KeyList?: string, transcriptS3Key?: string, caseName?: string, studentNumber?: string, origin?: string, sessionId?: string }>;
 }) {
-    const { s3Key, s3KeyList, caseName, transcriptS3Key, studentNumber, origin } = await searchParams;
+    const { s3Key, s3KeyList, caseName, transcriptS3Key, studentNumber, origin, sessionId } = await searchParams;
 
     let parsedAudioKeys: string[] = [];
     if (s3KeyList) {
@@ -24,5 +24,5 @@ export default async function Page({
 
     const normalizedOrigin = origin === "VP" ? "VP" : "SP";
 
-    return <ScoreClient audioKeys={parsedAudioKeys} transcriptS3Key={transcriptS3Key || null} caseName={caseName || null} studentNumber={studentNumber || null} origin={normalizedOrigin} />;
+    return <ScoreClient audioKeys={parsedAudioKeys} transcriptS3Key={transcriptS3Key || null} caseName={caseName || null} studentNumber={studentNumber || null} origin={normalizedOrigin} sessionId={sessionId || null} />;
 }

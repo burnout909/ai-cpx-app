@@ -11,10 +11,10 @@ import Spinner from "@/component/Spinner";
 import { splitMp3ByDuration, standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { useUserStore } from "@/store/useUserStore";
-import StudentIdPopup from "@/component/StudentIdPopup";
 import { fetchOnboardingStatus } from "@/lib/onboarding";
 import toast from "react-hot-toast";
 import IdRejectedPopup from "@/component/IdRejectedPopup";
+import { postMetadata } from "@/lib/metadata";
 
 const INITIAL_SECONDS = 15 * 60; // 12분
 
@@ -36,7 +36,6 @@ export default function RecordCPXClient({ category, caseName }: Props) {
     const [isPreviewReady, setIsPreviewReady] = useState(false); //미리듣기 음성 준비 상태
     const [isUploadingToS3, setIsUploadingToS3] = useState(false); //s3로 파일 업로드
     const [isConnecting, setIsConnencting] = useState(false); //세션 연결 상태
-    const [showStudentPopup, setShowStudentPopup] = useState(true); //학번 팝업 상태
     const [verificationPopup, setVerificationPopup] = useState<{
         kind: "missing" | "rejected";
         reason?: string | null;
@@ -287,6 +286,7 @@ export default function RecordCPXClient({ category, caseName }: Props) {
 
             const { parts, partCount } = await splitMp3ByDuration(finalMp3!);
             const audioKeys: string[] = [];
+            let sessionId: string | null = null;
 
             for (let i = 0; i < partCount; i += 1) {
                 const key = partCount === 1
@@ -301,6 +301,18 @@ export default function RecordCPXClient({ category, caseName }: Props) {
 
                 if (!res.ok) throw new Error("S3 업로드 실패");
                 audioKeys.push(key);
+
+                const meta = await postMetadata({
+                    type: "audio",
+                    s3Key: key,
+                    sessionId,
+                    caseName,
+                    origin: "SP",
+                    fileName: key.split("/").pop() || undefined,
+                    contentType: "audio/mpeg",
+                    sizeBytes: parts[i]?.size,
+                });
+                if (meta.sessionId) sessionId = meta.sessionId;
             }
 
             // 3️⃣ 업로드 완료 → 채점 페이지 이동
@@ -308,8 +320,11 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                 const query = audioKeys.length === 1
                     ? `s3Key=${encodeURIComponent(audioKeys[0])}`
                     : `s3KeyList=${encodeURIComponent(JSON.stringify(audioKeys))}`;
+                const sessionParam = sessionId
+                    ? `&sessionId=${encodeURIComponent(sessionId)}`
+                    : "";
                 router.push(
-                    `/score?${query}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("SP")}`
+                    `/score?${query}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("SP")}${sessionParam}`
                 );
             });
         } catch (err: any) {
@@ -421,7 +436,6 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                     {isPreviewReady && audioURL && (
                         <audio controls src={audioURL} className="mt-4 w-full z-10" />
                     )}
-                    <div className="text-[16px] font-medium text-gray-600">{`${studentId}님의 SP 평가`}</div>
                 </div>
 
                 <BottomFixButton
@@ -431,14 +445,6 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                     loading={isConvertingDirect || isPending || isUploadingToS3}
                 />
             </div>
-            {
-                showStudentPopup && (
-                    <StudentIdPopup
-                        onClose={() => setShowStudentPopup(false)}
-                        onConfirm={() => setShowStudentPopup(false)}
-                    />
-                )
-            }
         </>
     );
 }

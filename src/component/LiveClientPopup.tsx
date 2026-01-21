@@ -2,7 +2,6 @@
 import { useEffect, useState, type ComponentType } from "react";
 import RightArrowIcon from "@/assets/icon/RightArrowIcon.svg";
 import LeftArrowIcon from "@/assets/icon/LeftArrowIcon.svg";
-import StudentIdPopup from "./StudentIdPopup";
 import { Instruction1Video, Instruction2Video, Instruction4Video, Instruction5Video } from "./VideoLoop";
 
 interface Props {
@@ -19,7 +18,6 @@ type Slide = {
 export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
     const [step, setStep] = useState(0);
     // const [dontShowAgain, setDontShowAgain] = useState(false);
-    const [showStudentPopup, setShowStudentPopup] = useState<boolean>(false); // 새 팝업 상태 추가
 
     // 미리 영상 버퍼를 채워서 슬라이드 전환 지연을 최소화
     useEffect(() => {
@@ -40,10 +38,7 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
 
     const nextStep = () => {
         if (step < slides.length - 1) setStep(step + 1);
-        else {
-            // if (dontShowAgain) localStorage.setItem("isLiveClientShow", "false");
-            setShowStudentPopup(true); // 학번 입력 팝업 띄우기
-        }
+        else onReadyStart();
     };
 
     const prevStep = () => {
@@ -149,13 +144,6 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
                 </div>
             </div>
 
-            {/* 학번 입력 팝업 */}
-            {showStudentPopup && (
-                <StudentIdPopup
-                    onClose={() => setShowStudentPopup(false)}
-                    onConfirm={onReadyStart}
-                />
-            )}
         </>
     );
 }

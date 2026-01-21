@@ -17,6 +17,7 @@ import { useUserStore } from "@/store/useUserStore";
 import toast from "react-hot-toast";
 import { fetchOnboardingStatus } from "@/lib/onboarding";
 import IdRejectedPopup from "@/component/IdRejectedPopup";
+import { postMetadata } from "@/lib/metadata";
 
 type Props = { category: string; caseName: string };
 
@@ -339,6 +340,19 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             if (!res.ok) throw new Error("S3 업로드 실패 (음성)");
 
             const historyKey = `VP_script/${studentId}-${timestamp}.txt`;
+            let sessionId: string | null = null;
+
+            const audioMeta = await postMetadata({
+                type: "audio",
+                s3Key: userKey,
+                sessionId,
+                caseName,
+                origin: "VP",
+                fileName: userKey.split("/").pop() || undefined,
+                contentType: "audio/mpeg",
+                sizeBytes: userMP3.size,
+            });
+            if (audioMeta.sessionId) sessionId = audioMeta.sessionId;
 
 
             // 대화 로그 업로드
@@ -353,14 +367,30 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                     body: txtBlob,
                 });
                 if (!histRes.ok) throw new Error("S3 업로드 실패 (히스토리)");
+
+                const transcriptMeta = await postMetadata({
+                    type: "transcript",
+                    s3Key: historyKey,
+                    sessionId,
+                    caseName,
+                    origin: "VP",
+                    source: "LIVE",
+                    textExcerpt: txtBlob.slice(0, 200),
+                    textLength: txtBlob.length,
+                    sizeBytes: new Blob([txtBlob]).size,
+                });
+                if (transcriptMeta.sessionId) sessionId = transcriptMeta.sessionId;
             } else {
                 console.warn("⚠️ 대화 내용이 비어 있어 히스토리를 업로드하지 않았습니다.");
             }
 
             // 채점 페이지로 이동
             startTransition(() => {
+                const sessionParam = sessionId
+                    ? `&sessionId=${encodeURIComponent(sessionId)}`
+                    : "";
                 router.push(
-                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("VP")}`
+                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("VP")}${sessionParam}`
                 );
             });
         } catch (err) {
@@ -442,8 +472,13 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             }, 1000);
             return () => clearInterval(id);
         } else if (readySeconds === 0) {
-            startSession(); // 준비 완료 → 실습 시작
-            setReadySeconds(null);
+            (async () => {
+                const ok = await ensureOnboarding();
+                if (ok) {
+                    startSession(); // 준비 완료 → 실습 시작
+                }
+                setReadySeconds(null);
+            })();
         }
     }, [readySeconds]);
 
