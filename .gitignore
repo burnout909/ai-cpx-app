@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# separate projects
+/cpxmate-gen/
+/두통 2d79cb468af7802c9011d60c4cabc859.csv
