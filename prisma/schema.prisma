@@ -4,17 +4,22 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
+  schemas   = ["public", "auth"]
 }
 
 enum UserRole {
   STUDENT
   ADMIN
+
+  @@schema("public")
 }
 
 enum VerificationStatus {
   PENDING
   APPROVED
   REJECTED
+
+  @@schema("public")
 }
 
 enum UploadType {
@@ -23,22 +28,37 @@ enum UploadType {
   IMAGE
   TRANSCRIPT
   OTHER
+
+  @@schema("public")
 }
 
 enum TranscriptSource {
   LIVE
   UPLOAD
+
+  @@schema("public")
 }
 
 enum CpxOrigin {
   VP
   SP
+
+  @@schema("public")
 }
 
 enum SessionStatus {
   IN_PROGRESS
   COMPLETED
   FAILED
+
+  @@schema("public")
+}
+
+enum CaseStatus {
+  DRAFT
+  PUBLISHED
+
+  @@schema("public")
 }
 
 model Profile {
@@ -59,21 +79,33 @@ model Profile {
   reviews       StudentIdVerification[] @relation("ReviewerVerifications")
   auditLogs     AuditLog[] @relation("ActorAuditLogs")
 
+  @@schema("public")
   @@map("profiles")
 }
 
 model Case {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String     @id @default(uuid()) @db.Uuid
+  name           String
+  chiefComplaint String?    @map("chief_complaint")
+  diagnosis      String?    @map("diagnosis")
+  description    String?
+  status         CaseStatus @default(DRAFT)
+  scenarioJson   Json?      @map("scenario_json")
+  checklistJson  Json?      @map("checklist_json")
+  solutionText   String?    @map("solution_text")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
 
   sessions    CpxSession[]
   uploads     Upload[]
 
+  @@index([chiefComplaint])
+  @@index([status])
+  @@schema("public")
   @@map("cases")
 }
+
+
 
 model CpxSession {
   id        String        @id @default(uuid()) @db.Uuid
@@ -95,6 +127,7 @@ model CpxSession {
 
   @@index([userId])
   @@index([caseId])
+  @@schema("public")
   @@map("cpx_sessions")
 }
 
@@ -118,6 +151,7 @@ model Upload {
   @@index([userId])
   @@index([sessionId])
   @@index([caseId])
+  @@schema("public")
   @@map("uploads")
 }
 
@@ -131,6 +165,9 @@ model Transcript {
   language     String?          @map("language")
   durationSec  Int?             @map("duration_sec")
   textExcerpt  String?          @map("text_excerpt")
+  sizeBytes    Int?             @map("size_bytes")
+  textLength   Int?             @map("text_length")
+  tokenCount   Int?             @map("token_count")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
@@ -139,6 +176,7 @@ model Transcript {
 
   @@index([userId])
   @@index([sessionId])
+  @@schema("public")
   @@map("transcripts")
 }
 
@@ -149,6 +187,9 @@ model Feedback {
   origin     CpxOrigin? @map("origin")
   s3Key      String   @map("s3_key")
   model      String?  @map("model")
+  sizeBytes  Int?     @map("size_bytes")
+  textLength Int?     @map("text_length")
+  tokenCount Int?     @map("token_count")
   createdAt  DateTime @default(now()) @map("created_at")
 
   user       Profile  @relation(fields: [userId], references: [id])
@@ -156,6 +197,7 @@ model Feedback {
 
   @@index([userId])
   @@index([sessionId])
+  @@schema("public")
   @@map("feedback")
 }
 
@@ -167,6 +209,9 @@ model Score {
   s3Key     String   @map("s3_key")
   total     Float?   @map("total")
   dataJson  Json?    @map("data_json")
+  sizeBytes  Int?    @map("size_bytes")
+  textLength Int?    @map("text_length")
+  tokenCount Int?    @map("token_count")
   createdAt DateTime @default(now()) @map("created_at")
 
   user      Profile  @relation(fields: [userId], references: [id])
@@ -174,6 +219,7 @@ model Score {
 
   @@index([userId])
   @@index([sessionId])
+  @@schema("public")
   @@map("scores")
 }
 
@@ -192,6 +238,7 @@ model StudentIdVerification {
 
   @@index([userId])
   @@index([status])
+  @@schema("public")
   @@map("student_id_verifications")
 }
 
@@ -210,5 +257,6 @@ model AuditLog {
 
   @@index([actorId])
   @@index([createdAt])
+  @@schema("public")
   @@map("audit_logs")
 }
