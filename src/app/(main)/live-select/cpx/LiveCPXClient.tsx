@@ -19,7 +19,13 @@ import { fetchOnboardingStatus } from "@/lib/onboarding";
 import IdRejectedPopup from "@/component/IdRejectedPopup";
 import { postMetadata } from "@/lib/metadata";
 
-type Props = { category: string; caseName: string };
+type Props = {
+    category: string;
+    caseName: string;
+    scenarioId?: string;
+    virtualPatient?: VirtualPatient;
+    patientImageUrl?: string;
+};
 
 const INITIAL_SECONDS = 12 * 60; // 720s = 12분
 const INITIAL_READY_SECONDS = 60; // 준비 시간 60초
@@ -27,7 +33,7 @@ const INITIAL_READY_SECONDS = 60; // 준비 시간 60초
 /* °C 포맷 */
 const formatTemp = (t: number) => `${t.toFixed(1)}°C`;
 
-export default function LiveCPXClient({ category, caseName }: Props) {
+export default function LiveCPXClient({ category, caseName, scenarioId, virtualPatient, patientImageUrl }: Props) {
     const router = useRouter();
 
     // ===== 상태값 =====
@@ -101,6 +107,12 @@ export default function LiveCPXClient({ category, caseName }: Props) {
 
     // 케이스 프로필 이미지 로드
     useEffect(() => {
+        // patientImageUrl이 제공된 경우 우선 사용
+        if (patientImageUrl) {
+            // URL 문자열인 경우 StaticImageData처럼 사용할 수 없으므로 별도 상태 필요
+            return;
+        }
+
         let mounted = true;
         (async () => {
             try {
@@ -112,7 +124,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
             }
         })();
         return () => { mounted = false; };
-    }, [caseName]);
+    }, [caseName, patientImageUrl]);
 
     /** 라우트 변경 시 자동 정리 */
     useEffect(() => {
@@ -142,6 +154,12 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         };
     }, [stopAndResetSession]);
     useEffect(() => {
+        // virtualPatient가 제공된 경우 우선 사용
+        if (virtualPatient) {
+            setCaseData(virtualPatient);
+            return;
+        }
+
         let isMounted = true;
 
         async function fetchCaseData() {
@@ -158,7 +176,7 @@ export default function LiveCPXClient({ category, caseName }: Props) {
         return () => {
             isMounted = false;
         };
-    }, [caseName]);
+    }, [caseName, virtualPatient]);
 
     // ===== 레퍼런스 =====
     const sessionRef = useRef<any>(null);
@@ -536,10 +554,12 @@ export default function LiveCPXClient({ category, caseName }: Props) {
                 <div className="px-6 pt-4 w-full flex items-center gap-4">
                     <div className="w-[56px] h-[56px] relative">
                         <Image
-                            src={profileImage}
+                            src={patientImageUrl || profileImage}
                             alt="ProfileImage"
                             className="overflow-hidden rounded-full object-cover"
-                            fill />
+                            fill
+                            unoptimized={!!patientImageUrl}
+                        />
                     </div>
                     <div className="text-[16px] items-center">
                         <p>

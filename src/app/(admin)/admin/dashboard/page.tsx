@@ -14,15 +14,14 @@ function DashboardCard({
   return (
     <Link
       href={href}
-      className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[var(--primary)] hover:shadow-md"
-      style={{ ["--primary" as any]: PRIMARY }}
+      className="group rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:border-violet-400"
     >
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <p className="mt-2 text-sm text-gray-500">{description}</p>
         </div>
-        <span className="text-sm font-semibold text-[var(--primary)]">→</span>
+        <span className="text-sm font-semibold" style={{ color: PRIMARY }}>→</span>
       </div>
     </Link>
   );
@@ -82,13 +81,8 @@ export default function AdminDashboardLandingPage() {
       <Section title="시나리오">
         <DashboardCard
           href="/admin/dashboard/scenario-gen"
-          title="시나리오 생성기"
-          description="시나리오와 체크리스트를 생성하고 가상환자를 테스트합니다."
-        />
-        <DashboardCard
-          href="/admin/dashboard/scenarios"
           title="시나리오 관리"
-          description="주호소/케이스별 시나리오 현황 조회 및 배포 상태를 관리합니다."
+          description="시나리오와 체크리스트를 생성하고 가상환자를 테스트합니다."
         />
       </Section>
     </main>

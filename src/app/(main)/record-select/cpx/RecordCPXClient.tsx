@@ -18,9 +18,9 @@ import { postMetadata } from "@/lib/metadata";
 
 const INITIAL_SECONDS = 15 * 60; // 12분
 
-type Props = { category: string; caseName: string };
+type Props = { category: string; caseName: string; checklistId?: string };
 
-export default function RecordCPXClient({ category, caseName }: Props) {
+export default function RecordCPXClient({ category, caseName, checklistId }: Props) {
     const router = useRouter();
 
     // 상태값
@@ -323,8 +323,11 @@ export default function RecordCPXClient({ category, caseName }: Props) {
                 const sessionParam = sessionId
                     ? `&sessionId=${encodeURIComponent(sessionId)}`
                     : "";
+                const checklistParam = checklistId
+                    ? `&checklistId=${encodeURIComponent(checklistId)}`
+                    : "";
                 router.push(
-                    `/score?${query}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("SP")}${sessionParam}`
+                    `/score?${query}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("SP")}${sessionParam}${checklistParam}`
                 );
             });
         } catch (err: any) {

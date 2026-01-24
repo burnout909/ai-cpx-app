@@ -2,8 +2,22 @@ import { SectionId } from "@/app/api/collectEvidence/route";
 import { generateDownloadUrl } from "@/app/api/s3/s3";
 import { SectionKey } from "@/component/score/NarrativeFeedbackView";
 import { GradeItem, SectionResult } from "@/types/score";
-import { EvidenceChecklist, loadChecklistByCase, ScoreChecklist } from "@/utils/loadChecklist";
+import { EvidenceChecklist, loadChecklistByCase, ScoreChecklist, EvidenceModule } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
+
+// DB에서 체크리스트 로드
+async function loadChecklistFromDB(checklistId: string): Promise<EvidenceModule> {
+    const res = await fetch(`/api/admin/checklist?id=${encodeURIComponent(checklistId)}`);
+    if (!res.ok) {
+        throw new Error("체크리스트 로드 실패");
+    }
+    const data = await res.json();
+    const checklistJson = data.latestVersion?.checklistJson || data.checklistJson;
+    if (!checklistJson) {
+        throw new Error("체크리스트 데이터가 없습니다");
+    }
+    return checklistJson as EvidenceModule;
+}
 
 export function useLiveAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
@@ -13,12 +27,19 @@ export function useLiveAutoPipeline(
     setNarrativeFeedback: (data: any) => void,
     setFeedbackDone: (done: boolean) => void,
 ) {
-    return async function runLiveAutoPipeline(key: string, caseName: string) {
+    return async function runLiveAutoPipeline(key: string, caseName: string, checklistId?: string | null) {
         const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
         try {
             // 1️⃣ 체크리스트 불러오기
             setStatusMessage('체크리스트 로드 중...');
-            const { evidence, score } = await loadChecklistByCase(caseName!);
+
+            let evidence: EvidenceModule;
+            if (checklistId) {
+                evidence = await loadChecklistFromDB(checklistId);
+            } else {
+                const loaded = await loadChecklistByCase(caseName!);
+                evidence = loaded.evidence;
+            }
 
             // evidence(named exports)
             const {

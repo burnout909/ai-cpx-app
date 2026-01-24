@@ -260,3 +260,95 @@ model AuditLog {
   @@schema("public")
   @@map("audit_logs")
 }
+
+model EvidenceChecklist {
+  id              String   @id @default(uuid()) @db.Uuid
+  chiefComplaint  String   @map("chief_complaint")
+  version         String   // "0.1", "0.2", etc.
+  checklistJson   Json     @map("checklist_json")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([chiefComplaint, version])
+  @@index([chiefComplaint])
+  @@schema("public")
+  @@map("evidence_checklists")
+}
+
+enum ScenarioStatus {
+  DRAFT
+  PUBLISHED
+  LEGACY
+
+  @@map("scenario_status")
+  @@schema("public")
+}
+
+model Scenario {
+  id                       String         @id @default(uuid()) @db.Uuid
+  chiefComplaint           String         @map("chief_complaint")
+  caseName                 String         @map("case_name")
+
+  // Version lineage
+  previousScenarioId       String?        @db.Uuid @map("previous_scenario_id")
+  previousScenario         Scenario?      @relation("ScenarioVersions", fields: [previousScenarioId], references: [id])
+  nextVersions             Scenario[]     @relation("ScenarioVersions")
+  versionNumber            Float          @default(0.1) @map("version_number")
+
+  // Status
+  status                   ScenarioStatus @default(DRAFT)
+  publishedAt              DateTime?      @map("published_at")
+
+  // Scenario content
+  scenarioContent          Json?          @map("scenario_content")
+
+  // Checklist snapshot
+  checklistSourceVersionId String?        @db.Uuid @map("checklist_source_version_id")
+  checklistItemsSnapshot   Json?          @map("checklist_items_snapshot")
+  checklistIncludedMap     Json?          @map("checklist_included_map")
+  checklistConfirmedAt     DateTime?      @map("checklist_confirmed_at")
+
+  // Commentary
+  commentaryContent        Json?          @map("commentary_content")
+  commentaryUpdatedAt      DateTime?      @map("commentary_updated_at")
+
+  // Patient image
+  activeImageId            String?        @db.Uuid @map("active_image_id")
+  patientImages            PatientImage[]
+
+  createdAt                DateTime       @default(now()) @map("created_at")
+  updatedAt                DateTime       @updatedAt @map("updated_at")
+
+  @@unique([chiefComplaint, caseName, versionNumber])
+  @@index([chiefComplaint])
+  @@index([chiefComplaint, caseName])
+  @@index([status])
+  @@schema("public")
+  @@map("scenarios")
+}
+
+model PatientImage {
+  id              String    @id @default(uuid()) @db.Uuid
+  scenarioId      String?   @db.Uuid @map("scenario_id")
+
+  // Generation parameters
+  sex             String    // "남성" | "여성"
+  age             Int
+  chiefComplaint  String    @map("chief_complaint")
+
+  // Image storage
+  s3Key           String    @map("s3_key")
+  prompt          String?   // Prompt used for generation
+
+  // Metadata
+  model           String?   @default("dall-e-3")
+  sizeBytes       Int?      @map("size_bytes")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  scenario        Scenario? @relation(fields: [scenarioId], references: [id])
+
+  @@index([scenarioId])
+  @@index([chiefComplaint, sex, age])
+  @@schema("public")
+  @@map("patient_images")
+}

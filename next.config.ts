@@ -2,6 +2,15 @@ import type { NextConfig } from "next";
 
 
 const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ai-cpx-app.s3.ap-northeast-2.amazonaws.com',
+        pathname: '/**',
+      },
+    ],
+  },
   webpack(config: any) {
     // 기존 SVG rule 제거
     config.module.rules

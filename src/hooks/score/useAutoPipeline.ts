@@ -1,10 +1,27 @@
 import { SectionId } from "@/app/api/collectEvidence/route";
 import { GradeItem, SectionResult } from "@/types/score";
-import { EvidenceChecklist, loadChecklistByCase } from "@/utils/loadChecklist";
+import { EvidenceChecklist, loadChecklistByCase, EvidenceModule } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { SectionKey } from "@/component/score/NarrativeFeedbackView";
 import { postMetadata } from "@/lib/metadata";
+
+// DB에서 체크리스트 로드
+async function loadChecklistFromDB(checklistId: string): Promise<EvidenceModule> {
+    const res = await fetch(`/api/admin/checklist?id=${encodeURIComponent(checklistId)}`);
+    if (!res.ok) {
+        throw new Error("체크리스트 로드 실패");
+    }
+    const data = await res.json();
+
+    // id로 조회한 경우 latestVersion에서 가져오기
+    const checklistJson = data.latestVersion?.checklistJson || data.checklistJson;
+    if (!checklistJson) {
+        throw new Error("체크리스트 데이터가 없습니다");
+    }
+
+    return checklistJson as EvidenceModule;
+}
 
 export function useAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
@@ -30,7 +47,8 @@ export function useAutoPipeline(
         keys: string | string[],
         caseName: string,
         sessionId?: string | null,
-        origin: "VP" | "SP" = "SP"
+        origin: "VP" | "SP" = "SP",
+        checklistId?: string | null
     ) {
         const audioKeys = (Array.isArray(keys) ? keys : [keys]).filter(Boolean);
         let activeSessionId = sessionId ?? null;
@@ -38,7 +56,16 @@ export function useAutoPipeline(
             if (audioKeys.length === 0) throw new Error('오디오 키가 없습니다.');
             // 체크리스트 로드
             setStatusMessage('채점 기준 로드 중');
-            const { evidence, score } = await loadChecklistByCase(caseName!);
+
+            let evidence: EvidenceModule;
+            if (checklistId) {
+                // DB에서 체크리스트 로드
+                evidence = await loadChecklistFromDB(checklistId);
+            } else {
+                // 기존 방식: 로컬 파일에서 로드
+                const loaded = await loadChecklistByCase(caseName!);
+                evidence = loaded.evidence;
+            }
 
             const checklistMap = {
                 history: evidence.HistoryEvidenceChecklist || [],

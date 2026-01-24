@@ -1,11 +1,14 @@
 /**
- * CSV → EvidenceChecklist JSON 변환 유틸리티
+ * CSV/TSV → EvidenceChecklist JSON 변환 유틸리티
+ * 쉼표(,) 또는 탭(\t) 구분자 자동 감지
  */
 
 export interface EvidenceChecklistItem {
   id: string;
   title: string;
   criteria: string;
+  example?: string;
+  DDx?: string;
 }
 
 export interface ChecklistJson {
@@ -41,47 +44,43 @@ const SECTION_PREFIX_MAP: Record<ValidSection, string> = {
 };
 
 /**
- * CSV 텍스트를 파싱하여 행 배열로 변환
+ * 구분자 자동 감지 (탭 vs 쉼표)
+ * 헤더 라인에서 탭이 있고 필수 헤더가 탭으로 구분되면 탭, 아니면 쉼표
  */
-function parseCsvText(csvText: string): CsvRow[] {
-  const lines = csvText.split(/\r?\n/).filter((line) => line.trim());
-  if (lines.length < 2) return [];
+function detectDelimiter(headerLine: string): string {
+  // 탭으로 분리해서 필수 헤더가 있는지 확인
+  const tabSplit = headerLine.split("\t").map((h) => h.toLowerCase().trim());
+  const hasTabHeaders =
+    tabSplit.includes("section") &&
+    tabSplit.includes("title") &&
+    tabSplit.includes("criteria");
 
-  // BOM 제거
-  const headerLine = lines[0].replace(/^\uFEFF/, "");
-  const headers = parseCSVLine(headerLine).map((h) => h.toLowerCase().trim());
-
-  const sectionIdx = headers.indexOf("section");
-  const titleIdx = headers.indexOf("title");
-  const criteriaIdx = headers.indexOf("criteria");
-  const exampleIdx = headers.indexOf("example");
-  const ddxIdx = headers.indexOf("ddx");
-
-  if (sectionIdx === -1 || titleIdx === -1 || criteriaIdx === -1) {
-    return [];
+  if (hasTabHeaders) {
+    return "\t";
   }
 
-  const rows: CsvRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i]);
-    if (cols.length === 0) continue;
+  // 쉼표로 분리해서 확인
+  const commaSplit = parseDelimitedLine(headerLine, ",").map((h) => h.toLowerCase().trim());
+  const hasCommaHeaders =
+    commaSplit.includes("section") &&
+    commaSplit.includes("title") &&
+    commaSplit.includes("criteria");
 
-    rows.push({
-      section: (cols[sectionIdx] || "").trim().toLowerCase(),
-      title: (cols[titleIdx] || "").trim(),
-      criteria: (cols[criteriaIdx] || "").trim(),
-      example: exampleIdx !== -1 ? (cols[exampleIdx] || "").trim() : undefined,
-      DDx: ddxIdx !== -1 ? (cols[ddxIdx] || "").trim() : undefined,
-    });
+  if (hasCommaHeaders) {
+    return ",";
   }
 
-  return rows;
+  // 기본값: 탭이 더 많으면 탭, 아니면 쉼표
+  const tabCount = (headerLine.match(/\t/g) || []).length;
+  const commaCount = (headerLine.match(/,/g) || []).length;
+
+  return tabCount >= commaCount ? "\t" : ",";
 }
 
 /**
- * CSV 라인을 파싱 (쌍따옴표 내 쉼표/줄바꿈 처리)
+ * 구분자로 라인을 파싱 (쌍따옴표 내 구분자 처리)
  */
-function parseCSVLine(line: string): string[] {
+function parseDelimitedLine(line: string, delimiter: string): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
@@ -92,17 +91,24 @@ function parseCSVLine(line: string): string[] {
 
     if (inQuotes) {
       if (char === '"' && nextChar === '"') {
+        // 이스케이프된 따옴표
         current += '"';
         i++;
       } else if (char === '"') {
+        // 따옴표 종료
         inQuotes = false;
       } else {
         current += char;
       }
     } else {
       if (char === '"') {
+        // 따옴표 시작
         inQuotes = true;
-      } else if (char === ",") {
+      } else if (
+        (delimiter === "\t" && char === "\t") ||
+        (delimiter === "," && char === ",")
+      ) {
+        // 구분자 발견
         result.push(current);
         current = "";
       } else {
@@ -116,21 +122,128 @@ function parseCSVLine(line: string): string[] {
 }
 
 /**
- * CSV 텍스트를 ChecklistJson으로 변환
+ * 멀티라인 필드 처리를 위해 전체 텍스트를 레코드 단위로 분리
+ */
+function splitIntoRecords(text: string, delimiter: string): string[] {
+  const records: string[] = [];
+  let currentRecord = "";
+  let inQuotes = false;
+
+  const lines = text.split(/\r?\n/);
+
+  for (const line of lines) {
+    if (!currentRecord && !line.trim()) {
+      continue; // 빈 줄 건너뛰기
+    }
+
+    if (currentRecord) {
+      currentRecord += "\n" + line;
+    } else {
+      currentRecord = line;
+    }
+
+    // 현재 레코드에서 따옴표 상태 확인
+    for (const char of line) {
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      }
+    }
+
+    // 따옴표가 닫혔으면 레코드 완료
+    if (!inQuotes) {
+      if (currentRecord.trim()) {
+        records.push(currentRecord);
+      }
+      currentRecord = "";
+    }
+  }
+
+  // 마지막 레코드 처리
+  if (currentRecord.trim()) {
+    records.push(currentRecord);
+  }
+
+  return records;
+}
+
+/**
+ * CSV/TSV 텍스트를 파싱하여 행 배열로 변환
+ */
+function parseCsvText(csvText: string): { rows: CsvRow[]; delimiter: string } {
+  // BOM 제거
+  const cleanText = csvText.replace(/^\uFEFF/, "");
+
+  // 첫 줄(헤더) 추출
+  const firstLineEnd = cleanText.indexOf("\n");
+  const headerLine = firstLineEnd > 0 ? cleanText.substring(0, firstLineEnd).replace(/\r$/, "") : cleanText;
+
+  // 구분자 감지
+  const delimiter = detectDelimiter(headerLine);
+
+  // 레코드 단위로 분리 (멀티라인 필드 처리)
+  const records = splitIntoRecords(cleanText, delimiter);
+
+  if (records.length < 2) {
+    return { rows: [], delimiter };
+  }
+
+  // 헤더 파싱
+  const headers = parseDelimitedLine(records[0], delimiter).map((h) => h.toLowerCase().trim());
+
+  const sectionIdx = headers.indexOf("section");
+  const titleIdx = headers.indexOf("title");
+  const criteriaIdx = headers.indexOf("criteria");
+  const exampleIdx = headers.indexOf("example");
+  const ddxIdx = headers.indexOf("ddx");
+
+  if (sectionIdx === -1 || titleIdx === -1 || criteriaIdx === -1) {
+    return { rows: [], delimiter };
+  }
+
+  // 데이터 행 파싱
+  const rows: CsvRow[] = [];
+  for (let i = 1; i < records.length; i++) {
+    const cols = parseDelimitedLine(records[i], delimiter);
+    if (cols.length === 0) continue;
+
+    // 빈 행 건너뛰기
+    const section = (cols[sectionIdx] || "").trim().toLowerCase();
+    if (!section) continue;
+
+    rows.push({
+      section,
+      title: (cols[titleIdx] || "").trim(),
+      criteria: (cols[criteriaIdx] || "").trim(),
+      example: exampleIdx !== -1 ? (cols[exampleIdx] || "").trim() : undefined,
+      DDx: ddxIdx !== -1 ? (cols[ddxIdx] || "").trim() : undefined,
+    });
+  }
+
+  return { rows, delimiter };
+}
+
+/**
+ * CSV/TSV 텍스트를 ChecklistJson으로 변환
  */
 export function parseChecklistCsv(csvText: string): CsvParseResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const rows = parseCsvText(csvText);
+  const { rows, delimiter } = parseCsvText(csvText);
 
   if (rows.length === 0) {
     return {
       success: false,
-      errors: ["CSV 파싱 실패: 유효한 데이터가 없거나 필수 헤더(section, title, criteria)가 없습니다."],
+      errors: [
+        "CSV/TSV 파싱 실패: 유효한 데이터가 없거나 필수 헤더(section, title, criteria)가 없습니다.",
+      ],
       warnings: [],
     };
   }
+
+  // 감지된 구분자 정보
+  const delimiterName = delimiter === "\t" ? "탭(TSV)" : "쉼표(CSV)";
+  warnings.push(`구분자 감지: ${delimiterName} 형식으로 파싱됨`);
 
   // 섹션별 분류
   const grouped: Record<ValidSection, CsvRow[]> = {
@@ -172,21 +285,29 @@ export function parseChecklistCsv(csvText: string): CsvParseResult {
       id: `${SECTION_PREFIX_MAP.history}-${String(i + 1).padStart(2, "0")}`,
       title: row.title,
       criteria: row.criteria,
+      example: row.example || undefined,
+      DDx: row.DDx || undefined,
     })),
     PhysicalexamEvidenceChecklist: grouped.physicalexam.map((row, i) => ({
       id: `${SECTION_PREFIX_MAP.physicalexam}-${String(i + 1).padStart(2, "0")}`,
       title: row.title,
       criteria: row.criteria,
+      example: row.example || undefined,
+      DDx: row.DDx || undefined,
     })),
     EducationEvidenceChecklist: grouped.education.map((row, i) => ({
       id: `${SECTION_PREFIX_MAP.education}-${String(i + 1).padStart(2, "0")}`,
       title: row.title,
       criteria: row.criteria,
+      example: row.example || undefined,
+      DDx: row.DDx || undefined,
     })),
     PpiEvidenceChecklist: grouped.ppi.map((row, i) => ({
       id: `${SECTION_PREFIX_MAP.ppi}-${String(i + 1).padStart(2, "0")}`,
       title: row.title,
       criteria: row.criteria,
+      example: row.example || undefined,
+      DDx: row.DDx || undefined,
     })),
   };
 

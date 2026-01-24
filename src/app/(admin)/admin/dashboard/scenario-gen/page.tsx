@@ -1,32 +1,50 @@
 "use client";
 
 import { Suspense } from "react";
-import Header from "@/component/Header";
-import { ScenarioDashboardClient } from "@/component/dashboard/ScenarioDashboardClient";
+import Link from "next/link";
+import ScenarioListTable from "@/component/admin/ScenarioListTable";
 import { useSearchParams } from "next/navigation";
 
-function ScenarioGenBody() {
+function ScenarioListBody() {
   const params = useSearchParams();
-  const category = params.get("category") ?? "";
-  const caseName = params.get("case") ?? "";
+  const chiefComplaint = params.get("chiefComplaint") ?? undefined;
 
   return (
-    <main className="flex-1 px-6 pt-4 pb-10 space-y-4">
-      <ScenarioDashboardClient
-        initialCategory={category}
-        initialCaseName={caseName}
-      />
-    </main>
+    <div className="space-y-6">
+      <header>
+        <Link href="/admin/dashboard" className="text-base text-gray-500 hover:text-violet-600">
+          ← Admin Dashboard
+        </Link>
+        <h1 className="mt-2 text-2xl font-bold text-gray-900">시나리오 관리</h1>
+        <p className="text-sm text-gray-500">
+          주호소별 시나리오를 생성하고 배포 상태를 관리합니다.
+        </p>
+      </header>
+      <ScenarioListTable initialChiefComplaint={chiefComplaint} />
+    </div>
   );
 }
 
 export default function AdminScenarioGenPage() {
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <Header />
-      <Suspense fallback={<main className="flex-1 px-6 pt-4 pb-10" />}>
-        <ScenarioGenBody />
+    <main className="mx-auto flex min-h-screen w-full flex-col gap-8 px-8 py-8">
+      <Suspense
+        fallback={
+          <div className="space-y-6">
+            <div>
+              <div className="h-5 w-32 bg-gray-200 rounded mb-2" />
+              <div className="h-8 w-48 bg-gray-200 rounded mb-2" />
+              <div className="h-4 w-64 bg-gray-100 rounded" />
+            </div>
+            <div className="animate-pulse">
+              <div className="h-12 bg-gray-100 rounded mb-4" />
+              <div className="h-64 bg-gray-100 rounded" />
+            </div>
+          </div>
+        }
+      >
+        <ScenarioListBody />
       </Suspense>
-    </div>
+    </main>
   );
 }

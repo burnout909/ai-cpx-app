@@ -20,6 +20,7 @@ type Props = {
   variant?: "page" | "panel";
   virtualPatient?: VirtualPatient;
   onLockChange?: (locked: boolean) => void;
+  patientImageUrl?: string;
 };
 
 const INITIAL_SECONDS = 12 * 60;
@@ -33,6 +34,7 @@ export default function LiveCPXClient({
   variant = "page",
   virtualPatient,
   onLockChange,
+  patientImageUrl,
 }: Props) {
   const isPanel = variant === "panel";
 
@@ -45,11 +47,12 @@ export default function LiveCPXClient({
   const [isFinished, setIsFinished] = useState(false);
   const [readySeconds, setReadySeconds] = useState<number | null>(null);
   const [conversationText, setConversationText] = useState<string[]>([]);
-  const [profileImage, setProfileImage] = useState<StaticImageData>(FallbackProfile);
+  const [profileImage, setProfileImage] = useState<StaticImageData | string>(FallbackProfile);
   const [caseData, setCaseData] = useState<VirtualPatient | null>(
     virtualPatient ?? null
   );
   const [statusMessage, setStatusMessage] = useState<string | undefined>(undefined);
+  const [showMicPermissionGuide, setShowMicPermissionGuide] = useState(false);
 
   useEffect(() => {
     const locked = connected || isRecording || isUploading;
@@ -95,6 +98,13 @@ export default function LiveCPXClient({
   useEffect(() => {
     let mounted = true;
 
+    // Priority 1: Use patientImageUrl if provided (AI-generated image)
+    if (patientImageUrl) {
+      setProfileImage(patientImageUrl);
+      return;
+    }
+
+    // Priority 2: Load static profile image by caseName
     if (!caseName) {
       setProfileImage(FallbackProfile);
       return;
@@ -112,7 +122,7 @@ export default function LiveCPXClient({
     return () => {
       mounted = false;
     };
-  }, [caseName]);
+  }, [caseName, patientImageUrl]);
 
   useEffect(() => {
     return () => {
@@ -197,15 +207,66 @@ export default function LiveCPXClient({
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // 1. 마이크 권한 요청
+      let stream: MediaStream;
+      try {
+        // 보안 컨텍스트 확인
+        console.log("Secure context:", window.isSecureContext);
+        console.log("mediaDevices available:", !!navigator.mediaDevices);
+
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log("마이크 스트림 획득 성공:", stream.getAudioTracks());
+      } catch (micErr: any) {
+        console.error("마이크 접근 오류:", micErr.name, micErr.message);
+        setConnected(false);
+
+        if (micErr.name === "NotAllowedError") {
+          // 권한 차단된 경우 가이드 모달 표시
+          setShowMicPermissionGuide(true);
+          return;
+        }
+
+        let errorMsg = "마이크 접근이 거부되었습니다.";
+        if (micErr.name === "NotFoundError") {
+          errorMsg = "마이크를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해주세요.";
+        } else if (micErr.name === "NotReadableError") {
+          errorMsg = "마이크가 다른 프로그램에서 사용 중입니다.";
+        } else if (micErr.name === "OverconstrainedError") {
+          errorMsg = "마이크 설정 오류입니다.";
+        } else if (!window.isSecureContext) {
+          errorMsg = "HTTPS가 아닌 환경에서는 마이크를 사용할 수 없습니다.";
+        }
+
+        setStatusMessage(errorMsg);
+        return;
+      }
+
       const audioCtx = new AudioContext();
       const micSrc = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       micSrc.connect(analyser);
       updateVolume(analyser);
 
+      // 2. Realtime API 키 가져오기
       const res = await fetch("/api/realtime-key");
-      const { value } = await res.json();
+      const keyData = await res.json();
+
+      if (!res.ok || !keyData.value) {
+        console.error("API 키 획득 실패:", keyData);
+        setStatusMessage("API 키를 가져올 수 없습니다.");
+        setConnected(false);
+        return;
+      }
+
+      const { value } = keyData;
+
+      // 3. 시나리오 데이터 확인
+      console.log("시나리오 데이터:", {
+        name: caseData?.properties?.meta?.name,
+        sex: caseData?.properties?.meta?.sex,
+        age: caseData?.properties?.meta?.age,
+        chief_complaint: caseData?.properties?.meta?.chief_complaint,
+      });
 
       const agent = new RealtimeAgent({
         name: "표준화 환자 AI",
@@ -219,6 +280,7 @@ export default function LiveCPXClient({
       });
       sessionRef.current = session;
 
+      // 4. 세션 연결
       await session.connect({
         apiKey: value,
         speed: 1.5,
@@ -261,8 +323,9 @@ export default function LiveCPXClient({
       recorder.start(500);
       setIsRecording(true);
     } catch (err: any) {
+      console.error("세션 시작 오류:", err);
       setConnected(false);
-      alert("세션 연결 실패 또는 마이크 접근 거부");
+      setStatusMessage(`세션 연결 실패: ${err?.message || "알 수 없는 오류"}`);
     }
   }
 
@@ -533,28 +596,82 @@ export default function LiveCPXClient({
         <div className="px-4 py-3 bg-white">
           <button
             type="button"
-            className="w-full rounded-xl bg-[#C3B5FF] text-white text-[20px] font-semibold p-4 disabled:opacity-60 disabled:cursor-not-allowed"
-            disabled={isUploading || seconds === INITIAL_SECONDS}
-            onClick={stopSession}
+            className="w-full rounded-xl bg-[#7553FC] hover:bg-[#6344E5] text-white text-[20px] font-semibold p-4 transition-colors"
+            onClick={stopAndResetSession}
           >
             종료
           </button>
         </div>
       ) : (
         <BottomFixButton
-          disabled
+          disabled={false}
           buttonName={"종료"}
-          onClick={stopSession}
-          loading={isUploading}
+          onClick={stopAndResetSession}
+          loading={false}
         />
       )}
     </>
+  );
+
+  // 마이크 권한 가이드 모달
+  const micPermissionGuideModal = showMicPermissionGuide && (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+            <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900">마이크 권한이 필요합니다</h3>
+        </div>
+
+        <p className="text-sm text-gray-600 mb-4">
+          가상환자와 대화하려면 마이크 권한을 허용해야 합니다.
+          <br />
+          이전에 &quot;차단&quot;을 선택하셨다면 아래 방법으로 해제해주세요.
+        </p>
+
+        <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-sm font-semibold flex items-center justify-center">1</span>
+            <p className="text-sm text-gray-700">주소창 왼쪽의 <span className="font-semibold">🔒 자물쇠</span> 또는 <span className="font-semibold">ⓘ 아이콘</span>을 클릭하세요</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-sm font-semibold flex items-center justify-center">2</span>
+            <p className="text-sm text-gray-700"><span className="font-semibold">마이크</span> 항목을 찾아 <span className="font-semibold">&quot;허용&quot;</span>으로 변경하세요</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-sm font-semibold flex items-center justify-center">3</span>
+            <p className="text-sm text-gray-700">페이지를 <span className="font-semibold">새로고침</span> 한 후 다시 시도하세요</p>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setShowMicPermissionGuide(false)}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            닫기
+          </button>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-colors"
+          >
+            새로고침
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   if (!isPanel) {
     return (
       <div className="flex flex-col min-h-dvh">
         {panelBody}
+        {micPermissionGuideModal}
         {statusMessage && (
           <div
             className="fixed bottom-30 left-1/2 -translate-x-1/2 bg-[#c7beeeff] text-[#210535] text-[18px] font-medium px-4 py-3 rounded-xl shadow-lg flex z-[100] animate-slideUpFade flex justify-center items-center w-[calc(100%-40px)]"

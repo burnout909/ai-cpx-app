@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
+import Link from 'next/link';
 import Spinner from '@/component/Spinner';
 import { GradeItem } from '@/types/score';
 import { getAllTotals } from '@/utils/score';
@@ -651,14 +652,16 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
 
     return (
         <div className="mx-auto flex w-full flex-col gap-6 px-16 py-10">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                    Admin Dashboard
-                    <span className="ml-2 text-base font-medium text-gray-500">
+            <header className="flex items-center justify-between">
+                <div>
+                    <Link href="/admin/dashboard" className="text-base text-gray-500 hover:text-violet-600">
+                        ← Admin Dashboard
+                    </Link>
+                    <h1 className="mt-2 text-2xl font-bold text-gray-900">
                         {showVerification ? '학생증 관리' : '학생 조회'}
-                    </span>
-                </h1>
-            </div>
+                    </h1>
+                </div>
+            </header>
             <>
                     {showVerification && (
                         <div className="rounded-xl bg-white px-5 pb-5">

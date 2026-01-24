@@ -26,11 +26,12 @@ interface Props {
     studentNumber: string | null;
     origin: "VP" | "SP";
     sessionId: string | null;
+    checklistId: string | null;
 }
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
-export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin, sessionId: initialSessionId }: Props) {
+export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin, sessionId: initialSessionId, checklistId }: Props) {
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
@@ -174,9 +175,9 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
 
     useEffect(() => {
         if (!caseName) return;
-        if (transcriptS3Key) runLiveAutoPipeline(transcriptS3Key, caseName);
-        else if (audioKeys.length > 0) runAutoPipeline(audioKeys, caseName, sessionId, origin);
-    }, [audioKeys, transcriptS3Key, caseName]);
+        if (transcriptS3Key) runLiveAutoPipeline(transcriptS3Key, caseName, checklistId);
+        else if (audioKeys.length > 0) runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId);
+    }, [audioKeys, transcriptS3Key, caseName, checklistId]);
 
     // 👇 비동기 로드: caseName 바뀌면 솔루션 로드
     useEffect(() => {
