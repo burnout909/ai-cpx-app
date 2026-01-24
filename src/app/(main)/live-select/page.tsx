@@ -127,7 +127,7 @@ export default function SelectPage() {
         startTransition(() => {
             router.push(
                 `/live-select/cpx?category=${encodeURIComponent(
-                    selected.chiefComplaint
+                    selected.category
                 )}&case=${encodeURIComponent(selected.caseName!)}&scenarioId=${encodeURIComponent(selected.caseId!)}`
             );
         });
@@ -156,7 +156,7 @@ export default function SelectPage() {
                             className={`px-3 py-2 rounded-[8px] font-medium text-[15px] text-left transition-all
                                 ${selected.category === category.name
                                     ? "bg-[#D0C7FA] text-[#210535]"
-                                    : "text-[#9A8FCB] hover:bg-[#F0EEFC] hover:text-[#210535]"
+                                    : "text-[#5B4A99] hover:bg-[#F0EEFC] hover:text-[#210535]"
                                 }`}
                         >
                             {category.name}
@@ -188,7 +188,7 @@ export default function SelectPage() {
                                         ? "text-[#C9C4DC] cursor-not-allowed"
                                         : selected.chiefComplaint === item.name
                                             ? "bg-[#DAD7E8] text-[#210535]"
-                                            : "text-[#9A8FCB] hover:bg-[#F0EEFC] hover:text-[#210535]"
+                                            : "text-[#5B4A99] hover:bg-[#F0EEFC] hover:text-[#210535]"
                                     }`}
                             >
                                 <span className="flex items-center justify-between">
@@ -233,7 +233,7 @@ export default function SelectPage() {
                                 className={`text-left font-medium px-3 py-2 text-[14px] rounded-[8px] transition-all
                                     ${selected.caseId === scenario.id
                                         ? "bg-[#7553FC] text-white"
-                                        : "text-[#6B5FA8] hover:bg-[#F0EEFC] hover:text-[#210535]"
+                                        : "text-[#5B4A99] hover:bg-[#F0EEFC] hover:text-[#210535]"
                                     }`}
                             >
                                 {scenario.caseName}
