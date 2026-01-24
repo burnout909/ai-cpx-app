@@ -13,9 +13,10 @@ interface ScenarioCase {
     versionNumber: number;
 }
 
-interface ChiefComplaintWithCases {
-    name: string;
-    cases: ScenarioCase[];
+interface ChecklistInfo {
+    chiefComplaint: string;
+    latestVersion: string;
+    id: string;
 }
 
 type SelectedState = {
@@ -31,7 +32,9 @@ export default function SelectPage() {
 
     // 시나리오 데이터 (DB에서 가져옴)
     const [scenariosByChiefComplaint, setScenariosByChiefComplaint] = useState<Record<string, ScenarioCase[]>>({});
-    const [loadingScenarios, setLoadingScenarios] = useState(true);
+    // 체크리스트 데이터 (DB에서 가져옴)
+    const [checklistMap, setChecklistMap] = useState<Record<string, ChecklistInfo>>({});
+    const [loading, setLoading] = useState(true);
 
     // 선택 상태
     const [selected, setSelected] = useState<SelectedState>({
@@ -41,17 +44,25 @@ export default function SelectPage() {
         caseName: null,
     });
 
-    // DB에서 PUBLISHED 시나리오 목록 가져오기
+    // DB에서 시나리오와 체크리스트 목록 가져오기
     useEffect(() => {
-        async function fetchScenarios() {
+        async function fetchData() {
             try {
-                const res = await fetch("/api/admin/scenario?status=PUBLISHED");
-                const data = await res.json();
+                // 병렬로 시나리오와 체크리스트 조회
+                const [scenarioRes, checklistRes] = await Promise.all([
+                    fetch("/api/admin/scenario?status=PUBLISHED"),
+                    fetch("/api/admin/checklist"),
+                ]);
 
-                if (res.ok && data.scenarios) {
-                    // chiefComplaint별로 그룹화
+                const [scenarioData, checklistData] = await Promise.all([
+                    scenarioRes.json(),
+                    checklistRes.json(),
+                ]);
+
+                // 시나리오 그룹화
+                if (scenarioRes.ok && scenarioData.scenarios) {
                     const grouped: Record<string, ScenarioCase[]> = {};
-                    for (const scenario of data.scenarios) {
+                    for (const scenario of scenarioData.scenarios) {
                         const cc = scenario.chiefComplaint;
                         if (!grouped[cc]) {
                             grouped[cc] = [];
@@ -65,13 +76,26 @@ export default function SelectPage() {
                     }
                     setScenariosByChiefComplaint(grouped);
                 }
+
+                // 체크리스트 매핑
+                if (checklistRes.ok && checklistData.checklists) {
+                    const mapped: Record<string, ChecklistInfo> = {};
+                    for (const checklist of checklistData.checklists) {
+                        mapped[checklist.chiefComplaint] = {
+                            chiefComplaint: checklist.chiefComplaint,
+                            latestVersion: checklist.latestVersion,
+                            id: checklist.id,
+                        };
+                    }
+                    setChecklistMap(mapped);
+                }
             } catch (err) {
-                console.error("시나리오 목록 로드 실패:", err);
+                console.error("데이터 로드 실패:", err);
             } finally {
-                setLoadingScenarios(false);
+                setLoading(false);
             }
         }
-        fetchScenarios();
+        fetchData();
     }, []);
 
     // 현재 선택된 대분류
@@ -84,10 +108,16 @@ export default function SelectPage() {
         ? scenariosByChiefComplaint[selected.chiefComplaint] || []
         : [];
 
-    // 주호소가 케이스를 가지고 있는지 확인
-    const hasCase = (chiefComplaint: string) => {
-        const cases = scenariosByChiefComplaint[chiefComplaint];
-        return cases && cases.length > 0;
+    // 주호소가 케이스와 체크리스트 둘 다 있는지 확인
+    const isAvailable = (chiefComplaint: string) => {
+        const hasCases = scenariosByChiefComplaint[chiefComplaint]?.length > 0;
+        const hasChecklist = !!checklistMap[chiefComplaint];
+        return hasCases && hasChecklist;
+    };
+
+    // 케이스 수 반환
+    const getCaseCount = (chiefComplaint: string) => {
+        return scenariosByChiefComplaint[chiefComplaint]?.length || 0;
     };
 
     // 버튼 클릭 시 이동 로직
@@ -138,12 +168,13 @@ export default function SelectPage() {
                 <div className="flex flex-col gap-2 w-1/3 border-l border-[#E0DEF0] pl-3">
                     <div className="text-xs font-semibold text-[#9A8FCB] mb-1 px-2">주호소</div>
                     {currentCategory.details.map((item) => {
-                        const hasCases = hasCase(item.name);
+                        const available = isAvailable(item.name);
+                        const caseCount = getCaseCount(item.name);
                         return (
                             <button
                                 key={item.id}
                                 onClick={() => {
-                                    if (!hasCases) return;
+                                    if (!available) return;
                                     setSelected((prev) => ({
                                         ...prev,
                                         chiefComplaint: item.name,
@@ -151,9 +182,9 @@ export default function SelectPage() {
                                         caseName: null,
                                     }));
                                 }}
-                                disabled={!hasCases}
+                                disabled={!available}
                                 className={`text-left font-medium px-3 py-2 text-[14px] rounded-[8px] transition-all
-                                    ${!hasCases
+                                    ${!available
                                         ? "text-[#C9C4DC] cursor-not-allowed"
                                         : selected.chiefComplaint === item.name
                                             ? "bg-[#DAD7E8] text-[#210535]"
@@ -162,9 +193,9 @@ export default function SelectPage() {
                             >
                                 <span className="flex items-center justify-between">
                                     {item.name}
-                                    {hasCases && (
+                                    {available && (
                                         <span className="text-xs text-[#7553FC] bg-[#F0EEFC] px-1.5 py-0.5 rounded">
-                                            {scenariosByChiefComplaint[item.name]?.length || 0}
+                                            {caseCount}
                                         </span>
                                     )}
                                 </span>
@@ -176,7 +207,7 @@ export default function SelectPage() {
                 {/* 3열: 케이스 */}
                 <div className="flex flex-col gap-2 w-1/3 border-l border-[#E0DEF0] pl-3">
                     <div className="text-xs font-semibold text-[#9A8FCB] mb-1 px-2">케이스</div>
-                    {loadingScenarios ? (
+                    {loading ? (
                         <div className="flex items-center justify-center py-8">
                             <div className="w-5 h-5 border-2 border-[#D0C7FA] border-t-[#7553FC] rounded-full animate-spin" />
                         </div>
