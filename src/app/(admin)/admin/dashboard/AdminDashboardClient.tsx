@@ -6,7 +6,6 @@ import Spinner from '@/component/Spinner';
 import { GradeItem } from '@/types/score';
 import { getAllTotals } from '@/utils/score';
 import SearchIcon from '@/assets/icon/SearchIcon.svg';
-import AdminNarrativeFeedbackView from '@/component/admin/AdminNarrativeFeedbackView';
 import AdminReportDetailTable from '@/component/admin/AdminReportDetail';
 import AdminReportSummary from '@/component/admin/AdminReportSummary';
 
@@ -247,10 +246,8 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
     useEffect(() => {
         const keysToLoad = [
             selectedKeys.vp.script,
-            selectedKeys.vp.narrative,
             selectedKeys.vp.structured,
             selectedKeys.sp.script,
-            selectedKeys.sp.narrative,
             selectedKeys.sp.structured,
         ].filter(Boolean) as string[];
         keysToLoad.forEach((k) => { void ensureContent(k); });
@@ -414,15 +411,6 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
         );
     };
 
-    const renderNarrativeBlock = (narrative: any, origin: 'VP' | 'SP') => {
-        if (!narrative) return null;
-        return (
-            <div className="mt-2">
-                <AdminNarrativeFeedbackView studentNumber={studentNumber} feedback={narrative} origin={origin} />
-            </div>
-        );
-    };
-
     const renderScriptBlock = (key?: string | null, text?: string | null, timestamp?: string) => {
         if (!key && !text) return (
             <div className="text-sm text-gray-500">데이터가 없습니다.</div>
@@ -508,20 +496,17 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
     ) => {
         const dateSet = new Set<string>([
             ...Object.keys(artifacts.script.byDate || {}),
-            ...Object.keys(artifacts.narrative.byDate || {}),
             ...Object.keys(artifacts.structured.byDate || {}),
             ...('audio' in artifacts && artifacts.audio?.byDate ? Object.keys(artifacts.audio.byDate) : []),
         ]);
         const dateList = Array.from(dateSet).sort().reverse();
         const selectedDate = dateKey || dateList[0] || null;
         const scriptVersions = versionsForDate(artifacts.script, selectedDate);
-        const narrativeVersions = versionsForDate(artifacts.narrative, selectedDate);
         const structuredVersions = versionsForDate(artifacts.structured, selectedDate);
         const audioVersions = 'audio' in artifacts ? versionsForDate(artifacts.audio!, selectedDate) : [];
 
         const selectedSet = origin === 'VP' ? selectedKeys.vp : selectedKeys.sp;
         const selectedScriptKey = scriptVersions.find((v) => v.key === selectedSet.script)?.key || scriptVersions[0]?.key || null;
-        const selectedNarrKey = narrativeVersions.find((v) => v.key === selectedSet.narrative)?.key || narrativeVersions[0]?.key || null;
         const selectedStructKey = structuredVersions.find((v) => v.key === selectedSet.structured)?.key || structuredVersions[0]?.key || null;
         const selectedAudioKey = 'audio' in artifacts
             ? (audioVersions.find((v) => v.key === selectedSet.audio)?.key || audioVersions[0]?.key || null)
@@ -534,17 +519,13 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
                     ? contentCache[selectedScriptKey]?.text
                     ?? (contentCache[selectedScriptKey]?.json ? JSON.stringify(contentCache[selectedScriptKey]?.json, null, 2) : null)
                     : null);
-        const narrativeData =
-            selectedNarrKey === artifacts.narrative.latestKey
-                ? artifacts.narrative.latest
-                : (selectedNarrKey ? contentCache[selectedNarrKey]?.json || contentCache[selectedNarrKey]?.text : null);
         const structuredData =
             selectedStructKey === artifacts.structured.latestKey
                 ? artifacts.structured.latest
                 : (selectedStructKey ? contentCache[selectedStructKey]?.json || null : null);
         const computedTotals = structuredData ? getAllTotals(structuredData) : null;
 
-        const handleTimeSelect = (artifact: 'script' | 'narrative' | 'structured' | 'audio', key: string) => {
+        const handleTimeSelect = (artifact: 'script' | 'structured' | 'audio', key: string) => {
             setSelectedKeys((prev) => ({
                 ...prev,
                 [origin === 'VP' ? 'vp' : 'sp']: {
@@ -552,7 +533,7 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
                     [artifact]: key,
                 },
             }));
-            if (artifact === 'script' || artifact === 'narrative' || artifact === 'structured') {
+            if (artifact === 'script' || artifact === 'structured') {
                 void ensureContent(key);
             }
         };
@@ -622,18 +603,6 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
                             ))}
                         </div>
                     )}
-
-                    <div>
-                        <h3 className="text-base font-semibold text-gray-700 mb-1">피드백</h3>
-                        <div className="text-[14px] text-gray-500">
-                            {findTimestamp(artifacts.narrative.versions, selectedNarrKey)}
-                        </div>
-                        {renderTimeChips(narrativeVersions, selectedNarrKey, (k) => handleTimeSelect('narrative', k))}
-                        {renderNarrativeBlock(
-                            narrativeData,
-                            origin
-                        ) || <div className="text-[14px] text-gray-500">데이터가 없습니다.</div>}
-                    </div>
 
                     <div>
                         <h3 className="text-base font-semibold text-gray-700 mb-1">체크리스트</h3>

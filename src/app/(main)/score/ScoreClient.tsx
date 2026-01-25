@@ -7,7 +7,6 @@ import { useLiveAutoPipeline } from '@/hooks/score/useLiveAutoPipeline';
 import { GradeItem, SectionResult } from '@/types/score';
 import { getAllTotals } from '@/utils/score';
 import { useEffect, useState, useRef } from 'react';
-import NarrativeFeedbackView from '@/component/score/NarrativeFeedbackView';
 import Header from '@/component/Header';
 import { loadVPSolution } from '@/utils/loadVirtualPatient';
 import { marked } from 'marked';
@@ -36,8 +35,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
     const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
-    const [narrativeFeedback, setNarrativeFeedback] = useState<any | null>(null);
-    const [feedbackDone, setFeedbackDone] = useState<boolean>(false);
+    const [done, setDone] = useState<boolean>(false);
     const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
 
     // 새로 추가: 솔루션 마크다운/HTML 상태
@@ -47,8 +45,6 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const feedbackAnchorRef = useRef<HTMLDivElement>(null);
     const solutionAnchorRef = useRef<HTMLDivElement>(null); // 해설 섹션 상단 ref 추가
-    // 컴포넌트 내부 맨 위 근처에 helper/refs 추가
-    const uploadedNarrativeRef = useRef(false);
     const uploadedScoreRef = useRef(false);
     const { totals, overall } = getAllTotals(gradesBySection);
 
@@ -58,57 +54,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
         }
     }, [initialSessionId, sessionId]);
 
-    // 1) Narrative 자동 업로드: narrative/studentId-datetimeStamp(korea)
-    useEffect(() => {
-        (async () => {
-            try {
-                if (uploadedNarrativeRef.current) return;              // 중복 방지
-                if (!studentNumber) return;                            // 아이디 없으면 스킵
-                if (!narrativeFeedback) return;                        // 데이터 없으면 스킵
-                if (!process.env.NEXT_PUBLIC_S3_BUCKET_NAME) return;   // 버킷 없으면 스킵
-
-                uploadedNarrativeRef.current = true;
-
-                const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
-                const timestamp = getKSTTimestamp();
-                const key = `${origin}_narrative/${studentNumber}-${timestamp}.json`;
-
-                const uploadUrl = await generateUploadUrl(bucket, key);
-                const body = new Blob([JSON.stringify(narrativeFeedback, null, 2)], {
-                    type: 'application/json; charset=utf-8',
-                });
-
-                const uploadRes = await fetch(uploadUrl, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-                    body,
-                });
-                if (uploadRes.ok) {
-                    const meta = await postMetadata({
-                        type: "feedback",
-                        s3Key: key,
-                        sessionId,
-                        caseName,
-                        origin,
-                        model: "gpt-4o-mini",
-                        sizeBytes: body.size,
-                        textLength: JSON.stringify(narrativeFeedback).length,
-                    });
-                    if (meta.sessionId && meta.sessionId !== sessionId) {
-                        setSessionId(meta.sessionId);
-                    }
-                }
-                // 성공 시 아무 것도 안 함 (요청: 실패해도 에러 X)
-            } catch (e) {
-                console.warn('[narrative upload skipped]', e);
-                // 실패해도 에러로 터뜨리지 않음
-            }
-        })();
-        // narrativeFeedback이 세팅되는 시점에 1회 시도
-    }, [narrativeFeedback, studentNumber, caseName, origin, sessionId]);
-
-
-    // 2) 구조화 점수 자동 업로드: structuredScore/studentId-datetimeStamp(korea)
+    // 구조화 점수 자동 업로드: structuredScore/studentId-datetimeStamp(korea)
     useEffect(() => {
         (async () => {
             try {
@@ -167,11 +113,10 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
         setGradesBySection,
         setResults,
         setActiveSection,
-        setNarrativeFeedback,
-        setFeedbackDone,
+        setDone,
         (id) => setSessionId(id)
     );
-    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setNarrativeFeedback, setFeedbackDone);
+    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setDone);
 
     useEffect(() => {
         if (!caseName) return;
@@ -265,7 +210,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                 <div ref={feedbackAnchorRef} className="w-full" />
 
                 {/* 피드백 뷰 */}
-                {feedbackDone && (
+                {done && (
 
                     <div className='mt-3 w-full'>
                         <div className="mb-1">
@@ -278,17 +223,6 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                             setActive={setActiveSection}
                             PART_LABEL={PART_LABEL}
                         />
-                        {activeSection && narrativeFeedback && (
-                            <div className='my-3'>
-                                <NarrativeFeedbackView
-                                    studentNumber={studentNumber as string}
-                                    feedback={narrativeFeedback}
-                                    origin={origin}
-                                    sectionFilter={activeSection}
-                                hideTitle
-                                />
-                            </div>
-                        )}
                         <ReportDetailTable grades={activeSection ? gradesBySection[activeSection] : []} />
                     </div>
                 )}

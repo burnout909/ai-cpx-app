@@ -1,9 +1,10 @@
 import { SectionId } from "@/app/api/collectEvidence/route";
 import { generateDownloadUrl } from "@/app/api/s3/s3";
-import { SectionKey } from "@/component/score/NarrativeFeedbackView";
 import { GradeItem, SectionResult } from "@/types/score";
 import { EvidenceChecklist, loadChecklistByCase, ScoreChecklist, EvidenceModule } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
+
+type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
 // DB에서 체크리스트 로드
 async function loadChecklistFromDB(checklistId: string): Promise<EvidenceModule> {
@@ -24,8 +25,7 @@ export function useLiveAutoPipeline(
     setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
     setActiveSection: (section: SectionKey | null) => void,
-    setNarrativeFeedback: (data: any) => void,
-    setFeedbackDone: (done: boolean) => void,
+    setDone: (done: boolean) => void,
 ) {
     return async function runLiveAutoPipeline(key: string, caseName: string, checklistId?: string | null) {
         const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
@@ -134,24 +134,11 @@ export function useLiveAutoPipeline(
             }
 
             setGradesBySection(graded);
-            setActiveSection(null);      // 5️⃣ 채점 결과 기반으로 피드백 생성
-            setStatusMessage('피드백 생성 중');
+            setActiveSection(null);
 
-            const feedbackRes = await fetch('/api/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chief_complaint: caseName,
-                    transcript: transcript,
-                    graded, // checklist 대신 실제 채점 결과 사용
-                }),
-            });
-            const feedbackData = await readJsonOrText(feedbackRes);
-            await ensureOkOrThrow(feedbackRes, feedbackData);
-            // 6️⃣ 완료
+            // 5️⃣ 완료
             setStatusMessage(null);
-            setNarrativeFeedback(feedbackData);
-            setFeedbackDone(true);
+            setDone(true);
         } catch (e: any) {
             console.error(e);
             setStatusMessage(`오류 발생: ${e.message || e}`);

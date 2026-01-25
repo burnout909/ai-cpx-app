@@ -3,8 +3,9 @@ import { GradeItem, SectionResult } from "@/types/score";
 import { EvidenceChecklist, loadChecklistByCase, EvidenceModule } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
 import { generateUploadUrl } from "@/app/api/s3/s3";
-import { SectionKey } from "@/component/score/NarrativeFeedbackView";
 import { postMetadata } from "@/lib/metadata";
+
+type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
 // DB에서 체크리스트 로드
 async function loadChecklistFromDB(checklistId: string): Promise<EvidenceModule> {
@@ -28,8 +29,7 @@ export function useAutoPipeline(
     setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
     setActiveSection: (section: SectionKey | null) => void,
-    setNarrativeFeedback: (data: any) => void,
-    setFeedbackDone: (done: boolean) => void,
+    setDone: (done: boolean) => void,
     onSessionId?: (sessionId: string) => void,
 ) {
     function deriveScriptKey(audioKeys: string[]): string | null {
@@ -189,24 +189,9 @@ export function useAutoPipeline(
             setGradesBySection(graded);
             setActiveSection(null);
 
-            // 채점 결과 기반으로 피드백 생성
-            setStatusMessage('피드백 생성 중');
-
-            const feedbackRes = await fetch('/api/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chief_complaint: caseName,
-                    transcript: text,
-                    graded, // checklist 대신 실제 채점 결과 사용
-                }),
-            });
-            const feedbackData = await readJsonOrText(feedbackRes);
-            await ensureOkOrThrow(feedbackRes, feedbackData);
             // 완료
             setStatusMessage(null);
-            setNarrativeFeedback(feedbackData);
-            setFeedbackDone(true);
+            setDone(true);
 
 
 

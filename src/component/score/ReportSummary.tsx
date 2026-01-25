@@ -1,4 +1,4 @@
-import { SectionKey } from "./NarrativeFeedbackView";
+type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
 // 총점 & 섹션 요약 카드
 export default function ReportSummary({
