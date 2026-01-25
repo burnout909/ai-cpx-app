@@ -16,7 +16,27 @@ import toast from "react-hot-toast";
 import IdRejectedPopup from "@/component/IdRejectedPopup";
 import { postMetadata } from "@/lib/metadata";
 
-const INITIAL_SECONDS = 15 * 60; // 12분
+const DEFAULT_SECONDS = 12 * 60; // 12분
+const MIN_SECONDS = 5 * 60; // 최소 2.5분
+const MAX_SECONDS = 20 * 60; // 최대 20분
+const STEP_SECONDS = 30; // 30초 단위
+
+// 음성 알림 파일 경로
+const AUDIO_ALERTS = {
+    start: "/audio/exam-start.mp3",
+    twoMin: "/audio/two-min-left.mp3",
+    end: "/audio/exam-end.mp3",
+} as const;
+
+// 오디오 재생 함수
+function playAlert(type: keyof typeof AUDIO_ALERTS) {
+    if (typeof window === "undefined") return;
+
+    const audio = new Audio(AUDIO_ALERTS[type]);
+    audio.play().catch((err) => {
+        console.warn("[Audio] 재생 실패:", err);
+    });
+}
 
 type Props = { category: string; caseName: string; checklistId?: string };
 
@@ -27,7 +47,8 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
-    const [seconds, setSeconds] = useState(INITIAL_SECONDS);
+    const [duration, setDuration] = useState(DEFAULT_SECONDS); // 설정된 시험 시간
+    const [seconds, setSeconds] = useState(DEFAULT_SECONDS);
     const [volume, setVolume] = useState(0); //볼륨 탐지
     const [audioURL, setAudioURL] = useState<string | null>(null); //녹음된 음성 URL
     const [mp3Blob, setMp3Blob] = useState<Blob | null>(null); //mp3 변환된 파일
@@ -52,6 +73,8 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
     const dataArrayRef = useRef<Uint8Array | null>(null);
     const rafIdRef = useRef<number | null>(null);
+    const twoMinAlertedRef = useRef(false); // 2분 전 알림 여부
+    const endAlertedRef = useRef(false); // 종료 알림 여부
 
     const showTime = useCallback((sec: number) => {
         const mm = Math.floor(sec / 60).toString().padStart(2, "0");
@@ -68,22 +91,34 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
         setIsRecording(false);
         setIsPaused(false);
         setIsFinished(false);
-        setSeconds(INITIAL_SECONDS);
+        setSeconds(duration);
         setAudioURL(null);
         setIsPreviewReady(false);
         setMp3Blob(null);
+        twoMinAlertedRef.current = false;
+        endAlertedRef.current = false;
         audioChunks.current = [];
-    }, [category, caseName]);
+    }, [category, caseName, duration]);
 
     // 타이머 로직
     useEffect(() => {
         if (!isRecording || isPaused || isFinished) return;
         const id = setInterval(() => {
             setSeconds((prev) => {
+                // 2분 전 알림 (120초)
+                if (prev === 121 && !twoMinAlertedRef.current) {
+                    twoMinAlertedRef.current = true;
+                    playAlert("twoMin");
+                }
+                // 종료
                 if (prev <= 1) {
                     clearInterval(id);
                     stopRecording();
                     setIsFinished(true);
+                    if (!endAlertedRef.current) {
+                        endAlertedRef.current = true;
+                        playAlert("end");
+                    }
                     return 0;
                 }
                 return prev - 1;
@@ -142,7 +177,12 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             setIsRecording(true);
             setIsPaused(false);
             setIsPreviewReady(false);
-            setIsConnencting(false)
+            setIsConnencting(false);
+            twoMinAlertedRef.current = false;
+            endAlertedRef.current = false;
+
+            // 시험 시작 음성 알림
+            playAlert("start");
         } catch (err) {
             alert("마이크 접근이 거부되었거나 오류가 발생했습니다.");
             setIsConnencting(false);
@@ -212,15 +252,25 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     // 토글
     const toggleRecording = async () => {
         if (isFinished) return;
-        if (!isRecording && !isPaused && seconds === INITIAL_SECONDS) {
+        if (!isRecording && !isPaused && seconds === duration) {
             const ok = await ensureOnboarding();
             if (!ok) return;
             startRecording();
         } else if (isRecording && !isPaused) {
             pauseRecording();
-        } else if (!isRecording && isPaused && seconds !== INITIAL_SECONDS) {
+        } else if (!isRecording && isPaused && seconds !== duration) {
             resumeRecording();
         }
+    };
+
+    // 시간 조정 함수
+    const adjustDuration = (delta: number) => {
+        setDuration((prev) => {
+            const next = prev + delta;
+            if (next < MIN_SECONDS) return MIN_SECONDS;
+            if (next > MAX_SECONDS) return MAX_SECONDS;
+            return next;
+        });
     };
 
     // ✅ 녹음 미리듣기 (MP3 변환)
@@ -370,27 +420,6 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                 />
 
                 <div className="px-8 flex-1 pt-[20px] pb-[136px] flex flex-col items-center justify-center gap-[12px] relative overflow-hidden">
-                    {/* 타이머 */}
-                    <div className="font-semibold text-[22px] text-[#7553FC] flex gap-2 items-center">
-                        {showTime(seconds)}
-                        {!isRecording && seconds < INITIAL_SECONDS && (
-                            <button
-                                onClick={() => {
-                                    setSeconds(INITIAL_SECONDS);
-                                    setIsFinished(false);
-                                    setIsRecording(false);
-                                    setIsPaused(false);
-                                    setAudioURL(null);
-                                    setIsPreviewReady(false);
-                                    setMp3Blob(null);
-                                    audioChunks.current = [];
-                                }}
-                                className="cursor-pointer text-[18px] text-[#7553FC] hover:text-[#5a3df0] active:text-[#4327d9] transition"
-                            >
-                                <RefreshIcon className="w-[20px] h-[20px] text-[#7553FC] hover:opacity-50" />
-                            </button>
-                        )}
-                    </div>
                     {/* 중앙 녹음 버튼 + 볼륨 애니메이션 */}
                     <div className="relative">
                         {isRecording && (
@@ -414,7 +443,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                             type="button"
                             onClick={toggleRecording}
                             disabled={isFinished || isUploadingToS3 || isConvertingDirect || isConverting || isConnecting}
-                            className="outline-none relative z-10 cursor-pointer hover:opacity-70     
+                            className="outline-none relative z-10 cursor-pointer hover:opacity-70
                         transition-transform duration-150 ease-out active:scale-90"
                         >
                             {isRecording ? (
@@ -425,7 +454,55 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                         </button>
                     </div>
 
-                    {/* “녹음된 음성 확인하기” */}
+                    {/* 타이머 */}
+                    <div className="font-semibold text-[22px] text-[#7553FC] flex gap-3 items-center">
+                        {/* 녹음 시작 전: +/- 버튼 표시 */}
+                        {!isRecording && !isPaused && seconds === duration && (
+                            <button
+                                onClick={() => adjustDuration(-STEP_SECONDS)}
+                                disabled={duration <= MIN_SECONDS}
+                                className="w-9 h-9 rounded-full bg-[#F3F0FF] text-[#7553FC] font-bold text-xl flex items-center justify-center hover:bg-[#E9E2FF] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                            >
+                                −
+                            </button>
+                        )}
+
+                        {showTime(seconds)}
+
+                        {/* 녹음 시작 전: +/- 버튼 표시 */}
+                        {!isRecording && !isPaused && seconds === duration && (
+                            <button
+                                onClick={() => adjustDuration(STEP_SECONDS)}
+                                disabled={duration >= MAX_SECONDS}
+                                className="w-9 h-9 rounded-full bg-[#F3F0FF] text-[#7553FC] font-bold text-xl flex items-center justify-center hover:bg-[#E9E2FF] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                            >
+                                +
+                            </button>
+                        )}
+
+                        {/* 녹음 중 또는 일시정지: 리셋 버튼 */}
+                        {!isRecording && seconds < duration && (
+                            <button
+                                onClick={() => {
+                                    setSeconds(duration);
+                                    setIsFinished(false);
+                                    setIsRecording(false);
+                                    setIsPaused(false);
+                                    setAudioURL(null);
+                                    setIsPreviewReady(false);
+                                    setMp3Blob(null);
+                                    twoMinAlertedRef.current = false;
+                                    endAlertedRef.current = false;
+                                    audioChunks.current = [];
+                                }}
+                                className="cursor-pointer text-[18px] text-[#7553FC] hover:text-[#5a3df0] active:text-[#4327d9] transition"
+                            >
+                                <RefreshIcon className="w-[20px] h-[20px] text-[#7553FC] hover:opacity-50" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* "녹음된 음성 확인하기" */}
                     {(isPaused || isFinished) && !isPreviewReady && (
                         <button
                             onClick={handlePreview}
@@ -442,7 +519,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                 </div>
 
                 <BottomFixButton
-                    disabled={isRecording || isUploadingToS3 || seconds == INITIAL_SECONDS}
+                    disabled={isRecording || isUploadingToS3 || seconds === duration}
                     onClick={handleSubmit}
                     buttonName={isFinished ? "채점하기" : "종료 및 채점하기"}
                     loading={isConvertingDirect || isPending || isUploadingToS3}
