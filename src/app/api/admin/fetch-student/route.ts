@@ -1,21 +1,12 @@
 import { NextResponse } from 'next/server';
 import s3 from '@/lib/s3';
-import { GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { prisma } from '@/lib/prisma';
 
 const BUCKET = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
 
 type StructuredScores = Record<string, any[]>;
 type VersionItem = { key: string; lastModified: number };
-
-// S3의 LastModified가 비어있을 때를 대비해 파일명에 포함된 타임스탬프를 파싱한다.
-const parseTimestampFromKey = (key: string): number | null => {
-    const m = key.match(/-(\d{4}-\d{2}-\d{2})[_T](\d{2})-(\d{2})-(\d{2})/);
-    if (!m) return null;
-    const [, date, hh, mm, ss] = m;
-    const iso = `${date}T${hh}:${mm}:${ss}+09:00`;
-    const ts = Date.parse(iso);
-    return Number.isNaN(ts) ? null : ts;
-};
 
 async function streamToString(body: any) {
     if (!body) return '';
@@ -29,47 +20,28 @@ async function streamToString(body: any) {
     return Buffer.concat(chunks).toString('utf-8');
 }
 
-async function listKeys(prefix: string, allowedExts?: string[]): Promise<VersionItem[]> {
-    if (!BUCKET) return [];
-    const res = await s3.send(
-        new ListObjectsV2Command({
-            Bucket: BUCKET,
-            Prefix: prefix,
-        })
-    );
-    const items =
-        res.Contents?.filter((c) => {
-            if (!c.Key) return false;
-            if (!allowedExts?.length) return true;
-            return allowedExts.some((ext) => c.Key!.toLowerCase().endsWith(ext.toLowerCase()));
-        }).map((c) => ({
-            key: c.Key!,
-            lastModified: (() => {
-                const direct = c.LastModified?.getTime();
-                if (typeof direct === 'number' && !Number.isNaN(direct) && direct > 0) return direct;
-                return parseTimestampFromKey(c.Key!) ?? 0;
-            })(),
-        })) || [];
-    return items.sort((a, b) => b.lastModified - a.lastModified);
-}
-
 async function readObjectText(key: string) {
     if (!BUCKET) return '';
-    const res = await s3.send(
-        new GetObjectCommand({
-            Bucket: BUCKET,
-            Key: key,
-        })
-    );
-    return streamToString(res.Body);
+    try {
+        const res = await s3.send(
+            new GetObjectCommand({
+                Bucket: BUCKET,
+                Key: key,
+            })
+        );
+        return streamToString(res.Body);
+    } catch (err) {
+        console.warn('[readObjectText failed]', key, err);
+        return '';
+    }
 }
 
 async function loadNarrative(key: string) {
     if (!key) return null;
     const raw = await readObjectText(key);
+    if (!raw) return null;
     try {
-        const parsed = JSON.parse(raw);
-        return parsed;
+        return JSON.parse(raw);
     } catch {
         return { content: raw };
     }
@@ -78,6 +50,7 @@ async function loadNarrative(key: string) {
 async function loadStructuredScores(key: string): Promise<StructuredScores | null> {
     if (!key) return null;
     const raw = await readObjectText(key);
+    if (!raw) return null;
     try {
         return JSON.parse(raw);
     } catch (err) {
@@ -97,23 +70,72 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'studentNumber is required' }, { status: 400 });
         }
 
-        const [
-            vpScripts,
-            vpNarratives,
-            vpStructureds,
-            spScripts,
-            spNarratives,
-            spStructureds,
-            spAudios,
-        ] = await Promise.all([
-            listKeys(`VP_script/${studentNumber}-`, ['.txt']),
-            listKeys(`VP_narrative/${studentNumber}-`, ['.json', '.txt']),
-            listKeys(`VP_structuredScore/${studentNumber}-`, ['.json']),
-            listKeys(`SP_script/${studentNumber}-`, ['.txt']),
-            listKeys(`SP_narrative/${studentNumber}-`, ['.json', '.txt']),
-            listKeys(`SP_structuredScore/${studentNumber}-`, ['.json']),
-            listKeys(`SP_audio/${studentNumber}-`, ['.mp3']),
+        // 1. studentNumber로 Profile 조회
+        const profile = await prisma.profile.findFirst({
+            where: { studentNumber },
+            select: { id: true },
+        });
+
+        if (!profile) {
+            return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+        }
+
+        // 2. userId로 Transcript, Score, Upload 조회
+        const [transcripts, scores, uploads] = await Promise.all([
+            prisma.transcript.findMany({
+                where: { userId: profile.id },
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    s3Key: true,
+                    origin: true,
+                    createdAt: true,
+                },
+            }),
+            prisma.score.findMany({
+                where: { userId: profile.id },
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    s3Key: true,
+                    origin: true,
+                    createdAt: true,
+                },
+            }),
+            prisma.upload.findMany({
+                where: { userId: profile.id },
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    s3Key: true,
+                    origin: true,
+                    type: true,
+                    createdAt: true,
+                },
+            }),
         ]);
+
+        // 3. VP/SP로 분류
+        const toVersionItem = (item: { s3Key: string; createdAt: Date }): VersionItem => ({
+            key: item.s3Key,
+            lastModified: item.createdAt.getTime(),
+        });
+
+        const vpScripts = transcripts.filter(t => t.origin === 'VP').map(toVersionItem);
+        const spScripts = transcripts.filter(t => t.origin === 'SP').map(toVersionItem);
+        const vpStructureds = scores.filter(s => s.origin === 'VP').map(toVersionItem);
+        const spStructureds = scores.filter(s => s.origin === 'SP').map(toVersionItem);
+        const spAudios = uploads.filter(u => u.origin === 'SP' && u.type === 'AUDIO').map(toVersionItem);
+
+        // Narrative는 Feedback 테이블에서 (유지 - 기존 데이터 호환)
+        const feedbacks = await prisma.feedback.findMany({
+            where: { userId: profile.id },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                s3Key: true,
+                origin: true,
+                createdAt: true,
+            },
+        });
+        const vpNarratives = feedbacks.filter(f => f.origin === 'VP').map(toVersionItem);
+        const spNarratives = feedbacks.filter(f => f.origin === 'SP').map(toVersionItem);
 
         const pickLatestKey = (arr: VersionItem[]) => arr[0]?.key || null;
 
@@ -126,6 +148,7 @@ export async function POST(req: Request) {
         const spStructuredKey = pickLatestKey(spStructureds);
         const spAudioKey = pickLatestKey(spAudios);
 
+        // 4. 최신 데이터 로드
         const [vpScriptText, vpNarrative, vpStructured, spScriptText, spNarrative, spStructured] =
             await Promise.all([
                 vpScriptKey ? readObjectText(vpScriptKey) : Promise.resolve(null),
@@ -136,19 +159,18 @@ export async function POST(req: Request) {
                 spStructuredKey ? loadStructuredScores(spStructuredKey) : Promise.resolve(null),
             ]);
 
-        // group by date (YYYY-MM-DD) for chip selection
+        // 5. 날짜별 그룹화
         const toDateKey = (ts: number) => new Intl.DateTimeFormat('sv-SE', {
             timeZone: 'Asia/Seoul',
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
-        }).format(ts); // "2025-03-01"
+        }).format(ts);
 
         const groupByDate = (versions: VersionItem[]) => {
             const map: Record<string, VersionItem[]> = {};
             versions.forEach((v) => {
-                const ts = v.lastModified || parseTimestampFromKey(v.key) || 0;
-                const dateKey = toDateKey(ts);
+                const dateKey = toDateKey(v.lastModified);
                 if (!map[dateKey]) map[dateKey] = [];
                 map[dateKey].push(v);
             });
