@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
 [JSON 형식 규칙]
 - 제공된 json_schema_template와 동일한 최상위 구조와 key 이름을 그대로 따릅니다.
-  - 예: meta, history, additional_history, physical_exam, questions, final_question 등.
+  - 예: meta, history, additional_history, physical_exam, questions 등.
 - meta.vitals는 제공된 템플릿 형식만 사용합니다:
   - "bp": "숫자/숫자" (문자열), "hr": 정수, "rr": 정수, "bt": 소수 한 자리.
 - 배열 필드에는 문자열만 넣고, null/빈 객체는 사용하지 않습니다. 불필요한 필드는 빈 배열[]로 둡니다.
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 - 중복 표현을 피하고, 시간 경과·양상·연관증상·완화/악화요인 등을 구체적으로 기술해 임상적 추론이 충분히 가능하게 만듭니다.
 - checklist에 포함된 모든 병력 항목(예: 발열, 체중, 약물, 위험인자 등)은
   history 또는 additional_history 어딘가에서 반드시 한 번 이상 **명시적으로** 등장해야 합니다.
-- request_question 또는 기타 필드는 사용하지 않고, 환자의 궁금증은 final_question에만 담습니다.
+- request_question 또는 기타 필드는 사용하지 않습니다.
 
 [추가 병력(additional_history) 작성 규칙]
 - 키 구조는 다음 약어를 그대로 사용합니다: 과(past_medical_history), 약(medication_history),
@@ -113,18 +113,11 @@ export async function POST(req: NextRequest) {
   - 예: “(호흡음 청진)양측 기저부에서 거친 수포음이 들림.”
 - vital과 모순되는 소견을 만들지 않습니다.
 
-[final_question 작성 규칙]
-- "final_question" 필드에 **문자열 1개**만 작성합니다.
-- 지금까지 의사가 설명했을 내용(진단명, 치료계획 등)을 그대로 되묻지 말고,
-  환자 입장에서 추가로 궁금할 법한 질문을 **한 문장**으로 만듭니다.
-  - 예: “이 병이면 앞으로 생활을 어떻게 조심해야 하나요?” 같은 형식.
-- 추가 질문이나 대화는 포함하지 않습니다.
-
 [난이도 및 일관성]
 - 난이도는 항상 **moderate**: 감별진단이 넓지만, 제공된 정보만으로 주된 진단이 명확히 떠오르도록 설계합니다.
 - impression과 모순되는 소견(예: 급성 복증인데 완전히 정상 복부, 심부전인데 전혀 부종/호흡곤란 없음 등)은 피합니다.
 - checklist에 필요한 정보가 빠지지 않았는지, 병력·신체진찰·vital이 서로 논리적으로 맞는지 한번 더 점검한 뒤 JSON을 출력합니다.
-반드시 제공된 json_schema_template의 모든 필드를 채운 JSON만 반환하세요. 추가 텍스트를 절대 붙이지 마세요. id/title/description/type/required/properties/history/additional_history/physical_exam/questions/final_question가 모두 있어야 합니다.
+반드시 제공된 json_schema_template의 모든 필드를 채운 JSON만 반환하세요. 추가 텍스트를 절대 붙이지 마세요. id/title/description/type/required/properties/history/additional_history/physical_exam/questions가 모두 있어야 합니다.
 `;
 
   const userContent = {

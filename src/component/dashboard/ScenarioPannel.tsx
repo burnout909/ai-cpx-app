@@ -477,18 +477,6 @@ export const ScenarioPannel: React.FC<ScenarioDevModuleProps> = ({
               }
               onInput={autoResize}
             />
-            <div className="rounded-xl bg-white border border-[#E4DEF9] p-3">
-              <div className="text-sm font-semibold text-[#210535] mb-2">
-                Final Question
-              </div>
-              <input
-                className={inputBase}
-                value={generated.final_question || ""}
-                onChange={(e) =>
-                  updateGenerated({ ...generated, final_question: e.target.value })
-                }
-              />
-            </div>
           </div>
         </div>
       )}

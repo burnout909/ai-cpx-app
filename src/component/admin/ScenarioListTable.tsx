@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import ChiefComplaintDropdown from "./ChiefComplaintDropdown";
 import { ChiefComplaint } from "@/constants/chiefComplaints";
 
 type ScenarioStatus = "DRAFT" | "PUBLISHED" | "LEGACY";
 
-interface ScenarioItem {
+interface ScenarioVersion {
   id: string;
   chiefComplaint: string;
   caseName: string;
@@ -18,7 +18,11 @@ interface ScenarioItem {
   commentaryContent: unknown;
   createdAt: string;
   publishedAt: string | null;
+}
+
+interface ScenarioItem extends ScenarioVersion {
   totalVersions: number;
+  allVersions?: ScenarioVersion[];
 }
 
 interface ScenarioListTableProps {
@@ -268,81 +272,138 @@ export default function ScenarioListTable({
                 </td>
               </tr>
             ) : (
-              filteredScenarios.map((scenario) => (
-                <tr
-                  key={scenario.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    {scenario.totalVersions > 1 && (
-                      <button
-                        onClick={() => toggleRow(scenario.id)}
-                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-                        <svg
-                          className={`w-4 h-4 transition-transform ${
-                            expandedRows.has(scenario.id) ? "rotate-90" : ""
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+              filteredScenarios.map((scenario) => {
+                const isExpanded = expandedRows.has(scenario.id);
+                const otherVersions = scenario.allVersions?.filter(v => v.id !== scenario.id) || [];
+
+                return (
+                  <Fragment key={scenario.id}>
+                    {/* 메인 행 (PUBLISHED 또는 최신 버전) */}
+                    <tr
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => handleEdit(scenario.id)}
+                    >
+                      <td className="px-4 py-3">
+                        {scenario.totalVersions > 1 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleRow(scenario.id);
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            <svg
+                              className={`w-4 h-4 transition-transform ${
+                                isExpanded ? "rotate-90" : ""
+                              }`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {scenario.chiefComplaint}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                        {scenario.caseName}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">
+                        v{scenario.versionNumber.toFixed(1)}
+                        {scenario.totalVersions > 1 && (
+                          <span className="ml-1 text-xs text-gray-400">
+                            ({scenario.totalVersions})
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm">
+                        {getContentStatus(scenario.scenarioContent)}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm">
+                        {getContentStatus(scenario.checklistIncludedMap)}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm">
+                        {getContentStatus(scenario.commentaryContent)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {getStatusBadge(scenario.status)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div
+                          className="flex items-center justify-center gap-2"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </button>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {scenario.chiefComplaint}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                    {scenario.caseName}
-                  </td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-600">
-                    v{scenario.versionNumber.toFixed(1)}
-                    {scenario.totalVersions > 1 && (
-                      <span className="ml-1 text-xs text-gray-400">
-                        ({scenario.totalVersions})
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center text-sm">
-                    {getContentStatus(scenario.scenarioContent)}
-                  </td>
-                  <td className="px-4 py-3 text-center text-sm">
-                    {getContentStatus(scenario.checklistIncludedMap)}
-                  </td>
-                  <td className="px-4 py-3 text-center text-sm">
-                    {getContentStatus(scenario.commentaryContent)}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {getStatusBadge(scenario.status)}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => handleEdit(scenario.id)}
-                        className="px-3 py-1 text-sm text-violet-600 hover:bg-violet-50 rounded transition-colors"
+                          {(scenario.status === "DRAFT" || scenario.status === "PUBLISHED") && (
+                            <button
+                              onClick={() => handleDelete(scenario.id)}
+                              className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+                            >
+                              삭제
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* 확장 시 다른 버전들 표시 */}
+                    {isExpanded && otherVersions.map((version) => (
+                      <tr
+                        key={version.id}
+                        className="bg-gray-50/50 hover:bg-gray-100/50 transition-colors cursor-pointer"
+                        onClick={() => handleEdit(version.id)}
                       >
-                        편집
-                      </button>
-                      {scenario.status === "DRAFT" && (
-                        <button
-                          onClick={() => handleDelete(scenario.id)}
-                          className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
-                        >
-                          삭제
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                        <td className="px-4 py-2">
+                          <div className="w-4 h-4 ml-2 border-l-2 border-b-2 border-gray-300 rounded-bl" />
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500">
+                          {version.chiefComplaint}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500">
+                          {version.caseName}
+                        </td>
+                        <td className="px-4 py-2 text-center text-sm text-gray-500">
+                          v{version.versionNumber.toFixed(1)}
+                        </td>
+                        <td className="px-4 py-2 text-center text-sm">
+                          {getContentStatus(version.scenarioContent)}
+                        </td>
+                        <td className="px-4 py-2 text-center text-sm">
+                          {getContentStatus(version.checklistIncludedMap)}
+                        </td>
+                        <td className="px-4 py-2 text-center text-sm">
+                          {getContentStatus(version.commentaryContent)}
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          {getStatusBadge(version.status)}
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          <div
+                            className="flex items-center justify-center gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {(version.status === "DRAFT" || version.status === "PUBLISHED") && (
+                              <button
+                                onClick={() => handleDelete(version.id)}
+                                className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+                              >
+                                삭제
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                );
+              })
             )}
           </tbody>
         </table>

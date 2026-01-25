@@ -65,7 +65,6 @@ const createInitialScenarioContent = (): VirtualPatient => ({
   history: {},
   additional_history: {},
   physical_exam: {},
-  final_question: "",
 });
 
 export default function ScenarioDetailPage() {
@@ -266,6 +265,10 @@ export default function ScenarioDetailPage() {
     setSaveMessage(null);
 
     try {
+      // 새 시나리오이고 이미지가 있으면 pendingImageId로 전달
+      // (시나리오 저장 전에 생성된 이미지를 연결하기 위함)
+      const pendingImageId = isNew && activeImageId ? activeImageId : undefined;
+
       const body = {
         chiefComplaint,
         caseName: caseName.trim(),
@@ -275,6 +278,7 @@ export default function ScenarioDetailPage() {
           Object.keys(checklistIncludedMap).length > 0 ? checklistIncludedMap : null,
         commentaryContent: commentaryContent ? { html: commentaryContent } : null,
         action,
+        pendingImageId,
       };
 
       // 기존 DRAFT 수정 vs 새 버전 생성
@@ -316,11 +320,14 @@ export default function ScenarioDetailPage() {
   // 삭제
   const handleDelete = async () => {
     if (!scenario) return;
-    if (scenario.status !== "DRAFT") {
-      alert("DRAFT 상태의 시나리오만 삭제할 수 있습니다.");
+    if (scenario.status === "LEGACY") {
+      alert("LEGACY 상태의 시나리오는 삭제할 수 없습니다.");
       return;
     }
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+    const confirmMsg = scenario.status === "PUBLISHED"
+      ? "배포된 시나리오입니다. 정말 삭제하시겠습니까?"
+      : "정말 삭제하시겠습니까?";
+    if (!confirm(confirmMsg)) return;
 
     try {
       const res = await fetch(`/api/admin/scenario?id=${scenario.id}`, {
@@ -451,7 +458,7 @@ export default function ScenarioDetailPage() {
 
         {/* 액션 버튼 */}
         <div className="flex items-center gap-2">
-          {scenario?.status === "DRAFT" && (
+          {(scenario?.status === "DRAFT" || scenario?.status === "PUBLISHED") && (
             <button
               onClick={handleDelete}
               disabled={liveLocked}

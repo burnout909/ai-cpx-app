@@ -10,6 +10,7 @@ import { loadVPProfile } from "@/utils/loadVirtualPatient";
 import Image, { StaticImageData } from "next/image";
 import PlayIcon from "@/assets/icon/PlayIcon.svg";
 import PauseIcon from "@/assets/icon/PauseIcon.svg";
+import StopIcon from "@/assets/icon/StopIcon.svg";
 import FallbackProfile from "@/assets/virtualPatient/acute_abdominal_pain_001.png";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { VirtualPatient } from "@/types/dashboard";
@@ -191,7 +192,6 @@ export default function LiveCPXClient({
 
   async function startSession() {
     if (sessionRef.current || connected || isRecording || isUploading) return;
-    if (isPanel && !isExpanded) setIsExpanded(true);
     setConnected(true);
 
     if (!caseData) {
@@ -387,6 +387,10 @@ export default function LiveCPXClient({
       setIsRecording(false);
       setConnected(false);
       setIsUploading(false);
+      setIsFinished(false);
+      setSeconds(INITIAL_SECONDS);
+      setConversationText([]);
+      userAudioChunks.current = [];
     }
   }
 
@@ -400,7 +404,6 @@ export default function LiveCPXClient({
   };
 
   const handlePlayClick = () => {
-    if (isPanel && !isExpanded) setIsExpanded(true);
     toggleRecording();
   };
 
@@ -691,18 +694,7 @@ export default function LiveCPXClient({
       <div className={panelPositionClass}>
         <div className={panelCardClass}>
           {isCollapsed ? (
-            <div
-              className="flex items-center justify-between gap-3 px-5 py-2 cursor-pointer"
-              onClick={() => setIsExpanded(true)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setIsExpanded(true);
-                }
-              }}
-            >
+            <div className="flex items-center justify-between gap-3 px-5 py-2">
               <div className="flex items-center gap-3 text-left min-w-0">
                 <div className="w-[48px] h-[48px] relative shrink-0">
                   <Image
@@ -716,23 +708,35 @@ export default function LiveCPXClient({
                   <p className="text-[15px] font-semibold text-[#210535] truncate">
                     {displayPatientName}
                   </p>
-                <p className="text-[12px] text-[#6F659C]">
-                  {displayPatientMeta || " "}
-                </p>
-              </div>
+                  <p className="text-[12px] text-[#6F659C]">
+                    {displayPatientMeta || " "}
+                  </p>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsExpanded(true)}
-                  className="rounded-full p-1.5 text-gray-500 transition-colors hover:text-[#7553FC] active:text-[#7553FC] disabled:text-gray-300 disabled:cursor-not-allowed"
-                  disabled={isUploading || connected || isFinished}
-                  aria-label="재생하기"
-                  title="재생하기"
-                >
-                  <PlayIcon className="w-8 h-8" />
-                </button>
+              <div className="flex items-center gap-1">
+                {isRecording ? (
+                  <button
+                    type="button"
+                    onClick={() => stopSession()}
+                    className="rounded-full p-1.5 text-red-500 transition-colors hover:text-red-600 active:text-red-600"
+                    aria-label="종료하기"
+                    title="종료하기"
+                  >
+                    <StopIcon className="w-8 h-8" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handlePlayClick()}
+                    className="rounded-full p-1.5 text-gray-500 transition-colors hover:text-[#7553FC] active:text-[#7553FC] disabled:text-gray-300 disabled:cursor-not-allowed"
+                    disabled={isUploading || connected}
+                    aria-label="재생하기"
+                    title="재생하기"
+                  >
+                    <PlayIcon className="w-8 h-8" />
+                  </button>
+                )}
               </div>
             </div>
           ) : (

@@ -61,15 +61,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ scenario, versionHistory });
     }
 
-    // 목록 조회: (주호소 + caseName) 그룹별 최신 레코드
+    // 목록 조회: (주호소 + caseName) 그룹별 모든 버전 반환 (LEGACY 포함)
     const where: Record<string, unknown> = {};
     if (chiefComplaint) where.chiefComplaint = chiefComplaint;
     if (caseName) where.caseName = caseName;
     if (status) {
       where.status = status;
-    } else if (!includeAll) {
-      where.status = { not: "LEGACY" as ScenarioStatus };
     }
+    // LEGACY도 항상 포함 (토글에서 표시)
 
     // 모든 시나리오 조회
     const allScenarios = await prisma.scenario.findMany({
@@ -81,12 +80,12 @@ export async function GET(req: Request) {
       ],
     });
 
-    // (chiefComplaint + caseName) 그룹별 최신 버전만 추출
+    // (chiefComplaint + caseName) 그룹별로 모든 버전 수집
     const groupMap = new Map<
       string,
       {
-        latest: (typeof allScenarios)[0];
-        totalVersions: number;
+        primary: (typeof allScenarios)[0]; // PUBLISHED가 있으면 PUBLISHED, 없으면 최고 버전
+        versions: (typeof allScenarios)[0][];
       }
     >();
 
@@ -94,20 +93,29 @@ export async function GET(req: Request) {
       const key = `${scenario.chiefComplaint}::${scenario.caseName}`;
       const existing = groupMap.get(key);
       if (!existing) {
-        groupMap.set(key, { latest: scenario, totalVersions: 1 });
+        groupMap.set(key, { primary: scenario, versions: [scenario] });
       } else {
-        existing.totalVersions += 1;
-        // versionNumber가 더 높으면 latest 교체
-        if (scenario.versionNumber > existing.latest.versionNumber) {
-          existing.latest = scenario;
+        existing.versions.push(scenario);
+        // PUBLISHED가 있으면 primary로 설정
+        if (scenario.status === "PUBLISHED" && existing.primary.status !== "PUBLISHED") {
+          existing.primary = scenario;
         }
       }
     }
 
+    // 각 그룹에서 primary와 나머지 버전들로 구성
     const scenarios = Array.from(groupMap.values()).map(
-      ({ latest, totalVersions }) => ({
-        ...latest,
-        totalVersions,
+      ({ primary, versions }) => ({
+        ...primary,
+        totalVersions: versions.length,
+        // 모든 버전 정보 (PUBLISHED 우선, 그 다음 버전 내림차순)
+        allVersions: versions.sort((a, b) => {
+          // PUBLISHED 우선
+          if (a.status === "PUBLISHED" && b.status !== "PUBLISHED") return -1;
+          if (b.status === "PUBLISHED" && a.status !== "PUBLISHED") return 1;
+          // 그 다음 버전 내림차순
+          return b.versionNumber - a.versionNumber;
+        }),
       })
     );
 
@@ -156,6 +164,7 @@ export async function POST(req: Request) {
       checklistIncludedMap,
       commentaryContent,
       action = "draft",
+      pendingImageId, // 새 시나리오 생성 전에 만들어진 이미지 ID
     } = body;
 
     if (!chiefComplaint || !caseName) {
@@ -187,14 +196,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // 이전 버전 조회 (수정인 경우)
-    let previousScenario = null;
-    let versionNumber = 0.1;
-    let checklistSourceVersionId: string | null = null;
-    let checklistItemsSnapshot: unknown = null;
-
     // 버전 0.1씩 증가 (부동소수점 오차 방지를 위해 반올림)
     const incrementVersion = (v: number) => Math.round((v + 0.1) * 10) / 10;
+
+    // 이전 버전 조회 (수정인 경우)
+    let previousScenario = null;
+    let checklistSourceVersionId: string | null = null;
+    let checklistItemsSnapshot: unknown = null;
 
     if (previousScenarioId) {
       previousScenario = await prisma.scenario.findUnique({
@@ -206,7 +214,6 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
-      versionNumber = incrementVersion(previousScenario.versionNumber);
       // 이전 체크리스트 스냅샷 계승
       checklistSourceVersionId = previousScenario.checklistSourceVersionId;
       checklistItemsSnapshot = previousScenario.checklistItemsSnapshot;
@@ -221,19 +228,21 @@ export async function POST(req: Request) {
         checklistSourceVersionId = latestChecklist.id;
         checklistItemsSnapshot = latestChecklist.checklistJson;
       }
+    }
 
-      // 같은 chiefComplaint + caseName의 기존 버전 확인
-      const existingLatest = await prisma.scenario.findFirst({
-        where: { chiefComplaint, caseName },
-        orderBy: { versionNumber: "desc" },
-      });
-      if (existingLatest) {
-        versionNumber = incrementVersion(existingLatest.versionNumber);
-        // 기존 체크리스트 스냅샷 계승
-        if (!checklistItemsSnapshot && existingLatest.checklistItemsSnapshot) {
-          checklistSourceVersionId = existingLatest.checklistSourceVersionId;
-          checklistItemsSnapshot = existingLatest.checklistItemsSnapshot;
-        }
+    // 항상 DB에서 가장 높은 버전 번호를 조회하여 새 버전 생성
+    const existingLatest = await prisma.scenario.findFirst({
+      where: { chiefComplaint, caseName },
+      orderBy: { versionNumber: "desc" },
+    });
+
+    let versionNumber = 0.1;
+    if (existingLatest) {
+      versionNumber = incrementVersion(existingLatest.versionNumber);
+      // 체크리스트 스냅샷이 없으면 기존 것 계승
+      if (!checklistItemsSnapshot && existingLatest.checklistItemsSnapshot) {
+        checklistSourceVersionId = existingLatest.checklistSourceVersionId;
+        checklistItemsSnapshot = existingLatest.checklistItemsSnapshot;
       }
     }
 
@@ -272,6 +281,91 @@ export async function POST(req: Request) {
       },
     });
 
+    // 이미지 처리
+    if (pendingImageId) {
+      // 새로 업로드된 이미지가 있으면 연결
+      try {
+        await prisma.patientImage.update({
+          where: { id: pendingImageId },
+          data: { scenarioId: newScenario.id },
+        });
+
+        await prisma.scenario.update({
+          where: { id: newScenario.id },
+          data: { activeImageId: pendingImageId },
+        });
+
+        console.log("[scenario POST] Linked new image:", pendingImageId, "to scenario:", newScenario.id);
+      } catch (imgErr) {
+        console.warn("[scenario POST] Failed to link image:", imgErr);
+      }
+    } else if (previousScenario?.activeImageId) {
+      // 이전 버전에 이미지가 있으면 복사하여 새 시나리오에 연결
+      try {
+        const previousImage = await prisma.patientImage.findUnique({
+          where: { id: previousScenario.activeImageId },
+        });
+
+        if (previousImage) {
+          // 새 PatientImage 레코드 생성 (같은 s3Key 사용)
+          const newImage = await prisma.patientImage.create({
+            data: {
+              scenarioId: newScenario.id,
+              sex: previousImage.sex,
+              age: previousImage.age,
+              chiefComplaint: previousImage.chiefComplaint,
+              s3Key: previousImage.s3Key,
+              prompt: previousImage.prompt,
+              model: previousImage.model,
+              sizeBytes: previousImage.sizeBytes,
+            },
+          });
+
+          // 새 시나리오의 activeImageId 업데이트
+          await prisma.scenario.update({
+            where: { id: newScenario.id },
+            data: { activeImageId: newImage.id },
+          });
+
+          console.log("[scenario POST] Copied image from previous scenario:", previousImage.id, "-> new image:", newImage.id);
+        }
+      } catch (imgErr) {
+        console.warn("[scenario POST] Failed to copy image from previous version:", imgErr);
+      }
+    } else if (existingLatest?.activeImageId && !previousScenarioId) {
+      // previousScenarioId 없이 기존 버전이 있는 경우 (같은 chiefComplaint + caseName)
+      // 가장 최신 버전의 이미지를 복사
+      try {
+        const latestImage = await prisma.patientImage.findUnique({
+          where: { id: existingLatest.activeImageId },
+        });
+
+        if (latestImage) {
+          const newImage = await prisma.patientImage.create({
+            data: {
+              scenarioId: newScenario.id,
+              sex: latestImage.sex,
+              age: latestImage.age,
+              chiefComplaint: latestImage.chiefComplaint,
+              s3Key: latestImage.s3Key,
+              prompt: latestImage.prompt,
+              model: latestImage.model,
+              sizeBytes: latestImage.sizeBytes,
+            },
+          });
+
+          await prisma.scenario.update({
+            where: { id: newScenario.id },
+            data: { activeImageId: newImage.id },
+          });
+
+          console.log("[scenario POST] Copied image from latest version:", latestImage.id, "-> new image:", newImage.id);
+        }
+      } catch (imgErr) {
+        console.warn("[scenario POST] Failed to copy image from latest version:", imgErr);
+      }
+    }
+
     return NextResponse.json({ success: true, scenario: newScenario });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -292,6 +386,7 @@ export async function PATCH(req: Request) {
       checklistIncludedMap,
       commentaryContent,
       action,
+      pendingImageId, // 시나리오 저장 전에 만들어진 이미지 ID
     } = body;
 
     if (!id) {
@@ -380,6 +475,28 @@ export async function PATCH(req: Request) {
       data: updateData,
     });
 
+    // pendingImageId가 있으면 이미지를 시나리오에 연결
+    if (pendingImageId) {
+      try {
+        // 이미지의 scenarioId 업데이트
+        await prisma.patientImage.update({
+          where: { id: pendingImageId },
+          data: { scenarioId: id },
+        });
+
+        // 시나리오의 activeImageId 업데이트
+        await prisma.scenario.update({
+          where: { id },
+          data: { activeImageId: pendingImageId },
+        });
+
+        console.log("[scenario PATCH] Linked image:", pendingImageId, "to scenario:", id);
+      } catch (imgErr) {
+        console.warn("[scenario PATCH] Failed to link image:", imgErr);
+        // 이미지 연결 실패해도 시나리오 수정은 성공으로 처리
+      }
+    }
+
     return NextResponse.json({ success: true, scenario: updated });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -388,7 +505,7 @@ export async function PATCH(req: Request) {
 }
 
 /**
- * DELETE: 시나리오 삭제 (DRAFT만 삭제 허용)
+ * DELETE: 시나리오 삭제 (DRAFT, PUBLISHED 삭제 허용, LEGACY는 불가)
  */
 export async function DELETE(req: Request) {
   try {
@@ -407,12 +524,18 @@ export async function DELETE(req: Request) {
       );
     }
 
-    if (existing.status !== "DRAFT") {
+    if (existing.status === "LEGACY") {
       return NextResponse.json(
-        { error: "PUBLISHED 또는 LEGACY 시나리오는 삭제할 수 없습니다." },
+        { error: "LEGACY 시나리오는 삭제할 수 없습니다." },
         { status: 400 }
       );
     }
+
+    // 연결된 PatientImage가 있으면 연결 해제 (scenarioId를 null로)
+    await prisma.patientImage.updateMany({
+      where: { scenarioId: id },
+      data: { scenarioId: null },
+    });
 
     await prisma.scenario.delete({ where: { id } });
 

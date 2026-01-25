@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const PRIMARY = "#7553FC";
 
@@ -46,45 +47,55 @@ function Section({
 
 export default function AdminDashboardLandingPage() {
   return (
-    <main className="mx-auto flex min-h-screen w-full flex-col gap-10 px-16 py-12">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-base text-gray-500">
-          아래에서 필요한 관리 기능을 선택하세요.
-        </p>
-      </header>
+    <div className="mx-auto min-h-screen w-full px-16 py-5 space-y-2">
+      <Link
+        href="/home"
+        className="flex items-center gap-3 hover:opacity-80 transition-opacity w-fit"
+      >
+        <div className="relative w-[52px] h-[52px]">
+          <Image src="/LogoIcon.png" alt="CPX Mate" fill />
+        </div>
+        <div className="relative w-[120px] h-[18px]">
+          <Image src="/LogoLetterIcon.png" alt="CPX Mate" fill />
+        </div>
+      </Link>
+      <main className="flex w-full flex-col gap-10">
 
-      {/* 학생 섹션 */}
-      <Section title="학생">
-        <DashboardCard
-          href="/admin/dashboard/student"
-          title="학번 조회를 통한 학생 조회"
-          description="학생의 실습 결과(전사/피드백/점수)를 확인합니다."
-        />
-        <DashboardCard
-          href="/admin/dashboard/id-verifications"
-          title="학생증 관리"
-          description="학생증 인증 요청을 검토하고 승인/반려합니다."
-        />
-      </Section>
+        <header className="space-y-2">
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <p className="text-base text-gray-500">
+            아래에서 필요한 관리 기능을 선택하세요.
+          </p>
+        </header>
 
-      {/* 체크리스트 섹션 */}
-      <Section title="체크리스트">
-        <DashboardCard
-          href="/admin/dashboard/checklist"
-          title="체크리스트 관리"
-          description="CSV 업로드로 케이스별 체크리스트를 등록/수정/삭제합니다."
-        />
-      </Section>
+        {/* 학생 섹션 */}
+        <Section title="학생">
+          <DashboardCard
+            href="/admin/dashboard/student"
+            title="학번 조회를 통한 학생 조회"
+            description="학생의 실습 결과(전사/피드백/점수)를 확인합니다." />
+          <DashboardCard
+            href="/admin/dashboard/id-verifications"
+            title="학생증 관리"
+            description="학생증 인증 요청을 검토하고 승인/반려합니다." />
+        </Section>
 
-      {/* 시나리오 섹션 */}
-      <Section title="시나리오">
-        <DashboardCard
-          href="/admin/dashboard/scenario-gen"
-          title="시나리오 관리"
-          description="시나리오와 체크리스트를 생성하고 가상환자를 테스트합니다."
-        />
-      </Section>
-    </main>
+        {/* 체크리스트 섹션 */}
+        <Section title="체크리스트">
+          <DashboardCard
+            href="/admin/dashboard/checklist"
+            title="체크리스트 관리"
+            description="CSV 업로드로 케이스별 체크리스트를 등록/수정/삭제합니다." />
+        </Section>
+
+        {/* 시나리오 섹션 */}
+        <Section title="시나리오">
+          <DashboardCard
+            href="/admin/dashboard/scenario-gen"
+            title="시나리오 관리"
+            description="시나리오와 체크리스트를 생성하고 가상환자를 테스트합니다." />
+        </Section>
+      </main>
+    </div>
   );
 }

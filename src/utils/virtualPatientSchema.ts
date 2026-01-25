@@ -35,7 +35,6 @@ export const virtualPatientOutputSchema = z.object({
   history: z.record(z.any()),
   additional_history: z.record(z.any()),
   physical_exam: z.union([z.string(), z.record(z.any())]),
-  final_question: z.string().optional(),
 });
 
 export type VirtualPatientParsed = z.infer<typeof virtualPatientOutputSchema>;
@@ -79,5 +78,4 @@ export const virtualPatientTemplate: VirtualPatient = {
     skin: [],
     miscellaneous: [],
   },
-  final_question: "",
 };

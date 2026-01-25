@@ -27,7 +27,6 @@ export interface VirtualPatient {
   history: Record<string, any>;
   additional_history: Record<string, any>;
   physical_exam: string | Record<string, any>;
-  final_question?: string | string[];
   questions?: string | string[];
 }
 

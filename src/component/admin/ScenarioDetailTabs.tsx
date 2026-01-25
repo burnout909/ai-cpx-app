@@ -818,25 +818,6 @@ export default function ScenarioDetailTabs({
                     </div>
                   </div>
 
-                  {/* Final Question */}
-                  <div className="space-y-3 pt-3 border-t border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-700">Final Question</h3>
-                    <textarea
-                      className={`${inputBase} min-h-[60px] font-mono text-xs`}
-                      value={
-                        Array.isArray(scenarioContent?.final_question)
-                          ? scenarioContent.final_question.join("\n")
-                          : scenarioContent?.final_question || ""
-                      }
-                      onChange={(e) => {
-                        const lines = e.target.value.split("\n").filter((l) => l.trim());
-                        updateScenarioField("final_question", lines.length > 1 ? lines : e.target.value);
-                      }}
-                      placeholder="환자의 마지막 질문 (여러 줄 입력 시 배열로 저장)"
-                      disabled={disabled}
-                    />
-                  </div>
-
                   {/* 전체 JSON 미리보기 */}
                   <div className="space-y-3 pt-3 border-t border-gray-100">
                     <div className="flex items-center justify-between">
