@@ -27,7 +27,16 @@ export const ScenarioPannel: React.FC<ScenarioDevModuleProps> = ({
   caseName,
   onCaseNameChange,
 }) => {
-  const meta = scenarioJson.properties.meta;
+  const meta = scenarioJson.meta || scenarioJson.properties?.meta || {
+    name: "",
+    sex: "",
+    age: 0,
+    chief_complaint: "",
+    mrn: 0,
+    vitals: { bp: "", hr: 0, rr: 0, bt: 0 },
+    attitude: "",
+    hybrid_skill: "",
+  };
   const [generated, setGenerated] = React.useState<VirtualPatient | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -85,15 +94,15 @@ export const ScenarioPannel: React.FC<ScenarioDevModuleProps> = ({
     setIsSaving(true);
     setSaveStatus(null);
     try {
+      const generatedMeta = generated.meta || generated.properties?.meta || {};
+      const mergedMeta = { ...generatedMeta, ...meta };
       const scenarioToSave: VirtualPatient = {
         ...generated,
         solution: scenarioJson.solution ?? generated.solution,
+        meta: mergedMeta,
         properties: {
           ...generated.properties,
-          meta: {
-            ...generated.properties.meta,
-            ...meta,
-          },
+          meta: mergedMeta,
         },
       };
 
@@ -163,20 +172,23 @@ export const ScenarioPannel: React.FC<ScenarioDevModuleProps> = ({
           throw new Error("응답에 scenario가 없습니다.");
         }
 
+        const scenarioMeta = data.scenario.meta || data.scenario.properties?.meta || {};
+        const mergedMeta = {
+          ...scenarioMeta,
+          name: meta?.name,
+          sex: meta?.sex,
+          age: meta?.age,
+          chief_complaint: meta?.chief_complaint,
+          diagnosis: meta?.diagnosis,
+          vitals: meta?.vitals,
+        };
         const mergedScenario: VirtualPatient = {
           ...data.scenario,
           title: scenarioJson.title,
+          meta: mergedMeta,
           properties: {
             ...data.scenario.properties,
-            meta: {
-              ...data.scenario.properties.meta,
-              name: meta.name,
-              sex: meta.sex,
-              age: meta.age,
-              chief_complaint: meta.chief_complaint,
-              diagnosis: meta.diagnosis,
-              vitals: meta.vitals,
-            },
+            meta: mergedMeta,
           },
         };
 

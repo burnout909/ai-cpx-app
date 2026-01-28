@@ -260,6 +260,19 @@ model PatientImage {
   @@schema("public")
 }
 
+model PromptVersion {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type      PromptType
+  version   String     @db.VarChar
+  content   String
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([type, version])
+  @@index([type], map: "idx_prompt_versions_type")
+  @@map("prompt_versions")
+  @@schema("public")
+}
+
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model audit_log_entries {
@@ -723,6 +736,14 @@ enum ScenarioStatus {
   LEGACY
 
   @@map("scenario_status")
+  @@schema("public")
+}
+
+enum PromptType {
+  SOLUTION
+  SCENARIO_INSTRUCT
+
+  @@map("prompt_type")
   @@schema("public")
 }
 

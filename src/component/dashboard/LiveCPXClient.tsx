@@ -268,10 +268,12 @@ export default function LiveCPXClient({
         chief_complaint: caseData?.properties?.meta?.chief_complaint,
       });
 
+      // 새 스키마(meta at root) 또는 구 스키마(properties.meta) 모두 지원
+      const patientSex = caseData?.meta?.sex || caseData?.properties?.meta?.sex;
       const agent = new RealtimeAgent({
         name: "표준화 환자 AI",
         instructions: buildPatientInstructions(caseData),
-        voice: caseData?.properties.meta.sex === "남성" ? "ash" : "coral",
+        voice: patientSex === "남성" ? "ash" : "coral",
       });
 
       const session: any = new RealtimeSession(agent, {
@@ -407,7 +409,7 @@ export default function LiveCPXClient({
     toggleRecording();
   };
 
-  const vitalData = caseData?.properties.meta.vitals;
+  const vitalData = caseData?.meta?.vitals || caseData?.properties?.meta?.vitals;
 
   const showTime = useCallback((sec: number) => {
     const mm = Math.floor(sec / 60).toString().padStart(2, "0");
@@ -501,11 +503,11 @@ export default function LiveCPXClient({
             />
           </div>
           <div className="text-[16px] items-center">
-            <p>{caseData?.properties.meta.name}</p>
+            <p>{caseData?.meta?.name || caseData?.properties?.meta?.name}</p>
             <p className="text-[14px] text-gray-500">
-              {caseData?.properties.meta.sex}
+              {caseData?.meta?.sex || caseData?.properties?.meta?.sex}
               {" | "}
-              {caseData?.properties.meta.age}세
+              {caseData?.meta?.age || caseData?.properties?.meta?.age}세
             </p>
           </div>
         </div>

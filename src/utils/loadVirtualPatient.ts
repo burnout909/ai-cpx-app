@@ -1,6 +1,24 @@
 // utils/loadVPProfile.ts
 import type { StaticImageData } from "next/image";
 
+// Meta 정보 인터페이스
+interface VirtualPatientMeta {
+  chief_complaint: string;
+  name: string;
+  mrn: number;
+  age: number;
+  sex: string;
+  vitals: {
+    bp: string;
+    hr: number;
+    rr: number;
+    bt: number;
+  };
+  attitude: string;
+  hybrid_skill: string;
+  [key: string]: unknown;
+}
+
 export interface VirtualPatient {
   id: string;
   title: string;
@@ -8,35 +26,23 @@ export interface VirtualPatient {
   type: string;
   required: string[];
 
-  // properties 내부 구조는 공통적으로 meta가 존재하지만,
-  // 그 외는 케이스마다 달라질 수 있으므로 any로 유연하게 둔다.
-  properties: {
-    meta: {
-      chief_complaint: string;
-      name: string;
-      mrn: number;
-      age: number;
-      sex: string;
-      vitals: {
-        bp: string;
-        hr: number;
-        rr: number;
-        bt: number;
-      };
-      attitude: string;
-      hybrid_skill: string;
-    };
-    [key: string]: any; // 다른 필드 허용
+  // 새 스키마: meta가 루트 레벨에 위치
+  meta?: VirtualPatientMeta;
+
+  // 구 스키마: properties.meta 구조 (하위 호환성)
+  properties?: {
+    meta: VirtualPatientMeta;
+    [key: string]: unknown;
   };
 
   // history는 string 또는 object 형태 모두 가능
-  history: Record<string, any>;
+  history: Record<string, unknown>;
 
   // additional_history도 동일하게
-  additional_history: Record<string, any>;
+  additional_history: Record<string, unknown>;
 
   // physical_exam은 string 또는 object 모두 가능
-  physical_exam: string | Record<string, any>;
+  physical_exam: string | Record<string, unknown>;
 
   // questions는 string으로 통일
   questions?: string | string[];

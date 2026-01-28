@@ -59,57 +59,186 @@
       "여(travel_history)": ["최근에 여행 갔다 온 적 없어요."]
     },
     "physical_exam": {
-      "전신상태": [
-        "(외관)얼굴이 창백하고 식은땀을 흘립니다."
+      "general": [
+        {
+          "title": "General appearance",
+          "items": [
+            { "maneuver": "전반적 외관 관찰", "result": "얼굴이 창백하고 식은땀을 흘림" }
+          ]
+        }
       ],
-      "머리/눈/코/입/귀": [
-        "(눈 결막)결막은 창백합니다.",
-        "(눈 공막)정상",
-        "(구강/혀)혀가 말라 있습니다."
+  
+      "heent": [
+        {
+          "title": "Eyes",
+          "items": [
+            { "maneuver": "결막 관찰", "result": "결막은 창백함" },
+            { "maneuver": "공막 관찰", "result": "정상" }
+          ]
+        },
+        {
+          "title": "Oral cavity / tongue",
+          "items": [
+            { "maneuver": "구강/혀 관찰", "result": "혀가 말라 있음" }
+          ]
+        }
       ],
-      "경부_목": [
-        "(경부 림프절) 정상",
-        "(갑상선) 정상"
+  
+      "neck": [
+        {
+          "title": "Cervical lymph nodes",
+          "items": [
+            { "maneuver": "경부 림프절 촉진", "result": "정상" }
+          ]
+        },
+        {
+          "title": "Thyroid",
+          "items": [
+            { "maneuver": "갑상선 촉진", "result": "정상" }
+          ]
+        }
       ],
-      "흉부_폐": [
-        "(흉부 시진) 정상",
-        "(흉부 촉진) 정상",
-        "(호흡음 청진) 정상",
-        "(흉부 타진) 정상"
+  
+      "chest_respiratory": [
+        {
+          "title": "Inspection",
+          "items": [
+            { "maneuver": "흉부 시진", "result": "정상" }
+          ]
+        },
+        {
+          "title": "Palpation",
+          "items": [
+            { "maneuver": "흉부 촉진", "result": "정상" }
+          ]
+        },
+        {
+          "title": "Percussion",
+          "items": [
+            { "maneuver": "흉부 타진", "result": "정상" }
+          ]
+        },
+        {
+          "title": "Auscultation",
+          "items": [
+            { "maneuver": "호흡음 청진", "result": "정상" }
+          ]
+        }
       ],
-      "심장": [
-        "(심음 청진)심음은 빠르고 규칙적입니다"
+  
+      "cardiac": [
+        {
+          "title": "Auscultation",
+          "items": [
+            { "maneuver": "심음 청진", "result": "심음은 빠르고 규칙적임" }
+          ]
+        }
       ],
-      "복부_배": [
-        "(시진-눈으로 볼 때)배가 전체적으로 팽만해 보입니다.",
-        "(청진-장 소리 들을 때)장음이 감소되어 잘 들리지 않습니다.",
-        "(타진-두들길 때)복부 전체에서 타진음이 둔탁합니다.",
-        "(촉진-눌렀을 때)명치 부위 압통이 있습니다.",
-        "(촉진-뗄 때) 반발 압통도 있습니다.",
-        "(간 촉진) 정상",
-        "(비장 촉진) 정상",
-        "(Psoas sign) 정상", 
-        "(Rovsing sign) 정상", 
-        "(McBurney sign) 정상",
-        "(Obturator sign) 정상",
-        "(Murphy sign) 정상",
-        "(직장수지검사) 정상"
+  
+      "abdomen": [
+        {
+          "title": "Inspection",
+          "items": [
+            { "maneuver": "복부 시진", "result": "배가 전체적으로 팽만해 보임" }
+          ]
+        },
+        {
+          "title": "Auscultation",
+          "items": [
+            { "maneuver": "장음 청진", "result": "장음이 감소되어 잘 들리지 않음" }
+          ]
+        },
+        {
+          "title": "Percussion",
+          "items": [
+            { "maneuver": "복부 타진", "result": "복부 전체에서 타진음이 둔탁함" }
+          ]
+        },
+        {
+          "title": "Palpation",
+          "items": [
+            { "maneuver": "명치 부위 촉진", "result": "압통이 있음" },
+            { "maneuver": "명치 부위 반발 압통 확인", "result": "반발 압통이 있음" },
+            { "maneuver": "간 촉진", "result": "정상" },
+            { "maneuver": "비장 촉진", "result": "정상" }
+          ]
+        },
+        {
+          "title": "Special tests",
+          "items": [
+            { "maneuver": "Psoas sign", "result": "정상" },
+            { "maneuver": "Rovsing sign", "result": "정상" },
+            { "maneuver": "McBurney sign", "result": "정상" },
+            { "maneuver": "Obturator sign", "result": "정상" },
+            { "maneuver": "Murphy sign", "result": "정상" }
+          ]
+        }
       ],
-      "등/상지_팔/하지_다리": [
-        "(CVAT tenderness) 정상",
-        "(하지부종) 정상"
+  
+      "back_flank": [
+        {
+          "title": "CVA tenderness",
+          "items": [
+            { "maneuver": "CVAT tenderness 확인", "result": "정상" }
+          ]
+        }
       ],
-      "뇌신경_운동신경_감각신경": [
-        "(의식) 정상",
-        "(뇌신경) 정상",
-        "(운동신경) 정상",
-        "(감각신경) 정상"
+  
+      "extremities_upper": [
+        { "title": "Screening", "items": [] }
       ],
-      "피부": [
-        "(피부 색조) 정상",
-        "(발진) 정상",
-        "(황달) 정상"
+  
+      "extremities_lower": [
+        {
+          "title": "Edema",
+          "items": [
+            { "maneuver": "하지부종 확인", "result": "정상" }
+          ]
+        }
       ],
-      "기타": []
+  
+      "neurologic_exam": [
+        {
+          "title": "Consciousness / cranial nerves / motor / sensory",
+          "items": [
+            { "maneuver": "의식 확인", "result": "정상" },
+            { "maneuver": "뇌신경 검사", "result": "정상" },
+            { "maneuver": "운동신경(근력) 검사", "result": "정상" },
+            { "maneuver": "감각신경 검사", "result": "정상" }
+          ]
+        }
+      ],
+  
+      "skin": [
+        {
+          "title": "Inspection",
+          "items": [
+            { "maneuver": "피부 색조 관찰", "result": "정상" },
+            { "maneuver": "발진 확인", "result": "정상" },
+            { "maneuver": "황달 확인", "result": "정상" }
+          ]
+        }
+      ],
+  
+      "genitourinary": [
+        { "title": "External genital exam", "items": [] }
+      ],
+  
+      "rectal": [
+        {
+          "title": "DRE",
+          "items": [
+            { "maneuver": "직장수지검사", "result": "정상" }
+          ]
+        }
+      ],
+  
+      "pelvic": [
+        { "title": "Pelvic exam", "items": [] }
+      ],
+  
+      "miscellaneous_pe": [
+        { "title": "Other", "items": [] }
+      ]
     }
   }
