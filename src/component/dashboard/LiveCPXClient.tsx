@@ -64,6 +64,53 @@ export default function LiveCPXClient({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const userAudioChunks = useRef<Blob[]>([]);
   const rafRef = useRef<number | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  const releaseWakeLock = useCallback(async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+        console.log("Wake Lock 해제됨");
+      } catch (err) {
+        console.warn("Wake Lock 해제 중 오류:", err);
+      }
+    }
+  }, []);
+
+  const requestWakeLock = useCallback(async () => {
+    if ("wakeLock" in navigator) {
+      try {
+        wakeLockRef.current = await navigator.wakeLock.request("screen");
+        console.log("Wake Lock 활성화됨 - 화면이 꺼지지 않습니다");
+
+        // 탭이 다시 visible 상태가 되면 wake lock 재요청
+        wakeLockRef.current.addEventListener("release", () => {
+          console.log("Wake Lock이 해제됨");
+        });
+      } catch (err) {
+        console.warn("Wake Lock 요청 실패:", err);
+      }
+    }
+  }, []);
+
+  // 탭 visibility 변경 시 wake lock 재요청
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (
+        document.visibilityState === "visible" &&
+        (isRecording || connected) &&
+        !wakeLockRef.current
+      ) {
+        await requestWakeLock();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isRecording, connected, requestWakeLock]);
 
   const stopAndResetSession = useCallback(async () => {
     try {
@@ -78,6 +125,9 @@ export default function LiveCPXClient({
       userAudioChunks.current = [];
       cancelAnimationFrame(rafRef.current!);
 
+      // Wake Lock 해제
+      await releaseWakeLock();
+
       setIsRecording(false);
       setConnected(false);
       setIsUploading(false);
@@ -88,7 +138,7 @@ export default function LiveCPXClient({
     } catch (err) {
       console.warn("세션 종료 중 오류:", err);
     }
-  }, []);
+  }, [releaseWakeLock]);
 
   useEffect(() => {
     if (virtualPatient) {
@@ -194,15 +244,20 @@ export default function LiveCPXClient({
     if (sessionRef.current || connected || isRecording || isUploading) return;
     setConnected(true);
 
+    // Wake Lock 요청 - 화면이 꺼지지 않도록
+    await requestWakeLock();
+
     if (!caseData) {
       alert("가상환자 데이터가 준비되지 않았어요.");
       setConnected(false);
+      await releaseWakeLock();
       return;
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setStatusMessage("이 브라우저에서는 마이크를 사용할 수 없어요.");
       setConnected(false);
+      await releaseWakeLock();
       return;
     }
 
@@ -219,6 +274,7 @@ export default function LiveCPXClient({
       } catch (micErr: any) {
         console.error("마이크 접근 오류:", micErr.name, micErr.message);
         setConnected(false);
+        await releaseWakeLock();
 
         if (micErr.name === "NotAllowedError") {
           // 권한 차단된 경우 가이드 모달 표시
@@ -255,6 +311,7 @@ export default function LiveCPXClient({
         console.error("API 키 획득 실패:", keyData);
         setStatusMessage("API 키를 가져올 수 없습니다.");
         setConnected(false);
+        await releaseWakeLock();
         return;
       }
 
@@ -328,6 +385,7 @@ export default function LiveCPXClient({
     } catch (err: any) {
       console.error("세션 시작 오류:", err);
       setConnected(false);
+      await releaseWakeLock();
       setStatusMessage(`세션 연결 실패: ${err?.message || "알 수 없는 오류"}`);
     }
   }
@@ -387,6 +445,7 @@ export default function LiveCPXClient({
       alert("업로드 실패");
     } finally {
       cancelAnimationFrame(rafRef.current!);
+      await releaseWakeLock();
       setIsRecording(false);
       setConnected(false);
       setIsUploading(false);
