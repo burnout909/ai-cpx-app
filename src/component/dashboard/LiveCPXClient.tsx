@@ -278,7 +278,7 @@ export default function LiveCPXClient({
 
       const session: any = new RealtimeSession(agent, {
         model: "gpt-realtime-2025-08-28",
-        historyStoreAudio: true,
+        historyStoreAudio: false,
       });
       sessionRef.current = session;
 
@@ -287,6 +287,7 @@ export default function LiveCPXClient({
         apiKey: value,
         speed: 1.5,
         prewarm: true,
+        eagerness: "high", // 빠른 응답 시작
         turnDetection: {
           type: "client_vad",
           silence_duration_ms: 0,
@@ -322,7 +323,7 @@ export default function LiveCPXClient({
         }
       };
 
-      recorder.start(500);
+      recorder.start(100); // 100ms마다 chunk 생성
       setIsRecording(true);
     } catch (err: any) {
       console.error("세션 시작 오류:", err);
