@@ -15,6 +15,7 @@ import { fetchOnboardingStatus } from "@/lib/onboarding";
 import toast from "react-hot-toast";
 import IdRejectedPopup from "@/component/IdRejectedPopup";
 import { postMetadata } from "@/lib/metadata";
+import NoSleep from "nosleep.js";
 
 const DEFAULT_SECONDS = 12 * 60; // 12분
 const MIN_SECONDS = 5 * 60; // 최소 2.5분
@@ -75,6 +76,33 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     const rafIdRef = useRef<number | null>(null);
     const twoMinAlertedRef = useRef(false); // 2분 전 알림 여부
     const endAlertedRef = useRef(false); // 종료 알림 여부
+    const noSleepRef = useRef<NoSleep | null>(null);
+
+    // NoSleep 인스턴스 초기화
+    useEffect(() => {
+        noSleepRef.current = new NoSleep();
+        return () => {
+            noSleepRef.current?.disable();
+        };
+    }, []);
+
+    const enableNoSleep = useCallback(() => {
+        try {
+            noSleepRef.current?.enable();
+            console.log("NoSleep 활성화됨 - 화면이 꺼지지 않습니다");
+        } catch (err) {
+            console.warn("NoSleep 활성화 실패:", err);
+        }
+    }, []);
+
+    const disableNoSleep = useCallback(() => {
+        try {
+            noSleepRef.current?.disable();
+            console.log("NoSleep 비활성화됨");
+        } catch (err) {
+            console.warn("NoSleep 비활성화 실패:", err);
+        }
+    }, []);
 
     const showTime = useCallback((sec: number) => {
         const mm = Math.floor(sec / 60).toString().padStart(2, "0");
@@ -137,6 +165,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     // 녹음 시작
     async function startRecording() {
         setIsConnencting(true)
+        enableNoSleep(); // 화면 꺼짐 방지
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mediaRecorder = new MediaRecorder(stream);
@@ -186,6 +215,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
         } catch (err) {
             alert("마이크 접근이 거부되었거나 오류가 발생했습니다.");
             setIsConnencting(false);
+            disableNoSleep();
             console.error(err);
         }
     }
@@ -225,6 +255,8 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
         if (audioCtx && audioCtx.state !== "closed") {
             audioCtx.close();
         }
+
+        disableNoSleep(); // 화면 꺼짐 방지 해제
     }
 
     const ensureOnboarding = async () => {
