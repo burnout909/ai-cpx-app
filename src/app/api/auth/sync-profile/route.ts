@@ -17,27 +17,14 @@ export async function POST() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const displayName =
-    (user.user_metadata?.name as string | undefined) ||
-    (user.user_metadata?.full_name as string | undefined) ||
-    null;
-  const studentNumber =
-    (user.user_metadata?.student_number as string | undefined) ||
-    (user.user_metadata?.studentNumber as string | undefined) ||
-    null;
-
   const profile = await prisma.profile.upsert({
     where: { id: user.id },
     update: {
       email: user.email ?? null,
-      displayName,
-      studentNumber,
     },
     create: {
       id: user.id,
       email: user.email ?? null,
-      displayName,
-      studentNumber,
     },
   });
 
