@@ -1,8 +1,18 @@
 import { SectionId } from "@/app/api/collectEvidence/route";
 import { generateDownloadUrl } from "@/app/api/s3/s3";
-import { GradeItem, SectionResult } from "@/types/score";
+import { GradeItem, SectionResult, SectionTimingMap } from "@/types/score";
 import { EvidenceChecklist, loadChecklistByCase, ScoreChecklist, EvidenceModule } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
+
+interface TurnTimestamp {
+    text: string;
+    elapsedSec: number;
+}
+
+interface TimestampsPayload {
+    sessionDurationSec: number;
+    turns: TurnTimestamp[];
+}
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
@@ -26,8 +36,9 @@ export function useLiveAutoPipeline(
     setResults: (data: SectionResult[]) => void,
     setActiveSection: (section: SectionKey | null) => void,
     setDone: (done: boolean) => void,
+    setTimingBySection?: (timing: SectionTimingMap) => void,
 ) {
-    return async function runLiveAutoPipeline(key: string, caseName: string, checklistId?: string | null) {
+    return async function runLiveAutoPipeline(key: string, caseName: string, checklistId?: string | null, timestampsS3Key?: string | null) {
         const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
         try {
             // 1️⃣ 체크리스트 불러오기
@@ -85,7 +96,7 @@ export function useLiveAutoPipeline(
             const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
 
 
-            // 3️⃣ 채점 먼저 수행
+            // 3️⃣ 채점 + 섹션 분류 병렬 수행
             setStatusMessage('채점 중');
 
             const resultsPromises: Promise<SectionResult>[] = sectionIds.map(async (sectionId) => {
@@ -103,8 +114,56 @@ export function useLiveAutoPipeline(
                 return { sectionId, evidenceList: data.evidenceList || [] } as SectionResult;
             });
 
-            const results = await Promise.all(resultsPromises);
+            // VP timestamps 다운로드 (있으면)
+            let turnTimestamps: TurnTimestamp[] | undefined;
+            let sessionDurationSec: number | undefined;
+            if (timestampsS3Key && bucket) {
+                try {
+                    const tsUrl = await generateDownloadUrl(bucket, timestampsS3Key);
+                    const tsRes = await fetch(tsUrl);
+                    if (tsRes.ok) {
+                        const tsData: TimestampsPayload = await tsRes.json();
+                        turnTimestamps = tsData.turns;
+                        sessionDurationSec = tsData.sessionDurationSec;
+                    }
+                } catch (err) {
+                    console.warn('[VP timestamps download failed]', err);
+                }
+            }
+
+            // classifySections를 collectEvidence와 병렬 실행
+            const classifyBody: Record<string, unknown> = { transcript };
+            if (turnTimestamps && turnTimestamps.length > 0) {
+                classifyBody.turnTimestamps = turnTimestamps;
+                if (sessionDurationSec) classifyBody.totalDurationSec = sessionDurationSec;
+            } else {
+                classifyBody.totalDurationSec = 720;
+            }
+
+            const classifyPromise = fetch('/api/classifySections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(classifyBody),
+            })
+                .then(async (res) => {
+                    if (!res.ok) throw new Error('classifySections failed');
+                    const data = await res.json();
+                    return data.timing as SectionTimingMap;
+                })
+                .catch((err) => {
+                    console.warn('[classifySections skipped]', err);
+                    return null;
+                });
+
+            const [results, timingResult] = await Promise.all([
+                Promise.all(resultsPromises),
+                classifyPromise,
+            ]);
+
             setResults(results);
+            if (timingResult && setTimingBySection) {
+                setTimingBySection(timingResult);
+            }
 
             // 4️⃣ 점수 계산
             const graded: Record<'history' | 'physical_exam' | 'education' | 'ppi', GradeItem[]> = {

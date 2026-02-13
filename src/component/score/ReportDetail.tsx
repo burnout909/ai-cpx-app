@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { GradeItem } from "@/types/score";
 import YesIcon from "@/assets/icon/YesIcon.svg";
 import NoIcon from "@/assets/icon/NoIcon.svg";
@@ -7,10 +7,21 @@ export default function ReportDetailTable({ grades }: { grades?: GradeItem[] }) 
     const borderColor = '#DDD6FE';
     const items = grades || [];
     const [filter, setFilter] = useState<"all" | "correct" | "incorrect">("all");
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-    // 섹션이 바뀌면 필터 초기화
+    const toggleExpand = useCallback((id: string) => {
+        setExpandedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
+
+    // 섹션이 바뀌면 필터·확장 초기화
     useEffect(() => {
         setFilter("all");
+        setExpandedIds(new Set());
     }, [grades]);
 
     const filteredItems = useMemo(() => {
@@ -76,25 +87,47 @@ export default function ReportDetailTable({ grades }: { grades?: GradeItem[] }) 
                                 </td>
                             </tr>
                         ) : (
-                            filteredItems.map((g) => (
-                                <tr key={g.id} className="align-top border-t" style={{ borderColor }}>
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium">{g.title}</div>
-                                        {g.evidence?.length > 0 && (
-                                            <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-[#666]">
-                                                {g.evidence.map((evi, i) => (
-                                                    <li key={i} className="whitespace-pre-wrap">
-                                                        {evi}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap flex justify-end">
-                                        {g.point > 0 ? <YesIcon width={24} height={24} className="text-[#00BF40]" /> : <NoIcon width={24} height={24} className="text-[#FF4242]" />}
-                                    </td>
-                                </tr>
-                            ))
+                            filteredItems.map((g) => {
+                                const expanded = expandedIds.has(g.id);
+                                return (
+                                    <tr
+                                        key={g.id}
+                                        className="align-top border-t cursor-pointer select-none active:bg-gray-100 transition-colors"
+                                        style={{ borderColor }}
+                                        onClick={() => toggleExpand(g.id)}
+                                    >
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-1.5">
+                                                <span
+                                                    className="text-[10px] text-[#999] transition-transform duration-200"
+                                                    style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                                                >
+                                                    ▶
+                                                </span>
+                                                <span className="font-medium">{g.title}</span>
+                                            </div>
+                                            {expanded && g.criteria && (
+                                                <div className="mt-2 pl-3 text-sm text-[#555] leading-relaxed">
+                                                    <span className="font-semibold text-[#7553FC]">채점 기준: </span>
+                                                    {g.criteria}
+                                                </div>
+                                            )}
+                                            {g.evidence?.length > 0 && (
+                                                <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-[#666]">
+                                                    {g.evidence.map((evi, i) => (
+                                                        <li key={i} className="whitespace-pre-wrap">
+                                                            {evi}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap flex justify-end">
+                                            {g.point > 0 ? <YesIcon width={24} height={24} className="text-[#00BF40]" /> : <NoIcon width={24} height={24} className="text-[#FF4242]" />}
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

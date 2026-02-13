@@ -90,6 +90,8 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             setVolume(0);
             setSeconds(INITIAL_SECONDS);
             setConversationText([]);
+            sessionStartRef.current = 0;
+            turnTimestampsRef.current = [];
 
 
         } catch (err) {
@@ -183,6 +185,8 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     const recorderRef = useRef<MediaRecorder | null>(null);
     const userAudioChunks = useRef<Blob[]>([]);
     const rafRef = useRef<number | null>(null);
+    const sessionStartRef = useRef<number>(0);
+    const turnTimestampsRef = useRef<{ text: string; elapsedSec: number }[]>([]);
 
     /** 볼륨 업데이트 */
     const updateVolume = (analyser: AnalyserNode) => {
@@ -247,6 +251,8 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                 historyStoreAudio: false
             });
             sessionRef.current = session;
+            sessionStartRef.current = Date.now();
+            turnTimestampsRef.current = [];
 
             await session.connect({
                 apiKey: value,
@@ -281,8 +287,17 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                     // transcript가 비어 있으면 제외
                     .filter((line) => line && line.trim().length > 0);
 
+                // 새 턴이 추가될 때마다 timestamp 기록
+                if (parsed.length > turnTimestampsRef.current.length) {
+                    for (let i = turnTimestampsRef.current.length; i < parsed.length; i++) {
+                        turnTimestampsRef.current.push({
+                            text: parsed[i],
+                            elapsedSec: (Date.now() - sessionStartRef.current) / 1000,
+                        });
+                    }
+                }
+
                 setConversationText(parsed);
-                // console.log(parsed)
             });
 
 
@@ -361,6 +376,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             if (!res.ok) throw new Error("S3 업로드 실패 (음성)");
 
             const historyKey = `VP_script/${studentId}-${timestamp}.txt`;
+            const timestampsKey = `VP_timestamps/${studentId}-${timestamp}.json`;
             let sessionId: string | null = null;
 
             const audioMeta = await postMetadata({
@@ -405,13 +421,36 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                 console.warn("⚠️ 대화 내용이 비어 있어 히스토리를 업로드하지 않았습니다.");
             }
 
+            // VP timestamps JSON 업로드
+            if (turnTimestampsRef.current.length > 0) {
+                const sessionDurationSec = (Date.now() - sessionStartRef.current) / 1000;
+                const timestampsPayload = {
+                    sessionDurationSec,
+                    turns: turnTimestampsRef.current,
+                };
+                const tsBlob = new Blob(
+                    [JSON.stringify(timestampsPayload, null, 2)],
+                    { type: "application/json" }
+                );
+                const uploadTsUrl = await generateUploadUrl(bucket, timestampsKey);
+                const tsRes = await fetch(uploadTsUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: tsBlob,
+                });
+                if (!tsRes.ok) console.warn("VP timestamps 업로드 실패");
+            }
+
             // 채점 페이지로 이동
             startTransition(() => {
                 const sessionParam = sessionId
                     ? `&sessionId=${encodeURIComponent(sessionId)}`
                     : "";
+                const tsParam = turnTimestampsRef.current.length > 0
+                    ? `&timestampsS3Key=${encodeURIComponent(timestampsKey)}`
+                    : "";
                 router.push(
-                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("VP")}${sessionParam}`
+                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("VP")}${sessionParam}${tsParam}`
                 );
             });
         } catch (err) {

@@ -21,6 +21,7 @@ const DEFAULT_SECONDS = 12 * 60; // 12분
 const MIN_SECONDS = 5 * 60; // 최소 2.5분
 const MAX_SECONDS = 20 * 60; // 최대 20분
 const STEP_SECONDS = 30; // 30초 단위
+const INITIAL_READY_SECONDS = 60; // 준비 시간 60초
 
 // 음성 알림 파일 경로
 const AUDIO_ALERTS = {
@@ -58,6 +59,8 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     const [isPreviewReady, setIsPreviewReady] = useState(false); //미리듣기 음성 준비 상태
     const [isUploadingToS3, setIsUploadingToS3] = useState(false); //s3로 파일 업로드
     const [isConnecting, setIsConnencting] = useState(false); //세션 연결 상태
+    const [readySeconds, setReadySeconds] = useState<number | null>(null); // 준비 시간 타이머
+    const [useReadyTimer, setUseReadyTimer] = useState(true); // 준비 시간 토글
     const [verificationPopup, setVerificationPopup] = useState<{
         kind: "missing" | "rejected";
         reason?: string | null;
@@ -281,13 +284,40 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
         return true;
     };
 
+    // 준비 타이머 카운트다운
+    useEffect(() => {
+        if (readySeconds === null) return;
+
+        if (readySeconds > 0) {
+            const id = setInterval(() => {
+                setReadySeconds((prev) => (prev !== null ? prev - 1 : null));
+            }, 1000);
+            return () => clearInterval(id);
+        } else if (readySeconds === 0) {
+            setReadySeconds(null);
+            startRecording();
+        }
+    }, [readySeconds]);
+
     // 토글
     const toggleRecording = async () => {
         if (isFinished) return;
+
+        // 준비 카운트다운 중 플레이 버튼 클릭 → 즉시 시작
+        if (readySeconds !== null && readySeconds > 0) {
+            setReadySeconds(null);
+            startRecording();
+            return;
+        }
+
         if (!isRecording && !isPaused && seconds === duration) {
             const ok = await ensureOnboarding();
             if (!ok) return;
-            startRecording();
+            if (useReadyTimer) {
+                setReadySeconds(INITIAL_READY_SECONDS); // 준비 타이머 시작
+            } else {
+                startRecording(); // 바로 시작
+            }
         } else if (isRecording && !isPaused) {
             pauseRecording();
         } else if (!isRecording && isPaused && seconds !== duration) {
@@ -474,7 +504,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                         <button
                             type="button"
                             onClick={toggleRecording}
-                            disabled={isFinished || isUploadingToS3 || isConvertingDirect || isConverting || isConnecting}
+                            disabled={isFinished || isUploadingToS3 || isConvertingDirect || isConverting || isConnecting || (readySeconds !== null && readySeconds <= 0)}
                             className="outline-none relative z-10 cursor-pointer hover:opacity-70
                         transition-transform duration-150 ease-out active:scale-90"
                         >
@@ -487,7 +517,21 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                     </div>
 
                     {/* 타이머 */}
-                    <div className="font-semibold text-[22px] text-[#7553FC] flex gap-3 items-center">
+                    <div className="font-semibold text-[#7553FC] flex flex-col items-center gap-2">
+                        {readySeconds !== null && !isRecording && !isFinished ? (
+                            <div className="text-center">
+                                <span className="text-[22px]">
+                                    {readySeconds}초
+                                </span>
+                                <span> </span>
+                                <span className="font-medium text-[16px]">
+                                    후 실습이 시작됩니다.
+                                    <br />
+                                    준비되었다면 <span className="font-bold">플레이 버튼</span>을 눌러주세요.
+                                </span>
+                            </div>
+                        ) : (
+                        <div className="text-[22px] flex gap-3 items-center">
                         {/* 녹음 시작 전: +/- 버튼 표시 */}
                         {!isRecording && !isPaused && seconds === duration && (
                             <button
@@ -531,6 +575,24 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                             >
                                 <RefreshIcon className="w-[20px] h-[20px] text-[#7553FC] hover:opacity-50" />
                             </button>
+                        )}
+                        </div>
+                        )}
+
+                        {/* 준비 시간 토글 */}
+                        {!isRecording && !isPaused && seconds === duration && readySeconds === null && (
+                            <div className="flex items-center gap-2 mt-2">
+                                <span className="text-[16px] font-semibold text-[#7553FC]">상황 숙지 시간</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setUseReadyTimer((v) => !v)}
+                                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${useReadyTimer ? "bg-[#7553FC]" : "bg-gray-300"}`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${useReadyTimer ? "translate-x-5" : "translate-x-0"}`}
+                                    />
+                                </button>
+                            </div>
                         )}
                     </div>
 

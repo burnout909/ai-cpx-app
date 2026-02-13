@@ -4,7 +4,7 @@ import ReportDetailTable from '@/component/score/ReportDetail';
 import ReportSummary from '@/component/score/ReportSummary';
 import { useAutoPipeline } from '@/hooks/score/useAutoPipeline';
 import { useLiveAutoPipeline } from '@/hooks/score/useLiveAutoPipeline';
-import { GradeItem, SectionResult } from '@/types/score';
+import { GradeItem, SectionResult, SectionTimingMap } from '@/types/score';
 import { getAllTotals } from '@/utils/score';
 import { useEffect, useState, useRef } from 'react';
 import Header from '@/component/Header';
@@ -26,17 +26,19 @@ interface Props {
     origin: "VP" | "SP";
     sessionId: string | null;
     checklistId: string | null;
+    timestampsS3Key: string | null;
 }
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
-export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin, sessionId: initialSessionId, checklistId }: Props) {
+export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin, sessionId: initialSessionId, checklistId, timestampsS3Key }: Props) {
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
     const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
     const [done, setDone] = useState<boolean>(false);
     const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
+    const [timingBySection, setTimingBySection] = useState<SectionTimingMap>({});
 
     // 새로 추가: 솔루션 마크다운/HTML 상태
     const [solutionHtml, setSolutionHtml] = useState<string>("");
@@ -72,7 +74,11 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                 const key = `${origin}_structuredScore/${studentNumber}-${timestamp}.json`;
 
                 const uploadUrl = await generateUploadUrl(bucket, key);
-                const body = new Blob([JSON.stringify(gradesBySection, null, 2)], {
+                const uploadPayload = {
+                    ...gradesBySection,
+                    ...(Object.keys(timingBySection).length > 0 ? { timingBySection } : {}),
+                };
+                const body = new Blob([JSON.stringify(uploadPayload, null, 2)], {
                     type: 'application/json; charset=utf-8',
                 });
 
@@ -103,7 +109,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
             }
         })();
         // gradesBySection이 채워지는 시점에 1회 시도
-    }, [gradesBySection, studentNumber, caseName, origin, sessionId]);
+    }, [gradesBySection, studentNumber, caseName, origin, sessionId, timingBySection]);
 
 
 
@@ -114,13 +120,14 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
         setResults,
         setActiveSection,
         setDone,
-        (id) => setSessionId(id)
+        (id) => setSessionId(id),
+        setTimingBySection,
     );
-    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setDone);
+    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setDone, setTimingBySection);
 
     useEffect(() => {
         if (!caseName) return;
-        if (transcriptS3Key) runLiveAutoPipeline(transcriptS3Key, caseName, checklistId);
+        if (transcriptS3Key) runLiveAutoPipeline(transcriptS3Key, caseName, checklistId, timestampsS3Key);
         else if (audioKeys.length > 0) runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId);
     }, [audioKeys, transcriptS3Key, caseName, checklistId]);
 
@@ -222,6 +229,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                             active={activeSection}
                             setActive={setActiveSection}
                             PART_LABEL={PART_LABEL}
+                            timing={timingBySection}
                         />
                         <ReportDetailTable grades={activeSection ? gradesBySection[activeSection] : []} />
                     </div>

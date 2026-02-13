@@ -1,11 +1,18 @@
 import { SectionId } from "@/app/api/collectEvidence/route";
-import { GradeItem, SectionResult } from "@/types/score";
+import { GradeItem, SectionResult, SectionTimingMap } from "@/types/score";
 import { EvidenceChecklist, loadChecklistByCase, EvidenceModule } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { postMetadata } from "@/lib/metadata";
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
+
+interface ApiSegment {
+    id: number;
+    start: number;
+    end: number;
+    text: string;
+}
 
 // DB에서 체크리스트 로드
 async function loadChecklistFromDB(checklistId: string): Promise<EvidenceModule> {
@@ -31,6 +38,7 @@ export function useAutoPipeline(
     setActiveSection: (section: SectionKey | null) => void,
     setDone: (done: boolean) => void,
     onSessionId?: (sessionId: string) => void,
+    setTimingBySection?: (timing: SectionTimingMap) => void,
 ) {
     function deriveScriptKey(audioKeys: string[]): string | null {
         const first = audioKeys[0];
@@ -82,7 +90,7 @@ export function useAutoPipeline(
             // };
 
             const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
-            // 전사 (병렬 수행, 결과 순서 보장)
+            // 전사 (병렬 수행, 결과 순서 보장) — segments도 보존
             setStatusMessage(`오디오 전사 중`);
             const transcriptParts = await Promise.all(
                 audioKeys.map(async (key) => {
@@ -93,10 +101,30 @@ export function useAutoPipeline(
                     });
                     const data1 = await readJsonOrText(res1);
                     await ensureOkOrThrow(res1, data1);
-                    return data1?.text || '';
+                    return {
+                        text: data1?.text || '',
+                        segments: (data1?.segments || []) as ApiSegment[],
+                    };
                 })
             );
-            const text = transcriptParts.join('\n');
+            const text = transcriptParts.map((p) => p.text).join('\n');
+
+            // Merge segments with offset for multi-part audio
+            const allSegments: ApiSegment[] = [];
+            let timeOffset = 0;
+            for (const part of transcriptParts) {
+                for (const seg of part.segments) {
+                    allSegments.push({
+                        ...seg,
+                        id: allSegments.length + 1,
+                        start: seg.start + timeOffset,
+                        end: seg.end + timeOffset,
+                    });
+                }
+                if (part.segments.length > 0) {
+                    timeOffset = part.segments[part.segments.length - 1].end + timeOffset;
+                }
+            }
 
             // 전사 결과를 S3에 저장 (SP_script/ 경로로 교체, 나머지는 동일하게 유지)
             try {
@@ -138,7 +166,7 @@ export function useAutoPipeline(
                 console.warn('[script upload failed]', err);
             }
 
-            // 채점 먼저 수행
+            // 채점 + 섹션 분류 병렬 수행
             setStatusMessage('채점 중');
 
             const resultsPromises: Promise<SectionResult>[] = sectionIds.map(async (sectionId) => {
@@ -156,8 +184,34 @@ export function useAutoPipeline(
                 return { sectionId, evidenceList: data.evidenceList || [] } as SectionResult;
             });
 
-            const results = await Promise.all(resultsPromises);
+            // classifySections를 collectEvidence와 병렬 실행
+            const classifyPromise = fetch('/api/classifySections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transcript: text,
+                    segments: allSegments.length > 0 ? allSegments : undefined,
+                }),
+            })
+                .then(async (res) => {
+                    if (!res.ok) throw new Error('classifySections failed');
+                    const data = await res.json();
+                    return data.timing as SectionTimingMap;
+                })
+                .catch((err) => {
+                    console.warn('[classifySections skipped]', err);
+                    return null;
+                });
+
+            const [results, timingResult] = await Promise.all([
+                Promise.all(resultsPromises),
+                classifyPromise,
+            ]);
+
             setResults(results);
+            if (timingResult && setTimingBySection) {
+                setTimingBySection(timingResult);
+            }
 
             // 점수 계산
             const graded: Record<'history' | 'physical_exam' | 'education' | 'ppi', GradeItem[]> = {

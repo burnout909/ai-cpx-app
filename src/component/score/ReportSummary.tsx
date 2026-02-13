@@ -1,4 +1,13 @@
+import { SectionTimingMap } from '@/types/score';
+
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
+
+function formatDuration(sec: number): string {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    if (m > 0) return `${m}분 ${s}초`;
+    return `${s}초`;
+}
 
 // 총점 & 섹션 요약 카드
 export default function ReportSummary({
@@ -7,12 +16,14 @@ export default function ReportSummary({
     active,
     setActive,
     PART_LABEL,
+    timing,
 }: {
     totals: Record<string, { got: number; max: number }>;
     overall: { got: number; max: number };
     active: string | null;
     setActive: (s: SectionKey | null) => void;
     PART_LABEL: Record<string, string>;
+    timing?: SectionTimingMap;
 }) {
     const primaryColor = '#7553FC';
     const secondaryColor = '#E9E2FF';
@@ -69,6 +80,14 @@ export default function ReportSummary({
                                     {val.got} / {val.max}
                                 </span>
                             </div>
+                            {timing?.[key]?.durationSec != null && (
+                                <div
+                                    className="mt-1 text-xs"
+                                    style={{ color: isActive ? primaryColor : '#888' }}
+                                >
+                                    {formatDuration(timing[key].durationSec!)}
+                                </div>
+                            )}
                         </button>
                     );
                 })}

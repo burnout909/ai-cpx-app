@@ -18,3 +18,9 @@ export interface GradeItem {
     point: number;
     max_evidence_count: number;
 }
+
+export interface SectionTimingInfo {
+    durationSec: number | null;
+}
+
+export type SectionTimingMap = Record<string, SectionTimingInfo>;
