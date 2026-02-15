@@ -91,6 +91,64 @@ Required in `.env.local`:
 - `OPENAI_API_KEY`
 - `NEXT_PUBLIC_S3_BUCKET_NAME`, AWS credentials for S3
 
+## Coding Conventions
+
+### Naming
+- **Components**: PascalCase (e.g., `ScoreCard.tsx`, `LiveSelectPage.tsx`)
+- **Hooks**: camelCase with `use` prefix (e.g., `useAutoPipeline.ts`, `useUserStore.ts`)
+- **Utils**: camelCase (e.g., `loadChecklist.ts`, `loadVirtualPatient.ts`)
+- **API routes**: camelCase directory name + `route.ts` (e.g., `collectEvidence/route.ts`)
+- **Checklist files**: `evidenceChecklist_XX_englishName.ts`, `scoreChecklist_XX_englishName.ts`
+- **VP files**: `english_name_NNN.json` (e.g., `acute_abdominal_pain_001.json`)
+
+### Language
+- **UI text, checklist criteria, case names**: Korean (한국어)
+- **Code identifiers, file names, comments**: English
+- **switch case keys in loadChecklist/loadVirtualPatient**: Korean case names (e.g., `"급성복통"`, `"호흡곤란"`)
+
+### Component Patterns
+- Client components: `"use client"` directive at top, use hooks for state/effects
+- Server components: default (no directive), use `async` for data fetching
+- API routes: export named HTTP method functions (`GET`, `POST`, etc.)
+
+### Key Patterns
+
+**API Route structure** (`src/app/api/*/route.ts`):
+- Import `getOpenAIClient` from `../_lib` for OpenAI access
+- Use `NextResponse.json<T>()` with typed response DTOs
+- Define request/response interfaces in the same file
+- Error handling: try/catch with typed error response
+
+**Checklist loading** (`src/utils/loadChecklist.ts`):
+- Switch on Korean case name → dynamic import of evidence + score modules
+- Each module exports: `HistoryEvidenceChecklist`, `PhysicalexamEvidenceChecklist`, `EducationEvidenceChecklist`, `PpiEvidenceChecklist`
+- Score modules export: `HistoryScoreChecklist`, `PhysicalExamScoreChecklist`, `EducationScoreChecklist`, `PpiScoreChecklist`
+
+**Virtual Patient loading** (`src/utils/loadVirtualPatient.ts`):
+- Switch on Korean case name → dynamic import of JSON + image + solution
+- VP JSON structure: `id`, `title`, `description`, `meta` (patient info), `history`, `additional_history`, `physical_exam`, `questions`
+- Each VP needs: `.json` (scenario), `.png` (profile image), `_solution.ts` (answer key)
+
+**Scoring Pipeline** (`useAutoPipeline` / `useLiveAutoPipeline`):
+- Flow: load checklist → transcribe audio (Whisper) → collect evidence (GPT-5.1) per section → classify sections → calculate grades
+- Sections: `history`, `physical_exam`, `education`, `ppi`
+- Evidence + classifySections run in parallel after transcription
+- Results stored to S3 and tracked via metadata API
+
+## Caveats
+
+- **Turbopack issues**: Use `npm run dev:web` if Turbopack causes problems
+- **S3 key structure**: `SP_audio/`, `SP_script/`, `VP_audio/` prefixes distinguish content types
+- **Supabase auth cookies**: Server-side auth uses `src/lib/supabase/server.ts` with cookie-based sessions
+- **Evidence checklist**: Some case-specific files include `example` field, base checklist does not — both patterns are valid
+- **Score checklist**: `max_evidence_count` currently not used in grading (hardcoded to 1), but data structure is maintained for future use
+
+## Deployment
+
+- **Platform**: Vercel (auto-deploy on git push to main)
+- **Build check**: Always run `npm run build` before pushing to verify no build errors
+- **Environment**: Production env vars configured in Vercel dashboard
+
 ## Path Aliases
 
 `@/*` maps to `./src/*` (configured in tsconfig.json)
