@@ -191,6 +191,7 @@ export function useAutoPipeline(
                 body: JSON.stringify({
                     transcript: text,
                     segments: allSegments.length > 0 ? allSegments : undefined,
+                    caseName,
                 }),
             })
                 .then(async (res) => {

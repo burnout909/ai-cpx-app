@@ -132,7 +132,7 @@ export function useLiveAutoPipeline(
             }
 
             // classifySections를 collectEvidence와 병렬 실행
-            const classifyBody: Record<string, unknown> = { transcript };
+            const classifyBody: Record<string, unknown> = { transcript, caseName };
             if (turnTimestamps && turnTimestamps.length > 0) {
                 classifyBody.turnTimestamps = turnTimestamps;
                 if (sessionDurationSec) classifyBody.totalDurationSec = sessionDurationSec;
