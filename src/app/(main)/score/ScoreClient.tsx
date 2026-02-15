@@ -175,15 +175,33 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
 
     };
 
-    // 상태 변화 감시: statusMessage가 null로 바뀌면 토스트 띄우기
+    // 상태 변화 감시: statusMessage가 null로 바뀌면 토스트 + 알림음
     useEffect(() => {
         if (statusMessage === null) {
+            // 띵 알림음 재생 (도→미 2음 차임)
+            try {
+                const ctx = new AudioContext();
+                const t = ctx.currentTime;
+                [1047, 1319].forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    const start = t + i * 0.2;
+                    gain.gain.setValueAtTime(0.4, start);
+                    gain.gain.exponentialRampToValueAtTime(0.01, start + 1.0);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(start);
+                    osc.stop(start + 1.0);
+                });
+            } catch {}
+
             const toastId = toast.success(`채점이 완료되었습니다!\n아래 버튼을 눌러 확인해보세요.`, {
-                position: 'top-center', // 버튼 위 중앙에 표시
-                duration: Infinity,     // 직접 닫을 것이므로 자동 닫힘 X
+                position: 'top-center',
+                duration: Infinity,
             });
 
-            // 👇 1초 후에 자동으로 닫기
             setTimeout(() => {
                 toast.dismiss(toastId);
             }, 5000);

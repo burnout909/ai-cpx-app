@@ -1,8 +1,30 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { ScenarioStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
+
+async function requireAdmin() {
+  const cookieStore = await cookies();
+  const adminAccess = cookieStore.get("admin_access")?.value;
+  if (adminAccess !== "1") {
+    return { error: "forbidden", status: 403 } as const;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return { error: "unauthorized", status: 401 } as const;
+  }
+
+  return { user } as const;
+}
 
 /**
  * GET: 시나리오 목록 조회 또는 단일 조회
@@ -15,6 +37,11 @@ export const runtime = "nodejs";
  * - includeAll: true면 LEGACY 포함
  */
 export async function GET(req: Request) {
+  const auth = await requireAdmin();
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -28,6 +55,14 @@ export async function GET(req: Request) {
       const scenario = await prisma.scenario.findUnique({
         where: { id },
         include: {
+          createdBy: {
+            select: {
+              id: true,
+              displayName: true,
+              email: true,
+              users: { select: { raw_user_meta_data: true } },
+            },
+          },
           previousScenario: true,
           nextVersions: {
             orderBy: { versionNumber: "desc" },
@@ -73,6 +108,16 @@ export async function GET(req: Request) {
     // 모든 시나리오 조회
     const allScenarios = await prisma.scenario.findMany({
       where,
+      include: {
+        createdBy: {
+            select: {
+              id: true,
+              displayName: true,
+              email: true,
+              users: { select: { raw_user_meta_data: true } },
+            },
+          },
+      },
       orderBy: [
         { chiefComplaint: "asc" },
         { caseName: "asc" },
@@ -154,6 +199,11 @@ export async function GET(req: Request) {
  * - action: "draft" | "publish"
  */
 export async function POST(req: Request) {
+  const auth = await requireAdmin();
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await req.json();
     const {
@@ -270,6 +320,7 @@ export async function POST(req: Request) {
         previousScenarioId: previousScenarioId || null,
         versionNumber,
         status,
+        createdById: auth.user.id,
         publishedAt: action === "publish" ? new Date() : null,
         scenarioContent: scenarioContent || null,
         checklistSourceVersionId,
@@ -378,6 +429,11 @@ export async function POST(req: Request) {
  * 중요: PUBLISHED/LEGACY는 수정 불가, 새 버전으로 생성해야 함
  */
 export async function PATCH(req: Request) {
+  const auth = await requireAdmin();
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await req.json();
     const {
@@ -508,6 +564,11 @@ export async function PATCH(req: Request) {
  * DELETE: 시나리오 삭제 (DRAFT, PUBLISHED 삭제 허용, LEGACY는 불가)
  */
 export async function DELETE(req: Request) {
+  const auth = await requireAdmin();
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

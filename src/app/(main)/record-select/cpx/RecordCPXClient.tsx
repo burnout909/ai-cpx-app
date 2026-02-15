@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 import IdRejectedPopup from "@/component/IdRejectedPopup";
 import { postMetadata } from "@/lib/metadata";
 import NoSleep from "nosleep.js";
+import FocusModeOverlay from "@/component/FocusModeOverlay";
 
 const DEFAULT_SECONDS = 12 * 60; // 12분
 const MIN_SECONDS = 5 * 60; // 최소 2.5분
@@ -61,6 +62,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     const [isConnecting, setIsConnencting] = useState(false); //세션 연결 상태
     const [readySeconds, setReadySeconds] = useState<number | null>(null); // 준비 시간 타이머
     const [useReadyTimer, setUseReadyTimer] = useState(true); // 준비 시간 토글
+    const [focusMode, setFocusMode] = useState(false);
     const [verificationPopup, setVerificationPopup] = useState<{
         kind: "missing" | "rejected";
         reason?: string | null;
@@ -210,6 +212,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             setIsPaused(false);
             setIsPreviewReady(false);
             setIsConnencting(false);
+            setFocusMode(true);
             twoMinAlertedRef.current = false;
             endAlertedRef.current = false;
 
@@ -298,6 +301,11 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             startRecording();
         }
     }, [readySeconds]);
+
+    // 실습 종료 시 자동 집중 모드 해제
+    useEffect(() => {
+        if (isFinished) setFocusMode(false);
+    }, [isFinished]);
 
     // 토글
     const toggleRecording = async () => {
@@ -556,6 +564,23 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                             </button>
                         )}
 
+                        {/* 집중 모드 재진입 버튼 */}
+                        {isRecording && !focusMode && (
+                            <button
+                                type="button"
+                                onClick={() => setFocusMode(true)}
+                                className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F3F0FF] hover:bg-[#E9E2FF] transition cursor-pointer"
+                                title="집중 모드"
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7553FC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="15 3 21 3 21 9" />
+                                    <polyline points="9 21 3 21 3 15" />
+                                    <line x1="21" y1="3" x2="14" y2="10" />
+                                    <line x1="3" y1="21" x2="10" y2="14" />
+                                </svg>
+                            </button>
+                        )}
+
                         {/* 녹음 중 또는 일시정지: 리셋 버튼 */}
                         {!isRecording && seconds < duration && (
                             <button
@@ -619,6 +644,15 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                     loading={isConvertingDirect || isPending || isUploadingToS3}
                 />
             </div>
+
+            <FocusModeOverlay
+                isOpen={focusMode}
+                onClose={() => setFocusMode(false)}
+                isRecording={isRecording}
+                volume={volume}
+                onToggleRecording={toggleRecording}
+                disabled={isFinished || isUploadingToS3 || isConvertingDirect || isConverting || isConnecting}
+            />
         </>
     );
 }

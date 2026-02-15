@@ -310,6 +310,7 @@ export default function ScenarioDetailTabs({
       const mergedScenario: VirtualPatient = {
         ...data.scenario,
         title: scenarioContent.title,
+        description: data.scenario.description || scenarioContent.description || "",
         meta: mergedMeta,
         // 구 구조도 동기화 (호환성)
         properties: {

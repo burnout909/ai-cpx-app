@@ -1,5 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
+import InquiryBadge from "@/component/admin/InquiryBadge";
+import VerificationBadge from "@/component/admin/VerificationBadge";
 
 const PRIMARY = "#7553FC";
 
@@ -7,10 +9,12 @@ function DashboardCard({
   href,
   title,
   description,
+  badge,
 }: {
   href: string;
   title: string;
   description: string;
+  badge?: React.ReactNode;
 }) {
   return (
     <Link
@@ -19,7 +23,10 @@ function DashboardCard({
     >
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            {title}
+            {badge}
+          </h3>
           <p className="mt-2 text-sm text-gray-500">{description}</p>
         </div>
         <span className="text-sm font-semibold" style={{ color: PRIMARY }}>→</span>
@@ -77,7 +84,8 @@ export default function AdminDashboardLandingPage() {
           <DashboardCard
             href="/admin/dashboard/id-verifications"
             title="학생증 관리"
-            description="학생증 인증 요청을 검토하고 승인/반려합니다." />
+            description="학생증 인증 요청을 검토하고 승인/반려합니다."
+            badge={<VerificationBadge />} />
         </Section>
 
         {/* 체크리스트 섹션 */}
@@ -94,6 +102,16 @@ export default function AdminDashboardLandingPage() {
             href="/admin/dashboard/scenario-gen"
             title="시나리오 관리"
             description="시나리오와 체크리스트를 생성하고 가상환자를 테스트합니다." />
+        </Section>
+
+        {/* 문의사항 섹션 */}
+        <Section title="문의사항">
+          <DashboardCard
+            href="/admin/dashboard/inquiries"
+            title="문의사항 관리"
+            description="학생 문의에 답변하고, 답변 대기 건을 확인합니다."
+            badge={<InquiryBadge />}
+          />
         </Section>
       </main>
     </div>

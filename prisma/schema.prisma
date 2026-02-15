@@ -22,9 +22,12 @@ model Profile {
   users           users?                  @relation(fields: [auth_uid], references: [id], onDelete: Cascade)
   scores          Score[]
   reviews         StudentIdVerification[] @relation("ReviewerVerifications")
-  idVerifications StudentIdVerification[] @relation("UserVerifications")
-  transcripts     Transcript[]
-  uploads         Upload[]
+  idVerifications   StudentIdVerification[] @relation("UserVerifications")
+  transcripts       Transcript[]
+  uploads           Upload[]
+  createdScenarios  Scenario[]              @relation("ScenarioCreator")
+  inquiries          Inquiry[]               @relation("UserInquiries")
+  answeredInquiries  Inquiry[]               @relation("AnswererInquiries")
 
   @@map("profiles")
   @@schema("public")
@@ -226,9 +229,11 @@ model Scenario {
   checklistConfirmedAt     DateTime?      @map("checklist_confirmed_at") @db.Timestamptz(6)
   commentaryContent        Json?          @map("commentary_content")
   commentaryUpdatedAt      DateTime?      @map("commentary_updated_at") @db.Timestamptz(6)
+  createdById              String?        @map("created_by_id") @db.Uuid
   createdAt                DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   activeImageId            String?        @map("active_image_id") @db.Uuid
+  createdBy                Profile?       @relation("ScenarioCreator", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: NoAction)
   patientImages            PatientImage[]
   previousScenario         Scenario?      @relation("ScenarioVersions", fields: [previousScenarioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   nextVersions             Scenario[]     @relation("ScenarioVersions")
@@ -289,18 +294,23 @@ model audit_log_entries {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model flow_state {
-  id                     String                @id @db.Uuid
-  user_id                String?               @db.Uuid
-  auth_code              String
-  code_challenge_method  code_challenge_method
-  code_challenge         String
+  id                     String                 @id @db.Uuid
+  user_id                String?                @db.Uuid
+  auth_code              String?
+  code_challenge_method  code_challenge_method?
+  code_challenge         String?
   provider_type          String
   provider_access_token  String?
   provider_refresh_token String?
-  created_at             DateTime?             @db.Timestamptz(6)
-  updated_at             DateTime?             @db.Timestamptz(6)
+  created_at             DateTime?              @db.Timestamptz(6)
+  updated_at             DateTime?              @db.Timestamptz(6)
   authentication_method  String
-  auth_code_issued_at    DateTime?             @db.Timestamptz(6)
+  auth_code_issued_at    DateTime?              @db.Timestamptz(6)
+  invite_token           String?
+  referrer               String?
+  oauth_client_state_id  String?                @db.Uuid
+  linking_target_id      String?                @db.Uuid
+  email_optional         Boolean                @default(false)
   saml_relay_states      saml_relay_states[]
 
   @@index([created_at(sort: Desc)])
@@ -434,21 +444,22 @@ model oauth_client_states {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model oauth_clients {
-  id                   String                  @id @db.Uuid
-  client_secret_hash   String?
-  registration_type    oauth_registration_type
-  redirect_uris        String
-  grant_types          String
-  client_name          String?
-  client_uri           String?
-  logo_uri             String?
-  created_at           DateTime                @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime                @default(now()) @db.Timestamptz(6)
-  deleted_at           DateTime?               @db.Timestamptz(6)
-  client_type          oauth_client_type       @default(confidential)
-  oauth_authorizations oauth_authorizations[]
-  oauth_consents       oauth_consents[]
-  sessions             sessions[]
+  id                         String                  @id @db.Uuid
+  client_secret_hash         String?
+  registration_type          oauth_registration_type
+  redirect_uris              String
+  grant_types                String
+  client_name                String?
+  client_uri                 String?
+  logo_uri                   String?
+  created_at                 DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                @default(now()) @db.Timestamptz(6)
+  deleted_at                 DateTime?               @db.Timestamptz(6)
+  client_type                oauth_client_type       @default(confidential)
+  token_endpoint_auth_method String
+  oauth_authorizations       oauth_authorizations[]
+  oauth_consents             oauth_consents[]
+  sessions                   sessions[]
 
   @@index([deleted_at])
   @@schema("auth")
@@ -674,6 +685,34 @@ model users {
   @@index([instance_id])
   @@index([is_anonymous])
   @@schema("auth")
+}
+
+model Inquiry {
+  id          String        @id @default(uuid()) @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  title       String
+  content     String
+  status      InquiryStatus @default(PENDING)
+  answer      String?
+  answeredBy  String?       @map("answered_by") @db.Uuid
+  answeredAt  DateTime?     @map("answered_at")
+  readByUser  Boolean       @default(false) @map("read_by_user")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  user        Profile       @relation("UserInquiries", fields: [userId], references: [id])
+  answerer    Profile?      @relation("AnswererInquiries", fields: [answeredBy], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("inquiries")
+  @@schema("public")
+}
+
+enum InquiryStatus {
+  PENDING
+  ANSWERED
+
+  @@schema("public")
 }
 
 enum UserRole {

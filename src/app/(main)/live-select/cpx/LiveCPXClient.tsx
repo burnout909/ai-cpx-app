@@ -18,6 +18,7 @@ import toast from "react-hot-toast";
 import { fetchOnboardingStatus } from "@/lib/onboarding";
 import IdRejectedPopup from "@/component/IdRejectedPopup";
 import { postMetadata } from "@/lib/metadata";
+import FocusModeOverlay from "@/component/FocusModeOverlay";
 
 type Props = {
     category: string;
@@ -46,6 +47,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     const [showPopup, setShowPopup] = useState(false); //가상환자 클릭시 popup 띄우기
     const [readySeconds, setReadySeconds] = useState<number | null>(null); //준비 시간 타이머
     const [conversationText, setConversationText] = useState<string[]>([]);
+    const [focusMode, setFocusMode] = useState(false);
     const [verificationPopup, setVerificationPopup] = useState<{
         kind: "missing" | "rejected";
         reason?: string | null;
@@ -327,6 +329,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             recorder.start(100); // 100ms마다 chunk 생성
             setIsRecording(true);
             setConnected(true);
+            setFocusMode(true);
 
         } catch (err) {
             setConnected(false); // 실패 시 다시 false로 복구
@@ -542,6 +545,11 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
         }
     }, [readySeconds]);
 
+    // 실습 종료 시 자동 집중 모드 해제
+    useEffect(() => {
+        if (isFinished) setFocusMode(false);
+    }, [isFinished]);
+
     // 연결 완료 알림 토스트
     useEffect(() => {
         if (connected && !connectedToastShownRef.current) {
@@ -674,10 +682,28 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
 
                             </div>
                         ) : (
-
-                            <span className="text-[22px] ">
-                                {showTime(seconds)}
-                            </span>)}
+                            <div className="flex items-center gap-2">
+                                <span className="text-[22px] ">
+                                    {showTime(seconds)}
+                                </span>
+                                {/* 집중 모드 재진입 버튼 */}
+                                {isRecording && !focusMode && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFocusMode(true)}
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F3F0FF] hover:bg-[#E9E2FF] transition cursor-pointer"
+                                        title="집중 모드"
+                                    >
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7553FC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="15 3 21 3 21 9" />
+                                            <polyline points="9 21 3 21 3 15" />
+                                            <line x1="21" y1="3" x2="14" y2="10" />
+                                            <line x1="3" y1="21" x2="10" y2="14" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                     {/* 중앙 녹음 버튼 + 볼륨 애니메이션 */}
                     <div className="relative">
@@ -737,6 +763,17 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
 
                 )}
             </div>
+
+            <FocusModeOverlay
+                isOpen={focusMode}
+                onClose={() => setFocusMode(false)}
+                isRecording={isRecording}
+                volume={volume}
+                onToggleRecording={toggleRecording}
+                disabled={isUploading || connected || isFinished}
+                patientImage={patientImageUrl || profileImage}
+                patientName={caseData?.meta?.name || caseData?.properties?.meta?.name}
+            />
         </div >
     );
 }

@@ -39,9 +39,16 @@ const DEFAULT_SCENARIO_PROMPT = `아래는 ScenarioDevModule의 Prompt 입니다
 - 병력청취·추가병력·신체진찰·환자 질문까지 모두 포함하는 **풍부하고 일관된** 시나리오여야 합니다.
 - 모든 checklist 항목은 이 시나리오에서 **긍정/부정/해당없음이 명확히 판별 가능**하도록, 관련 정보가 최소 1회 이상 명시돼야 합니다.
 
+[description 생성 규칙]
+- 최상위에 "description" 키를 반드시 포함합니다.
+- description은 CPX 시험 상황을 1~2문장으로 요약한 한국어 문장입니다.
+- 형식: "{나이}세 {성별} {환자이름}씨가 {주호소/상황}(으)로 {내원 경위}하였다."
+- 예: "48세 남성 이춘배씨가 갑자기 배가 심하게 아파 응급실로 내원하였다."
+- 환자의 name, age, sex, chief_complaint, impression을 활용하여 자연스럽게 작성합니다.
+
 [JSON 형식 규칙]
 - 제공된 json_schema_template와 동일한 최상위 구조와 key 이름을 그대로 따릅니다.
-  - 최상위 키는 meta, history, additional_history, physical_exam 입니다.
+  - 최상위 키는 description, meta, history, additional_history, physical_exam 입니다.
 - meta.vitals는 제공된 템플릿 형식만 사용합니다:
   - "bp": "숫자/숫자" (문자열), "hr": 정수, "rr": 정수, "bt": 소수 한 자리.
 - null/빈 객체는 사용하지 않습니다.
