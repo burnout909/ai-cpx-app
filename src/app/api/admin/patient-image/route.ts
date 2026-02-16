@@ -13,29 +13,145 @@ const openai = new OpenAI({
 
 const BUCKET = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
 
-// Symptom-specific expressions for prompt generation
-const SYMPTOM_EXPRESSIONS: Record<string, string> = {
-  급성복통: "with a pained expression, holding their abdomen",
-  호흡곤란: "breathing heavily with worried expression",
-  가슴통증: "with discomfort, hand near chest",
-  어지럼: "looking dizzy and unsteady",
-  두통: "with a pained expression, pressing temples",
-  발열: "looking flushed and unwell",
-  기침: "covering mouth while coughing",
-  구토: "looking nauseated and pale",
-  설사: "looking uncomfortable",
-  피로: "appearing exhausted and tired",
-};
+// Scenario data for enriched prompt generation
+interface ScenarioContext {
+  description?: string;
+  diagnosis?: string;
+  attitude?: string;
+  history?: Record<string, unknown>;
+  meta?: {
+    chief_complaint?: string;
+    vitals?: { bp?: string; hr?: number; rr?: number; bt?: number };
+    [key: string]: unknown;
+  };
+}
 
 /**
- * Generate DALL-E prompt based on patient parameters
+ * Extract clinically relevant visual cues from scenario data.
+ * These describe observable physical characteristics that DALL-E should render.
  */
-function generatePrompt(sex: string, age: number, chiefComplaint: string): string {
-  const gender = sex === "남성" ? "male" : "female";
-  const ageGroup = age < 30 ? "young adult" : age < 50 ? "middle-aged" : "elderly";
-  const symptomExpression = SYMPTOM_EXPRESSIONS[chiefComplaint] || "looking unwell";
+function extractVisualCues(scenario: ScenarioContext): string[] {
+  const cues: string[] = [];
 
-  return `Upper body portrait photograph of a ${ageGroup} Korean ${gender} outpatient, approximately ${age} years old, wearing casual everyday clothes, ${symptomExpression}, in a clinic consultation room setting, natural lighting, high quality portrait photography style, no text or watermarks`;
+  // From attitude (e.g., "매우 고통스러워하며 말함")
+  if (scenario.attitude) {
+    cues.push(`demeanor: ${scenario.attitude}`);
+  }
+
+  // From diagnosis — extract body-type and visible condition cues
+  const diagnosis = (scenario.diagnosis || "").toLowerCase();
+  const description = (scenario.description || "").toLowerCase();
+  const combined = `${diagnosis} ${description}`;
+
+  // Body habitus cues
+  if (/비만|obesity|obese|과체중|overweight|체중.?증가|weight.?gain|bmi.*(3[0-9]|[4-9][0-9])/.test(combined)) {
+    cues.push("visibly overweight or obese body habitus");
+  }
+  if (/저체중|underweight|마른|emaciated|cachexia|악액질|체중.?감소|weight.?loss/.test(combined)) {
+    cues.push("thin and underweight appearance");
+  }
+
+  // Skin / complexion cues
+  if (/황달|jaundice|icterus/.test(combined)) {
+    cues.push("yellowish skin tone suggesting jaundice");
+  }
+  if (/창백|pallor|anemia|빈혈/.test(combined)) {
+    cues.push("pale complexion");
+  }
+  if (/청색증|cyanosis/.test(combined)) {
+    cues.push("bluish discoloration around lips");
+  }
+  if (/발진|rash|두드러기|urticaria/.test(combined)) {
+    cues.push("visible skin rash");
+  }
+  if (/부종|edema|붓/.test(combined)) {
+    cues.push("facial or periorbital swelling");
+  }
+  if (/발열|fever|열/.test(combined)) {
+    cues.push("flushed and sweaty appearance");
+  }
+
+  // Respiratory cues
+  if (/호흡곤란|dyspnea|tachypnea|숨/.test(combined)) {
+    cues.push("labored breathing, slightly leaning forward");
+  }
+
+  // Pain cues
+  if (/복통|abdominal.?pain|배.?아/.test(combined)) {
+    cues.push("grimacing with hand on abdomen");
+  }
+  if (/가슴.?통|chest.?pain|흉통/.test(combined)) {
+    cues.push("hand pressed against chest, uncomfortable expression");
+  }
+  if (/두통|headache|머리.?아/.test(combined)) {
+    cues.push("pressing temples with pained expression");
+  }
+  if (/어지럼|dizziness|vertigo|현기증/.test(combined)) {
+    cues.push("unsteady posture, slightly disoriented look");
+  }
+
+  // General distress from vitals
+  const vitals = scenario.meta?.vitals;
+  if (vitals) {
+    if (vitals.bt && vitals.bt >= 38.0) {
+      if (!cues.some(c => c.includes("flush") || c.includes("sweat"))) {
+        cues.push("flushed and sweaty");
+      }
+    }
+    if (vitals.hr && vitals.hr >= 100) {
+      cues.push("visibly anxious or distressed");
+    }
+  }
+
+  // From history — scan for additional observable cues
+  if (scenario.history) {
+    const historyStr = JSON.stringify(scenario.history).toLowerCase();
+    if (/구토|vomiting|nausea|메스꺼/.test(historyStr) && !cues.some(c => c.includes("nausea"))) {
+      cues.push("nauseated expression");
+    }
+    if (/기침|cough/.test(historyStr) && !cues.some(c => c.includes("cough"))) {
+      cues.push("hand near mouth as if coughing");
+    }
+  }
+
+  return cues;
+}
+
+/**
+ * Generate DALL-E prompt based on patient parameters and scenario context.
+ * Designed to produce realistic, ordinary-looking Korean patient portraits.
+ */
+function generatePrompt(
+  sex: string,
+  age: number,
+  chiefComplaint: string,
+  scenario?: ScenarioContext
+): string {
+  const gender = sex === "남성" ? "male" : "female";
+  const ageGroup =
+    age < 30 ? "young adult" : age < 50 ? "middle-aged" : age < 65 ? "older adult" : "elderly";
+
+  // Extract visual cues from scenario if available
+  const visualCues = scenario ? extractVisualCues(scenario) : [];
+
+  // Fallback symptom expression if no scenario cues extracted
+  if (visualCues.length === 0) {
+    visualCues.push("looking unwell and uncomfortable");
+  }
+
+  const cueDescription = visualCues.join(", ");
+
+  return [
+    `Medical chart ID photo of a ${ageGroup} Korean ${gender} patient, approximately ${age} years old.`,
+    `This is NOT a fashion photo. The person is a real hospital patient, plain and unremarkable in appearance.`,
+    `Average-looking with common facial features, slightly tired eyes, mild undereye circles.`,
+    `Gentle expression but subtly showing discomfort from illness.`,
+    `Wearing a faded hospital gown or old plain t-shirt.`,
+    `Clinical appearance: ${cueDescription}.`,
+    `Flat, even hospital lighting. Plain white or light blue background.`,
+    `Single person portrait, slightly washed out colors, not stylized.`,
+    `Absolutely NO beautification, NO glamour, NO studio lighting. No text or watermarks.`,
+  ].join(" ");
 }
 
 /**
@@ -46,13 +162,14 @@ function generatePrompt(sex: string, age: number, chiefComplaint: string): strin
  * - sex: "남성" | "여성"
  * - age: number
  * - chiefComplaint: string
+ * - scenarioContext?: ScenarioContext - Optional scenario data for enriched prompts
  */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { scenarioId, sex, age, chiefComplaint } = body;
+    const { scenarioId, sex, age, chiefComplaint, scenarioContext } = body;
 
-    console.log("[patient-image POST] Request:", { scenarioId, sex, age, chiefComplaint });
+    console.log("[patient-image POST] Request:", { scenarioId, sex, age, chiefComplaint, hasScenarioContext: !!scenarioContext });
 
     // Validate required fields
     if (!sex || !age || !chiefComplaint) {
@@ -69,8 +186,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate prompt
-    const prompt = generatePrompt(sex, age, chiefComplaint);
+    // Generate prompt (with scenario context if available)
+    const prompt = generatePrompt(sex, age, chiefComplaint, scenarioContext);
 
     // Call DALL-E 3 API
     const response = await openai.images.generate({

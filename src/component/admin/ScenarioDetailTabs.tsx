@@ -1205,6 +1205,16 @@ export default function ScenarioDetailTabs({
                     sex={meta?.sex}
                     age={meta?.age}
                     chiefComplaint={meta?.chief_complaint}
+                    scenarioContext={scenarioContent ? {
+                      description: scenarioContent.description,
+                      diagnosis: meta?.diagnosis,
+                      attitude: meta?.attitude,
+                      history: scenarioContent.history,
+                      meta: {
+                        chief_complaint: meta?.chief_complaint,
+                        vitals: meta?.vitals,
+                      },
+                    } : undefined}
                     onImageGenerated={(url, id) => {
                       setHasPatientImage(Boolean(url));
                       onPatientImageGenerated?.(url, id);

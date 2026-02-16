@@ -4,11 +4,24 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import Image from "next/image";
 import Spinner from "@/component/Spinner";
 
+interface ScenarioContext {
+  description?: string;
+  diagnosis?: string;
+  attitude?: string;
+  history?: Record<string, unknown>;
+  meta?: {
+    chief_complaint?: string;
+    vitals?: { bp?: string; hr?: number; rr?: number; bt?: number };
+    [key: string]: unknown;
+  };
+}
+
 interface PatientImagePanelProps {
   scenarioId?: string;
   sex?: string;
   age?: number;
   chiefComplaint?: string;
+  scenarioContext?: ScenarioContext;
   onImageGenerated?: (imageUrl: string, imageId: string) => void;
   disabled?: boolean;
 }
@@ -28,6 +41,7 @@ export default function PatientImagePanel({
   sex,
   age,
   chiefComplaint,
+  scenarioContext,
   onImageGenerated,
   disabled = false,
 }: PatientImagePanelProps) {
@@ -89,6 +103,7 @@ export default function PatientImagePanel({
           sex,
           age,
           chiefComplaint,
+          scenarioContext,
         }),
       });
 
