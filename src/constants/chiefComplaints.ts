@@ -31,8 +31,7 @@ export const CHIEF_COMPLAINTS_BY_CATEGORY = {
     "다뇨",
     "핍뇨",
     "붉은색소변",
-    "배뇨이상",
-    "요실금",
+    "배뇨이상/요실금",
   ],
   전신계통: [
     "발열",

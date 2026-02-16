@@ -134,15 +134,10 @@ export async function loadChecklistByCase(caseName: string): Promise<LoadResult>
                 evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_20_hematuria")) as EvidenceModule,
                 score: (await import("@/assets/scoreChecklist/scoreChecklist_20_hematuria")) as ScoreModule,
             };
-        case "배뇨이상":
+        case "배뇨이상/요실금":
             return {
                 evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_21_voidingDisturbance")) as EvidenceModule,
                 score: (await import("@/assets/scoreChecklist/scoreChecklist_21_voidingDisturbance")) as ScoreModule,
-            };
-        case "요실금":
-            return {
-                evidence: (await import("@/assets/evidenceChecklist/evidenceChecklist_22_incontinence")) as EvidenceModule,
-                score: (await import("@/assets/scoreChecklist/scoreChecklist_22_incontinence")) as ScoreModule,
             };
 
         // 🔹 전신계통
