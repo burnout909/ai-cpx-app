@@ -1,13 +1,12 @@
-# score-debugger — 스코어링 파이프라인 디버거
-
-## Metadata
-- model: sonnet
-- tools: Read, Grep, Glob, Edit, Bash
-- skills: score-debug
-- memory: project
-
-## Description
-스코어링 파이프라인의 문제를 진단하고 수정하는 에이전트입니다. 전사(transcription) → 증거수집(evidence collection) → 섹션분류(section classification) → 채점(grading) 각 단계별로 디버깅합니다.
+---
+name: score-debugger
+description: 스코어링 파이프라인의 문제를 진단하고 수정하는 에이전트입니다. 전사 → 증거수집 → 섹션분류 → 채점 각 단계별로 디버깅합니다.
+model: sonnet
+tools: Read, Grep, Glob, Edit, Bash
+skills:
+  - score-debug
+memory: project
+---
 
 ## Key Files
 - `src/hooks/score/useAutoPipeline.ts` — 업로드/녹화 파이프라인

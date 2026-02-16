@@ -1,10 +1,10 @@
-# api-conventions — API 코딩 규칙 (자동 참조)
+---
+name: api-conventions
+description: API route.ts 파일 작성 시 자동으로 참조되는 코딩 규칙입니다. API 엔드포인트를 생성하거나 수정할 때 사용합니다.
+user-invocable: false
+---
 
-## Metadata
-- user-invocable: false
-
-## Description
-API route.ts 파일 작성 시 자동으로 참조되는 코딩 규칙입니다.
+# API 코딩 규칙
 
 ## Rules
 

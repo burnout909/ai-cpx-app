@@ -1,11 +1,11 @@
-# /add-api — API 라우트 추가
+---
+name: add-api
+description: 새로운 Next.js API 라우트를 프로젝트 패턴에 맞게 생성합니다.
+disable-model-invocation: true
+argument-hint: "<엔드포인트이름> [HTTP메서드]"
+---
 
-## Metadata
-- disable-model-invocation: true
-- user-invocable: true
-
-## Description
-새로운 Next.js API 라우트를 프로젝트 패턴에 맞게 생성합니다.
+# API 라우트 추가
 
 ## Usage
 ```

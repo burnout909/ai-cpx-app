@@ -1,11 +1,11 @@
-# /add-vp — 가상환자 시나리오 추가
+---
+name: add-vp
+description: 새로운 가상환자(Virtual Patient) 시나리오를 생성하고 등록합니다. VP JSON, 프로필 이미지, solution 파일을 생성하고 loadVirtualPatient.ts에 등록합니다.
+disable-model-invocation: true
+argument-hint: "<영문이름> <한국어케이스명>"
+---
 
-## Metadata
-- disable-model-invocation: true
-- user-invocable: true
-
-## Description
-새로운 가상환자(Virtual Patient) 시나리오를 생성하고 등록합니다. VP JSON, 프로필 이미지, solution 파일을 생성하고 `loadVirtualPatient.ts`에 등록합니다.
+# 가상환자 시나리오 추가
 
 ## Usage
 ```

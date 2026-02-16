@@ -1,11 +1,11 @@
-# /add-case — 새 의학 케이스 체크리스트 추가
+---
+name: add-case
+description: 새로운 의학 케이스의 evidence checklist와 score checklist 파일을 생성하고, loadChecklist.ts에 등록합니다.
+disable-model-invocation: true
+argument-hint: "<번호> <영문이름> <한국어케이스명> [카테고리]"
+---
 
-## Metadata
-- disable-model-invocation: true
-- user-invocable: true
-
-## Description
-새로운 의학 케이스의 evidence checklist와 score checklist 파일을 생성하고, `loadChecklist.ts`에 등록합니다.
+# 새 의학 케이스 체크리스트 추가
 
 ## Usage
 ```

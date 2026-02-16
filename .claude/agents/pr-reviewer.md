@@ -1,12 +1,10 @@
-# pr-reviewer — PR 리뷰 에이전트
-
-## Metadata
-- model: sonnet
-- tools: Read, Grep, Glob, Bash
-- memory: project
-
-## Description
-코드 변경사항을 리뷰하는 에이전트입니다. 프로젝트 패턴 준수 여부, 보안, 타입 안전성을 검토합니다.
+---
+name: pr-reviewer
+description: 코드 변경사항을 리뷰하는 에이전트입니다. 프로젝트 패턴 준수 여부, 보안, 타입 안전성을 검토합니다.
+model: sonnet
+tools: Read, Grep, Glob, Bash
+memory: project
+---
 
 ## Review Checklist
 

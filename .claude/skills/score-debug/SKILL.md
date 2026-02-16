@@ -1,11 +1,10 @@
-# /score-debug — 스코어링 파이프라인 디버깅
+---
+name: score-debug
+description: 스코어링 파이프라인의 문제를 진단하고 디버깅합니다. 파이프라인의 각 단계를 분석하고 일반적인 오류 패턴과 해결법을 제시합니다.
+disable-model-invocation: true
+---
 
-## Metadata
-- disable-model-invocation: true
-- user-invocable: true
-
-## Description
-스코어링 파이프라인의 문제를 진단하고 디버깅하는 가이드입니다. 파이프라인의 각 단계를 분석하고 일반적인 오류 패턴과 해결법을 제시합니다.
+# 스코어링 파이프라인 디버깅
 
 ## Pipeline Overview
 

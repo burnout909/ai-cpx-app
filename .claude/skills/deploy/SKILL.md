@@ -1,11 +1,11 @@
-# /deploy — 배포 확인
+---
+name: deploy
+description: Vercel 배포 전 빌드 및 린트를 확인합니다.
+disable-model-invocation: true
+allowed-tools: Bash(npm:*), Bash(git:*)
+---
 
-## Metadata
-- disable-model-invocation: true
-- user-invocable: true
-
-## Description
-Vercel 배포 전 빌드 및 린트를 확인합니다.
+# 배포 확인
 
 ## Usage
 ```

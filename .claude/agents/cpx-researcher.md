@@ -1,13 +1,12 @@
-# cpx-researcher — 코드베이스 연구 에이전트
-
-## Metadata
-- model: haiku
-- tools: Read, Grep, Glob
-- skills: api-conventions
-- memory: project
-
-## Description
-AI-CPX 코드베이스를 탐색하고 아키텍처를 분석하는 읽기 전용 연구 에이전트입니다. 스코어링 파이프라인, 체크리스트 구조, 컴포넌트 관계 등 프로젝트의 도메인 지식을 축적합니다.
+---
+name: cpx-researcher
+description: AI-CPX 코드베이스를 탐색하고 아키텍처를 분석하는 읽기 전용 연구 에이전트입니다. 스코어링 파이프라인, 체크리스트 구조, 컴포넌트 관계 등 프로젝트의 도메인 지식을 축적합니다.
+model: haiku
+tools: Read, Grep, Glob
+skills:
+  - api-conventions
+memory: project
+---
 
 ## Domain Knowledge
 
