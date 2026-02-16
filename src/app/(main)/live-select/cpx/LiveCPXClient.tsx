@@ -26,6 +26,7 @@ type Props = {
     scenarioId?: string;
     virtualPatient?: VirtualPatient;
     patientImageUrl?: string;
+    customRolePrompt?: string;
 };
 
 const INITIAL_SECONDS = 12 * 60; // 720s = 12분
@@ -34,7 +35,7 @@ const INITIAL_READY_SECONDS = 60; // 준비 시간 60초
 /* °C 포맷 */
 const formatTemp = (t: number) => `${t.toFixed(1)}°C`;
 
-export default function LiveCPXClient({ category, caseName, scenarioId, virtualPatient, patientImageUrl }: Props) {
+export default function LiveCPXClient({ category, caseName, scenarioId, virtualPatient, patientImageUrl, customRolePrompt }: Props) {
     const router = useRouter();
 
     // ===== 상태값 =====
@@ -244,7 +245,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             const patientSex = caseData?.meta?.sex || caseData?.properties?.meta?.sex;
             const agent = new RealtimeAgent({
                 name: "표준화 환자 AI",
-                instructions: buildPatientInstructions(caseData as VirtualPatient),
+                instructions: buildPatientInstructions(caseData as VirtualPatient, customRolePrompt),
                 voice: patientSex === "남성" ? "ash" : "coral"
             });
 

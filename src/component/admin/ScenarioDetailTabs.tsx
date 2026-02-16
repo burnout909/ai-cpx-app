@@ -42,6 +42,16 @@ interface ScenarioDetailTabsProps {
   commentaryContent: string;
   onCommentaryChange: (content: string) => void;
 
+  // 프롬프트 스냅샷
+  rolePromptSnapshot: string;
+  onRolePromptSnapshotChange: (content: string) => void;
+  commentaryPromptSnapshot: string;
+  onCommentaryPromptSnapshotChange: (content: string) => void;
+  chiefComplaint?: string;
+
+  // 체크리스트 불러오기
+  onReloadChecklist?: () => void;
+
   // 환자 이미지
   scenarioId?: string;
   onPatientImageGenerated?: (imageUrl: string, imageId: string) => void;
@@ -70,8 +80,14 @@ export default function ScenarioDetailTabs({
   checklistSourceVersionId,
   checklistConfirmedAt,
   checklistForAI,
+  onReloadChecklist,
   commentaryContent,
   onCommentaryChange,
+  rolePromptSnapshot,
+  onRolePromptSnapshotChange,
+  commentaryPromptSnapshot,
+  onCommentaryPromptSnapshotChange,
+  chiefComplaint,
   scenarioId,
   onPatientImageGenerated,
   disabled = false,
@@ -88,69 +104,58 @@ export default function ScenarioDetailTabs({
   // 해설 생성 상태
   const [isGeneratingCommentary, setIsGeneratingCommentary] = useState(false);
   const [commentaryError, setCommentaryError] = useState<string | null>(null);
-  const [commentaryPrompt, setCommentaryPrompt] = useState(DEFAULT_PROMPT);
-  const [commentaryPromptVersion, setCommentaryPromptVersion] = useState("0.1");
-  const [commentaryPromptHistory, setCommentaryPromptHistory] = useState<PromptVersion[]>([]);
   const [isCommentaryPromptModalOpen, setIsCommentaryPromptModalOpen] = useState(false);
 
-  // Role Prompt 상태 (SCENARIO_INSTRUCT)
-  const [rolePrompt, setRolePrompt] = useState(DEFAULT_ROLE_PROMPT_TEMPLATE);
-  const [rolePromptVersion, setRolePromptVersion] = useState("0.1");
-  const [rolePromptHistory, setRolePromptHistory] = useState<PromptVersion[]>([]);
+  // Role Prompt 모달 상태
   const [isRolePromptModalOpen, setIsRolePromptModalOpen] = useState(false);
 
-  // DB에서 프롬프트 버전 로드
-  useEffect(() => {
-    const loadAllPromptVersions = async () => {
-      // SOLUTION (해설) 프롬프트 로드
-      try {
-        const res = await fetch("/api/prompt-versions?type=SOLUTION");
-        if (res.ok) {
-          const data = await res.json();
-          const versions = data.versions || [];
-          if (versions.length > 0) {
-            const latest = versions[0];
-            setCommentaryPrompt(latest.content);
-            setCommentaryPromptVersion(latest.version);
-            setCommentaryPromptHistory(
-              versions.slice(1).map((v: { version: string; content: string; createdAt: string }) => ({
-                version: v.version,
-                prompt: v.content,
-                createdAt: v.createdAt,
-              }))
-            );
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load SOLUTION prompt versions:", err);
-      }
+  // 주호소별 프롬프트 버전 히스토리
+  const [rolePromptHistory, setRolePromptHistory] = useState<PromptVersion[]>([]);
+  const [commentaryPromptHistory, setCommentaryPromptHistory] = useState<PromptVersion[]>([]);
 
-      // SCENARIO_INSTRUCT (Role Prompt) 로드
+  useEffect(() => {
+    if (!chiefComplaint) return;
+
+    const loadCCPromptHistory = async () => {
       try {
-        const res = await fetch("/api/prompt-versions?type=SCENARIO_INSTRUCT");
-        if (res.ok) {
-          const data = await res.json();
-          const versions = data.versions || [];
-          if (versions.length > 0) {
-            const latest = versions[0];
-            setRolePrompt(latest.content);
-            setRolePromptVersion(latest.version);
-            setRolePromptHistory(
-              versions.slice(1).map((v: { version: string; content: string; createdAt: string }) => ({
-                version: v.version,
-                prompt: v.content,
-                createdAt: v.createdAt,
-              }))
-            );
-          }
+        const res = await fetch(
+          `/api/admin/chief-complaint-prompt?chiefComplaint=${encodeURIComponent(chiefComplaint)}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const roleHistory: PromptVersion[] = [];
+        const commentaryHistory: PromptVersion[] = [];
+
+        // Role 버전들 (최신→과거 순)
+        const roleVers = data.role?.versions || [];
+        for (const v of roleVers) {
+          roleHistory.push({
+            version: v.version,
+            prompt: v.content,
+            createdAt: v.createdAt,
+          });
         }
+
+        // Commentary 버전들
+        const commentaryVers = data.commentary?.versions || [];
+        for (const v of commentaryVers) {
+          commentaryHistory.push({
+            version: v.version,
+            prompt: v.content,
+            createdAt: v.createdAt,
+          });
+        }
+
+        setRolePromptHistory(roleHistory);
+        setCommentaryPromptHistory(commentaryHistory);
       } catch (err) {
-        console.error("Failed to load SCENARIO_INSTRUCT prompt versions:", err);
+        console.error("CC 프롬프트 히스토리 로드 실패:", err);
       }
     };
 
-    loadAllPromptVersions();
-  }, []);
+    loadCCPromptHistory();
+  }, [chiefComplaint]);
 
   // AI가 시나리오를 생성했는지 여부 (history가 있으면 생성됨으로 간주)
   const isAIGenerated = Boolean(
@@ -345,7 +350,7 @@ export default function ScenarioDetailTabs({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scenario: scenarioContent,
-          customPrompt: promptOverride ?? commentaryPrompt,
+          customPrompt: promptOverride ?? commentaryPromptSnapshot,
         }),
       });
 
@@ -368,78 +373,40 @@ export default function ScenarioDetailTabs({
     }
   };
 
-  // 프롬프트 저장 및 해설 생성
-  const handleSavePromptAndGenerate = async (newPrompt: string, newVersion: string) => {
-    try {
-      // DB에 새 버전 저장
-      const res = await fetch("/api/prompt-versions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "SOLUTION",
-          version: newVersion,
-          content: newPrompt,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "프롬프트 저장에 실패했습니다.");
-      }
-
-      // 현재 프롬프트를 히스토리에 추가
-      setCommentaryPromptHistory((prev) => [
-        {
-          version: commentaryPromptVersion,
-          prompt: commentaryPrompt,
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-      // 새 프롬프트와 버전으로 업데이트
-      setCommentaryPrompt(newPrompt);
-      setCommentaryPromptVersion(newVersion);
-      // 해설 생성
-      handleGenerateCommentary(newPrompt);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "프롬프트 저장 중 오류가 발생했습니다.";
-      setCommentaryError(message);
-    }
+  // 해설 프롬프트 스냅샷 업데이트 및 해설 생성
+  const handleSaveCommentaryPromptSnapshot = (newPrompt: string) => {
+    onCommentaryPromptSnapshotChange(newPrompt);
+    handleGenerateCommentary(newPrompt);
   };
 
-  // Role Prompt 저장 (SCENARIO_INSTRUCT)
-  const handleSaveRolePrompt = async (newPrompt: string, newVersion: string) => {
+  // Role Prompt 스냅샷 업데이트
+  const handleSaveRolePromptSnapshot = (newPrompt: string) => {
+    onRolePromptSnapshotChange(newPrompt);
+  };
+
+  // 주호소별 최신 프롬프트 다시 불러오기
+  const handleReloadPromptFromDefault = async (type: "role" | "commentary") => {
+    if (!chiefComplaint) return;
     try {
-      const res = await fetch("/api/prompt-versions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "SCENARIO_INSTRUCT",
-          version: newVersion,
-          content: newPrompt,
-        }),
-      });
+      const res = await fetch(
+        `/api/admin/chief-complaint-prompt?chiefComplaint=${encodeURIComponent(chiefComplaint)}`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "프롬프트 저장에 실패했습니다.");
+      if (type === "role") {
+        const prompt = data.role?.latestVersion?.content || DEFAULT_ROLE_PROMPT_TEMPLATE;
+        onRolePromptSnapshotChange(prompt);
+      } else {
+        const prompt = data.commentary?.latestVersion?.content || DEFAULT_PROMPT;
+        onCommentaryPromptSnapshotChange(prompt);
       }
-
-      // 현재 프롬프트를 히스토리에 추가
-      setRolePromptHistory((prev) => [
-        {
-          version: rolePromptVersion,
-          prompt: rolePrompt,
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-      // 새 프롬프트와 버전으로 업데이트
-      setRolePrompt(newPrompt);
-      setRolePromptVersion(newVersion);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "프롬프트 저장 중 오류가 발생했습니다.";
-      setGenerateError(message);
+    } catch {
+      if (type === "role") {
+        onRolePromptSnapshotChange(DEFAULT_ROLE_PROMPT_TEMPLATE);
+      } else {
+        onCommentaryPromptSnapshotChange(DEFAULT_PROMPT);
+      }
     }
   };
 
@@ -1062,6 +1029,7 @@ export default function ScenarioDetailTabs({
                 disabled={disabled}
                 sourceVersion={checklistSourceVersionId}
                 confirmedAt={checklistConfirmedAt}
+                onReloadFromDefault={onReloadChecklist}
               />
             </div>
           )}
@@ -1232,20 +1200,24 @@ export default function ScenarioDetailTabs({
       <CommentaryPromptModal
         isOpen={isCommentaryPromptModalOpen}
         onClose={() => setIsCommentaryPromptModalOpen(false)}
-        currentPrompt={commentaryPrompt}
-        currentVersion={commentaryPromptVersion}
+        currentPrompt={commentaryPromptSnapshot || DEFAULT_PROMPT}
+        currentVersion="snapshot"
         promptHistory={commentaryPromptHistory}
-        onSave={handleSavePromptAndGenerate}
+        onSave={(newPrompt) => handleSaveCommentaryPromptSnapshot(newPrompt)}
+        hideResetButton
+        sourceVersion={commentaryPromptHistory[0]?.version}
       />
 
       {/* Role Prompt 수정 모달 */}
       <CommentaryPromptModal
         isOpen={isRolePromptModalOpen}
         onClose={() => setIsRolePromptModalOpen(false)}
-        currentPrompt={rolePrompt}
-        currentVersion={rolePromptVersion}
+        currentPrompt={rolePromptSnapshot || DEFAULT_ROLE_PROMPT_TEMPLATE}
+        currentVersion="snapshot"
         promptHistory={rolePromptHistory}
-        onSave={handleSaveRolePrompt}
+        onSave={(newPrompt) => handleSaveRolePromptSnapshot(newPrompt)}
+        hideResetButton
+        sourceVersion={rolePromptHistory[0]?.version}
       />
     </div>
   );

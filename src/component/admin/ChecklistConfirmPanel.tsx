@@ -26,6 +26,7 @@ interface ChecklistConfirmPanelProps {
   disabled?: boolean;
   sourceVersion?: string;
   confirmedAt?: string | null;
+  onReloadFromDefault?: () => void;
 }
 
 const TABS: { key: keyof ChecklistSnapshot; label: string }[] = [
@@ -42,8 +43,10 @@ export default function ChecklistConfirmPanel({
   disabled = false,
   sourceVersion,
   confirmedAt,
+  onReloadFromDefault,
 }: ChecklistConfirmPanelProps) {
   const [activeTab, setActiveTab] = useState<keyof ChecklistSnapshot>("history");
+  const [showReloadModal, setShowReloadModal] = useState(false);
 
   // 현재 탭의 항목들
   const currentItems = useMemo(() => {
@@ -135,7 +138,19 @@ export default function ChecklistConfirmPanel({
       {/* 헤더 */}
       <div className="px-4 py-3 border-b border-gray-200">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-semibold text-gray-900">체크리스트 확정</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-semibold text-gray-900">체크리스트 확정</h3>
+            {onReloadFromDefault && (
+              <button
+                type="button"
+                onClick={() => setShowReloadModal(true)}
+                disabled={disabled}
+                className="rounded-lg px-3 py-1.5 text-sm font-medium border bg-white text-violet-600 border-violet-300 hover:bg-violet-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                기본 체크리스트 불러오기
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <span className="px-2 py-1 bg-violet-50 text-violet-700 rounded">
               포함: {stats.included}
@@ -252,6 +267,41 @@ export default function ChecklistConfirmPanel({
           </div>
         )}
       </div>
+
+      {/* 기본 체크리스트 불러오기 확인 모달 */}
+      {showReloadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-2">
+              기본 체크리스트 불러오기
+            </h3>
+            <p className="text-sm text-gray-600 mb-5">
+              현재 체크리스트를 최신 기본 체크리스트로 교체합니다.
+              <br />
+              기존 포함/제외 설정이 초기화됩니다.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowReloadModal(false)}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReloadModal(false);
+                  onReloadFromDefault?.();
+                }}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-colors"
+              >
+                불러오기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

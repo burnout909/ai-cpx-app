@@ -33,6 +33,9 @@ interface ScenarioData {
   checklistIncludedMap: ChecklistIncludedMap | null;
   checklistConfirmedAt: string | null;
   commentaryContent: { html: string } | null;
+  rolePromptSnapshot: string | null;
+  commentaryPromptSnapshot: string | null;
+  promptSourceVersionId: string | null;
   createdAt: string;
   publishedAt: string | null;
 }
@@ -102,6 +105,11 @@ export default function ScenarioDetailPage() {
   const [checklistConfirmedAt, setChecklistConfirmedAt] = useState<string | null>(null);
   const [commentaryContent, setCommentaryContent] = useState("");
 
+  // 프롬프트 스냅샷 상태
+  const [rolePromptSnapshot, setRolePromptSnapshot] = useState("");
+  const [commentaryPromptSnapshot, setCommentaryPromptSnapshot] = useState("");
+  const [promptSourceVersionId, setPromptSourceVersionId] = useState<string | null>(null);
+
   // Live CPX 노치 상태
   const [liveLocked, setLiveLocked] = useState(false);
 
@@ -156,6 +164,9 @@ export default function ScenarioDetailPage() {
       setChecklistSourceVersionId(s.checklistSourceVersionId);
       setChecklistConfirmedAt(s.checklistConfirmedAt);
       setCommentaryContent(s.commentaryContent?.html || "");
+      setRolePromptSnapshot(s.rolePromptSnapshot || "");
+      setCommentaryPromptSnapshot(s.commentaryPromptSnapshot || "");
+      setPromptSourceVersionId(s.promptSourceVersionId || null);
       setVersionHistory(data.versionHistory || []);
 
       // 환자 이미지 로드
@@ -254,6 +265,45 @@ export default function ScenarioDetailPage() {
     loadChecklist();
   }, [chiefComplaint, isNew, checklistSnapshot, prevChiefComplaint]);
 
+  // 주호소 변경 시 프롬프트 스냅샷 로드 (기존 시나리오에 스냅샷이 없을 때만)
+  const [prevPromptCC, setPrevPromptCC] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!chiefComplaint) return;
+    // 기존 시나리오 편집 시 이미 스냅샷이 있으면 스킵 (최초 로드)
+    if (!isNew && (rolePromptSnapshot || commentaryPromptSnapshot) && !prevPromptCC) {
+      setPrevPromptCC(chiefComplaint);
+      return;
+    }
+    if (prevPromptCC === chiefComplaint) return;
+
+    const loadPrompts = async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/chief-complaint-prompt?chiefComplaint=${encodeURIComponent(chiefComplaint)}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const roleLatest = data.role?.latestVersion;
+        const commentaryLatest = data.commentary?.latestVersion;
+
+        if (roleLatest) {
+          setRolePromptSnapshot(roleLatest.content);
+        }
+        if (commentaryLatest) {
+          setCommentaryPromptSnapshot(commentaryLatest.content);
+        }
+        setPromptSourceVersionId(roleLatest?.id || commentaryLatest?.id || null);
+        setPrevPromptCC(chiefComplaint);
+      } catch (err) {
+        console.error("프롬프트 로드 실패:", err);
+      }
+    };
+
+    loadPrompts();
+  }, [chiefComplaint, isNew, rolePromptSnapshot, commentaryPromptSnapshot, prevPromptCC]);
+
   // 저장
   const handleSave = async (action: "draft" | "publish") => {
     if (!chiefComplaint || !caseName.trim()) {
@@ -277,6 +327,9 @@ export default function ScenarioDetailPage() {
         checklistIncludedMap:
           Object.keys(checklistIncludedMap).length > 0 ? checklistIncludedMap : null,
         commentaryContent: commentaryContent ? { html: commentaryContent } : null,
+        rolePromptSnapshot: rolePromptSnapshot || null,
+        commentaryPromptSnapshot: commentaryPromptSnapshot || null,
+        promptSourceVersionId,
         action,
         pendingImageId,
       };
@@ -359,6 +412,53 @@ export default function ScenarioDetailPage() {
   // 수정 가능 여부 (DRAFT는 직접 수정, PUBLISHED는 새 버전 생성)
   // LEGACY는 수정 불가
   const canEdit = isNew || scenario?.status === "DRAFT" || scenario?.status === "PUBLISHED";
+
+  // 기본 체크리스트 불러오기 핸들러
+  const handleReloadChecklist = useCallback(async () => {
+    if (!chiefComplaint) return;
+
+    try {
+      const res = await fetch(`/api/admin/checklist?chiefComplaint=${encodeURIComponent(chiefComplaint)}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.latestVersion) {
+        alert(`${chiefComplaint}에 대한 기본 체크리스트가 없습니다.`);
+        return;
+      }
+
+      const rawJson = data.latestVersion.checklistJson as {
+        HistoryEvidenceChecklist?: { id: string; title: string; criteria: string }[];
+        PhysicalexamEvidenceChecklist?: { id: string; title: string; criteria: string }[];
+        EducationEvidenceChecklist?: { id: string; title: string; criteria: string }[];
+        PpiEvidenceChecklist?: { id: string; title: string; criteria: string }[];
+        history?: { id: string; title: string; criteria: string }[];
+        physicalExam?: { id: string; title: string; criteria: string }[];
+        education?: { id: string; title: string; criteria: string }[];
+        ppi?: { id: string; title: string; criteria: string }[];
+      };
+
+      const checklistJson: ChecklistSnapshot = {
+        history: rawJson.HistoryEvidenceChecklist || rawJson.history || [],
+        physicalExam: rawJson.PhysicalexamEvidenceChecklist || rawJson.physicalExam || [],
+        education: rawJson.EducationEvidenceChecklist || rawJson.education || [],
+        ppi: rawJson.PpiEvidenceChecklist || rawJson.ppi || [],
+      };
+
+      setChecklistSnapshot(checklistJson);
+      setChecklistSourceVersionId(data.latestVersion.id);
+
+      const includedMap: ChecklistIncludedMap = {};
+      for (const section of Object.values(checklistJson)) {
+        for (const item of section) {
+          includedMap[item.id] = true;
+        }
+      }
+      setChecklistIncludedMap(includedMap);
+    } catch (err) {
+      console.error("체크리스트 불러오기 실패:", err);
+      alert("체크리스트 불러오기에 실패했습니다.");
+    }
+  }, [chiefComplaint]);
 
   // 환자 이미지 생성 핸들러
   const handlePatientImageGenerated = (imageUrl: string, imageId: string) => {
@@ -643,8 +743,14 @@ export default function ScenarioDetailPage() {
           onChecklistMapChange={setChecklistIncludedMap}
           checklistSourceVersionId={checklistSourceVersionId || undefined}
           checklistConfirmedAt={checklistConfirmedAt}
+          onReloadChecklist={handleReloadChecklist}
           commentaryContent={commentaryContent}
           onCommentaryChange={setCommentaryContent}
+          rolePromptSnapshot={rolePromptSnapshot}
+          onRolePromptSnapshotChange={setRolePromptSnapshot}
+          commentaryPromptSnapshot={commentaryPromptSnapshot}
+          onCommentaryPromptSnapshotChange={setCommentaryPromptSnapshot}
+          chiefComplaint={chiefComplaint || undefined}
           scenarioId={isNew ? undefined : id}
           onPatientImageGenerated={handlePatientImageGenerated}
           disabled={!canEdit || liveLocked}
@@ -661,6 +767,7 @@ export default function ScenarioDetailPage() {
         variant="panel"
         onLockChange={setLiveLocked}
         patientImageUrl={patientImageUrl || undefined}
+        customRolePrompt={rolePromptSnapshot || undefined}
       />
     </main>
   );

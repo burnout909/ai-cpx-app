@@ -213,6 +213,9 @@ export async function POST(req: Request) {
       scenarioContent,
       checklistIncludedMap,
       commentaryContent,
+      rolePromptSnapshot,
+      commentaryPromptSnapshot,
+      promptSourceVersionId,
       action = "draft",
       pendingImageId, // 새 시나리오 생성 전에 만들어진 이미지 ID
     } = body;
@@ -329,6 +332,9 @@ export async function POST(req: Request) {
         checklistConfirmedAt: checklistIncludedMap ? new Date() : null,
         commentaryContent: commentaryContent || null,
         commentaryUpdatedAt: commentaryContent ? new Date() : null,
+        rolePromptSnapshot: rolePromptSnapshot || null,
+        commentaryPromptSnapshot: commentaryPromptSnapshot || null,
+        promptSourceVersionId: promptSourceVersionId || null,
       },
     });
 
@@ -441,6 +447,9 @@ export async function PATCH(req: Request) {
       scenarioContent,
       checklistIncludedMap,
       commentaryContent,
+      rolePromptSnapshot,
+      commentaryPromptSnapshot,
+      promptSourceVersionId,
       action,
       pendingImageId, // 시나리오 저장 전에 만들어진 이미지 ID
     } = body;
@@ -520,6 +529,15 @@ export async function PATCH(req: Request) {
     if (commentaryContent !== undefined) {
       updateData.commentaryContent = commentaryContent;
       updateData.commentaryUpdatedAt = new Date();
+    }
+    if (rolePromptSnapshot !== undefined) {
+      updateData.rolePromptSnapshot = rolePromptSnapshot;
+    }
+    if (commentaryPromptSnapshot !== undefined) {
+      updateData.commentaryPromptSnapshot = commentaryPromptSnapshot;
+    }
+    if (promptSourceVersionId !== undefined) {
+      updateData.promptSourceVersionId = promptSourceVersionId;
     }
     if (action === "publish") {
       updateData.status = "PUBLISHED";

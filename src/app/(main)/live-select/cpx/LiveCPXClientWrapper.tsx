@@ -13,6 +13,7 @@ interface Props {
 export default function LiveCPXClientWrapper({ category, caseName, scenarioId }: Props) {
     const [patientImageUrl, setPatientImageUrl] = useState<string | undefined>(undefined);
     const [virtualPatient, setVirtualPatient] = useState<VirtualPatient | null>(null);
+    const [customRolePrompt, setCustomRolePrompt] = useState<string | undefined>(undefined);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -29,6 +30,9 @@ export default function LiveCPXClientWrapper({ category, caseName, scenarioId }:
 
                 if (scenarioRes.ok && scenarioData.scenario?.scenarioContent) {
                     setVirtualPatient(scenarioData.scenario.scenarioContent);
+                    if (scenarioData.scenario.rolePromptSnapshot) {
+                        setCustomRolePrompt(scenarioData.scenario.rolePromptSnapshot);
+                    }
                 }
 
                 // Fetch patient image
@@ -63,6 +67,7 @@ export default function LiveCPXClientWrapper({ category, caseName, scenarioId }:
             scenarioId={scenarioId}
             virtualPatient={virtualPatient || undefined}
             patientImageUrl={patientImageUrl}
+            customRolePrompt={customRolePrompt}
         />
     );
 }

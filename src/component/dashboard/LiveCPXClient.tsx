@@ -23,6 +23,7 @@ type Props = {
   virtualPatient?: VirtualPatient;
   onLockChange?: (locked: boolean) => void;
   patientImageUrl?: string;
+  customRolePrompt?: string;
 };
 
 const INITIAL_SECONDS = 12 * 60;
@@ -37,6 +38,7 @@ export default function LiveCPXClient({
   virtualPatient,
   onLockChange,
   patientImageUrl,
+  customRolePrompt,
 }: Props) {
   const isPanel = variant === "panel";
 
@@ -310,7 +312,7 @@ export default function LiveCPXClient({
       const patientSex = caseData?.meta?.sex || caseData?.properties?.meta?.sex;
       const agent = new RealtimeAgent({
         name: "표준화 환자 AI",
-        instructions: buildPatientInstructions(caseData),
+        instructions: buildPatientInstructions(caseData, customRolePrompt),
         voice: patientSex === "남성" ? "ash" : "coral",
       });
 

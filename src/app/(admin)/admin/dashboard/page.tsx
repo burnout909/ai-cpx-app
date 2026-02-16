@@ -88,12 +88,16 @@ export default function AdminDashboardLandingPage() {
             badge={<VerificationBadge />} />
         </Section>
 
-        {/* 체크리스트 섹션 */}
-        <Section title="체크리스트">
+        {/* 주호소별 관리 섹션 */}
+        <Section title="주호소별 관리">
           <DashboardCard
             href="/admin/dashboard/checklist"
             title="체크리스트 관리"
             description="CSV 업로드로 케이스별 체크리스트를 등록/수정/삭제합니다." />
+          <DashboardCard
+            href="/admin/dashboard/prompt"
+            title="프롬프트 관리"
+            description="주호소별 Role Prompt와 해설 프롬프트를 관리합니다." />
         </Section>
 
         {/* 시나리오 섹션 */}

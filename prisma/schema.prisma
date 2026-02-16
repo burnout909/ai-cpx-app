@@ -229,6 +229,9 @@ model Scenario {
   checklistConfirmedAt     DateTime?      @map("checklist_confirmed_at") @db.Timestamptz(6)
   commentaryContent        Json?          @map("commentary_content")
   commentaryUpdatedAt      DateTime?      @map("commentary_updated_at") @db.Timestamptz(6)
+  rolePromptSnapshot       String?        @map("role_prompt_snapshot")
+  commentaryPromptSnapshot String?        @map("commentary_prompt_snapshot")
+  promptSourceVersionId    String?        @map("prompt_source_version_id") @db.Uuid
   createdById              String?        @map("created_by_id") @db.Uuid
   createdAt                DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -275,6 +278,20 @@ model PromptVersion {
   @@unique([type, version])
   @@index([type], map: "idx_prompt_versions_type")
   @@map("prompt_versions")
+  @@schema("public")
+}
+
+model ChiefComplaintPrompt {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chiefComplaint String       @map("chief_complaint")
+  type           CCPromptType @map("type")
+  version        String       @db.VarChar
+  content        String
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([chiefComplaint, type, version])
+  @@index([chiefComplaint, type], map: "idx_cc_prompts_chief_complaint_type")
+  @@map("chief_complaint_prompts")
   @@schema("public")
 }
 
@@ -783,6 +800,14 @@ enum PromptType {
   SCENARIO_INSTRUCT
 
   @@map("prompt_type")
+  @@schema("public")
+}
+
+enum CCPromptType {
+  ROLE
+  COMMENTARY
+
+  @@map("cc_prompt_type")
   @@schema("public")
 }
 
