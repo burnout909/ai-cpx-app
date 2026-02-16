@@ -15,11 +15,10 @@ model Profile {
   role            UserRole                @default(STUDENT)
   createdAt       DateTime                @default(now()) @map("created_at")
   updatedAt       DateTime                @updatedAt @map("updated_at")
-  auth_uid        String?                 @unique @db.Uuid
   auditLogs       AuditLog[]              @relation("ActorAuditLogs")
   sessions        CpxSession[]
   feedbacks       Feedback[]
-  users           users?                  @relation(fields: [auth_uid], references: [id], onDelete: Cascade)
+  users           users?                  @relation(fields: [id], references: [id], onDelete: Cascade)
   scores          Score[]
   reviews         StudentIdVerification[] @relation("ReviewerVerifications")
   idVerifications   StudentIdVerification[] @relation("UserVerifications")

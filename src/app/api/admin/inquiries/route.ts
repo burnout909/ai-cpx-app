@@ -21,8 +21,7 @@ async function requireAdmin() {
   }
 
   const profile = await prisma.profile.findUnique({
-    where: { auth_uid: user.id },
-    select: { id: true },
+    where: { id: user.id },
   });
 
   if (!profile) {
