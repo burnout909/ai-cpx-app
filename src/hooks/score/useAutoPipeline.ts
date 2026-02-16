@@ -44,12 +44,16 @@ async function loadChecklistFromScenario(scenarioId: string): Promise<EvidenceMo
     return data.checklist as EvidenceModule;
 }
 
+export interface PipelineResult {
+    gradesBySection: Record<string, GradeItem[]>;
+    timingBySection: SectionTimingMap;
+}
+
 export function useAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
     setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
     setActiveSection: (section: SectionKey | null) => void,
-    setDone: (done: boolean) => void,
     onSessionId?: (sessionId: string) => void,
     setTimingBySection?: (timing: SectionTimingMap) => void,
 ) {
@@ -72,7 +76,7 @@ export function useAutoPipeline(
         checklistId?: string | null,
         scenarioId?: string | null,
         cachedTranscriptS3Key?: string | null,
-    ) {
+    ): Promise<PipelineResult | null> {
         const audioKeys = (Array.isArray(keys) ? keys : [keys]).filter(Boolean);
         let activeSessionId = sessionId ?? null;
         try {
@@ -275,15 +279,11 @@ export function useAutoPipeline(
             setGradesBySection(graded);
             setActiveSection(null);
 
-            // 완료
-            setStatusMessage(null);
-            setDone(true);
-
-
-
+            return { gradesBySection: graded, timingBySection: timingResult ?? {} };
         } catch (e: any) {
             console.error(e);
             setStatusMessage(`오류 발생: ${e.message || e}`);
+            return null;
         }
     };
 }

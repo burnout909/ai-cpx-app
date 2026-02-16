@@ -2,8 +2,8 @@
 import BottomFixButton from '@/component/BottomFixButton';
 import ReportDetailTable from '@/component/score/ReportDetail';
 import ReportSummary from '@/component/score/ReportSummary';
-import { useAutoPipeline } from '@/hooks/score/useAutoPipeline';
-import { useLiveAutoPipeline } from '@/hooks/score/useLiveAutoPipeline';
+import { useAutoPipeline, PipelineResult } from '@/hooks/score/useAutoPipeline';
+import { useLiveAutoPipeline, LivePipelineResult } from '@/hooks/score/useLiveAutoPipeline';
 import { GradeItem, SectionResult, SectionTimingMap } from '@/types/score';
 import { getAllTotals } from '@/utils/score';
 import { useEffect, useState, useRef } from 'react';
@@ -32,7 +32,7 @@ interface Props {
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
-export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin, sessionId: initialSessionId, checklistId, timestampsS3Key, scenarioId }: Props) {
+export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, origin, sessionId: initialSessionId, checklistId, timestampsS3Key, scenarioId }: Props) {
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
@@ -53,28 +53,30 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
     const pipelineRanRef = useRef(false);
     const { totals, overall } = getAllTotals(gradesBySection);
 
-    // 구조화 점수 자동 업로드: structuredScore/studentId-datetimeStamp(korea)
-    useEffect(() => {
-        (async () => {
-            try {
-                if (uploadedScoreRef.current) return;                  // 중복 방지
-                if (!studentNumber) return;
-                // 섹션 점수 들어왔는지 확인
-                const hasScores = gradesBySection && Object.keys(gradesBySection).length > 0;
-                if (!hasScores) return;
-                if (!process.env.NEXT_PUBLIC_S3_BUCKET_NAME) return;
+    // Score를 S3 + DB에 동기적으로 저장하는 헬퍼
+    async function saveScoreToDB(
+        grades: Record<string, GradeItem[]>,
+        timing: SectionTimingMap,
+    ) {
+        try {
+            uploadedScoreRef.current = true;
 
-                uploadedScoreRef.current = true;
+            const uploadPayload = {
+                history: grades.history ?? [],
+                physical_exam: grades.physical_exam ?? [],
+                education: grades.education ?? [],
+                ppi: grades.ppi ?? [],
+                ...(Object.keys(timing).length > 0 ? { timingBySection: timing } : {}),
+            };
 
-                const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME!;
+            // S3 업로드
+            let s3Key: string | undefined;
+            const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
+            if (bucket) {
                 const timestamp = getKSTTimestamp();
-                const key = `${origin}_structuredScore/${studentNumber}-${timestamp}.json`;
+                s3Key = `${origin}_structuredScore/${timestamp}.json`;
 
-                const uploadUrl = await generateUploadUrl(bucket, key);
-                const uploadPayload = {
-                    ...gradesBySection,
-                    ...(Object.keys(timingBySection).length > 0 ? { timingBySection } : {}),
-                };
+                const uploadUrl = await generateUploadUrl(bucket, s3Key);
                 const body = new Blob([JSON.stringify(uploadPayload, null, 2)], {
                     type: 'application/json; charset=utf-8',
                 });
@@ -84,32 +86,33 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                     headers: { 'Content-Type': 'application/json; charset=utf-8' },
                     body,
                 });
-                if (uploadRes.ok) {
-                    const total = Number.isFinite(overall?.got) ? overall.got : undefined;
-                    const meta = await postMetadata({
-                        type: "score",
-                        s3Key: key,
-                        sessionId,
-                        caseName,
-                        origin,
-                        total,
-                        sizeBytes: body.size,
-                        textLength: JSON.stringify(gradesBySection).length,
-                        dataJson: {
-                        ...gradesBySection,
-                        ...(Object.keys(timingBySection).length > 0 ? { timingBySection } : {}),
-                    },
-                    });
-                    if (meta.sessionId && meta.sessionId !== sessionId) {
-                        setSessionId(meta.sessionId);
-                    }
+                if (!uploadRes.ok) {
+                    console.warn('[S3 score upload failed]');
+                    s3Key = undefined;
                 }
-            } catch (e) {
-                console.warn('[structuredScore upload skipped]', e);
             }
-        })();
-        // gradesBySection이 채워지는 시점에 1회 시도
-    }, [gradesBySection, studentNumber, caseName, origin, sessionId, timingBySection]);
+
+            // DB 저장: studentNumber 없어도 dataJson으로 캐싱
+            const { overall: o } = getAllTotals(grades);
+            const total = Number.isFinite(o?.got) ? o.got : undefined;
+            const meta = await postMetadata({
+                type: "score",
+                s3Key: s3Key ?? "",
+                sessionId,
+                caseName,
+                origin,
+                total,
+                sizeBytes: JSON.stringify(uploadPayload).length,
+                textLength: JSON.stringify(grades).length,
+                dataJson: uploadPayload,
+            });
+            if (meta.sessionId && meta.sessionId !== sessionId) {
+                setSessionId(meta.sessionId);
+            }
+        } catch (e) {
+            console.warn('[structuredScore save skipped]', e);
+        }
+    }
 
 
 
@@ -119,11 +122,10 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
         setGradesBySection,
         setResults,
         setActiveSection,
-        setDone,
         (id) => setSessionId(id),
         setTimingBySection,
     );
-    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setDone, setTimingBySection);
+    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setTimingBySection);
 
     useEffect(() => {
         if (!caseName) return;
@@ -131,7 +133,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
         pipelineRanRef.current = true;
 
         (async () => {
-            // 1) sessionId가 있으면 DB에서 기존 Score 확인
+            // Tier 1: sessionId가 있으면 DB에서 기존 Score 확인
             if (sessionId) {
                 try {
                     const res = await fetch(`/api/metadata?sessionId=${encodeURIComponent(sessionId)}`);
@@ -151,10 +153,24 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                             return;
                         }
 
-                        // Score 없지만 Transcript 있으면 SP 전사 건너뛰기 가능
+                        // Tier 2: Score 없지만 Transcript 있으면 전사 건너뛰기 가능
                         const cachedTranscript = session?.transcripts?.[0];
-                        if (cachedTranscript?.s3Key && audioKeys.length > 0) {
-                            runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId, scenarioId, cachedTranscript.s3Key);
+                        if (cachedTranscript?.s3Key) {
+                            let result: PipelineResult | LivePipelineResult | null = null;
+
+                            if (audioKeys.length > 0) {
+                                // SP: 전사 건너뛰고 채점만
+                                result = await runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId, scenarioId, cachedTranscript.s3Key);
+                            } else if (transcriptS3Key) {
+                                // VP: transcript 이미 있으니 채점만
+                                result = await runLiveAutoPipeline(transcriptS3Key, caseName, checklistId, timestampsS3Key, scenarioId);
+                            }
+
+                            if (result) {
+                                await saveScoreToDB(result.gradesBySection, result.timingBySection);
+                            }
+                            setStatusMessage(null);
+                            setDone(true);
                             return;
                         }
                     }
@@ -163,9 +179,20 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                 }
             }
 
-            // 2) 캐시 없으면 기존 파이프라인 실행
-            if (transcriptS3Key) runLiveAutoPipeline(transcriptS3Key, caseName, checklistId, timestampsS3Key, scenarioId);
-            else if (audioKeys.length > 0) runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId, scenarioId);
+            // Tier 3: 캐시 없음 → 전체 파이프라인
+            let result: PipelineResult | LivePipelineResult | null = null;
+
+            if (transcriptS3Key) {
+                result = await runLiveAutoPipeline(transcriptS3Key, caseName, checklistId, timestampsS3Key, scenarioId);
+            } else if (audioKeys.length > 0) {
+                result = await runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId, scenarioId);
+            }
+
+            if (result) {
+                await saveScoreToDB(result.gradesBySection, result.timingBySection);
+            }
+            setStatusMessage(null);
+            setDone(true);
         })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [caseName, sessionId]);

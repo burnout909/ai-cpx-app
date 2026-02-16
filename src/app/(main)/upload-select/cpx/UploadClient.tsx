@@ -102,7 +102,7 @@ export default function UploadClient({ category, caseName }: Props) {
                 const sessionParam = sessionId
                     ? `&sessionId=${encodeURIComponent(sessionId)}`
                     : "";
-                router.push(`/score?${query}&caseName=${encodeURIComponent(caseName)}${sessionParam}`);
+                router.push(`/score?${query}&caseName=${encodeURIComponent(caseName)}&origin=SP${sessionParam}`);
             })
         } catch (err: any) {
             console.error(err);

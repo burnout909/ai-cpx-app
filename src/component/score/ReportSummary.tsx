@@ -1,6 +1,7 @@
 import { SectionTimingMap } from '@/types/score';
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
+const SECTION_ORDER: Exclude<SectionKey, null>[] = ['history', 'physical_exam', 'education', 'ppi'];
 
 function formatDuration(sec: number): string {
     const m = Math.floor(sec / 60);
@@ -47,7 +48,8 @@ export default function ReportSummary({
             </div>
 
             <div className="grid grid-cols-2 gap-2 mb-5 bg-[#FCFCFC]">
-                {Object.entries(totals).map(([key, val]) => {
+                {SECTION_ORDER.filter((key) => key in totals).map((key) => {
+                    const val = totals[key];
                     const isActive = active === key;
                     return (
                         <button

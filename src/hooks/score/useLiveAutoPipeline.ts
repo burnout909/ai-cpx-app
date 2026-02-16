@@ -43,15 +43,19 @@ async function loadChecklistFromScenario(scenarioId: string): Promise<EvidenceMo
     return data.checklist as EvidenceModule;
 }
 
+export interface LivePipelineResult {
+    gradesBySection: Record<string, GradeItem[]>;
+    timingBySection: SectionTimingMap;
+}
+
 export function useLiveAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
     setGradesBySection: (data: any) => void,
     setResults: (data: SectionResult[]) => void,
     setActiveSection: (section: SectionKey | null) => void,
-    setDone: (done: boolean) => void,
     setTimingBySection?: (timing: SectionTimingMap) => void,
 ) {
-    return async function runLiveAutoPipeline(key: string, caseName: string, checklistId?: string | null, timestampsS3Key?: string | null, scenarioId?: string | null) {
+    return async function runLiveAutoPipeline(key: string, caseName: string, checklistId?: string | null, timestampsS3Key?: string | null, scenarioId?: string | null): Promise<LivePipelineResult | null> {
         const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
         try {
             // 1️⃣ 체크리스트 불러오기
@@ -210,12 +214,11 @@ export function useLiveAutoPipeline(
             setGradesBySection(graded);
             setActiveSection(null);
 
-            // 5️⃣ 완료
-            setStatusMessage(null);
-            setDone(true);
+            return { gradesBySection: graded, timingBySection: timingResult ?? {} };
         } catch (e: any) {
             console.error(e);
             setStatusMessage(`오류 발생: ${e.message || e}`);
+            return null;
         }
     }
 }

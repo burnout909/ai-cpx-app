@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 핵심 철학
+- Think Before Coding (코드 타이핑 전에 생각부터): 가정 명시, 불확실하면 질문, 혼란 시 멈춤
+- Simplicity First (단순하게 먼저): 요청 안 한 기능·추상화·에러 처리 추가 금지
+- Surgical Changes (수술처럼 정밀하게): 요청된 부분만 바꾸고 나머지 건드리지 않기
+- Goal-Driven Execution (목표 중심 실행): “기능 추가” 대신 “테스트 통과시키기”처럼 구체적 목표로 변환
+
 ## Project Overview
 
 AI-CPX is a medical education platform for CPX (Clinical Performance Examination) practice and auto-grading. It enables medical students to practice clinical interviews with AI-powered virtual patients and receive automated scoring and feedback.

@@ -19,26 +19,46 @@ import NoSleep from "nosleep.js";
 import FocusModeOverlay from "@/component/FocusModeOverlay";
 
 const DEFAULT_SECONDS = 12 * 60; // 12분
-const MIN_SECONDS = 5 * 60; // 최소 2.5분
+const MIN_SECONDS = 2.5 * 60; // 최소 2.5분
 const MAX_SECONDS = 20 * 60; // 최대 20분
 const STEP_SECONDS = 30; // 30초 단위
 const INITIAL_READY_SECONDS = 60; // 준비 시간 60초
 
 // 음성 알림 파일 경로
 const AUDIO_ALERTS = {
+    before: "/audio/exam-before.mp3",
     start: "/audio/exam-start.mp3",
     twoMin: "/audio/two-min-left.mp3",
     end: "/audio/exam-end.mp3",
 } as const;
 
+// 오디오 프리로드 캐시
+const audioCache = new Map<string, HTMLAudioElement>();
+
+function preloadAlerts() {
+    if (typeof window === "undefined") return;
+    for (const src of Object.values(AUDIO_ALERTS)) {
+        if (!audioCache.has(src)) {
+            const audio = new Audio(src);
+            audio.preload = "auto";
+            audioCache.set(src, audio);
+        }
+    }
+}
+
 // 오디오 재생 함수
 function playAlert(type: keyof typeof AUDIO_ALERTS) {
     if (typeof window === "undefined") return;
-
-    const audio = new Audio(AUDIO_ALERTS[type]);
-    audio.play().catch((err) => {
-        console.warn("[Audio] 재생 실패:", err);
-    });
+    const src = AUDIO_ALERTS[type];
+    const cached = audioCache.get(src);
+    if (cached) {
+        cached.currentTime = 0;
+        cached.play().catch((err) => console.warn("[Audio] 재생 실패:", err));
+    } else {
+        const audio = new Audio(src);
+        audio.play().catch((err) => console.warn("[Audio] 재생 실패:", err));
+        audioCache.set(src, audio);
+    }
 }
 
 type Props = { category: string; caseName: string; checklistId?: string };
@@ -83,9 +103,10 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     const endAlertedRef = useRef(false); // 종료 알림 여부
     const noSleepRef = useRef<NoSleep | null>(null);
 
-    // NoSleep 인스턴스 초기화
+    // NoSleep 인스턴스 초기화 + 오디오 프리로드
     useEffect(() => {
         noSleepRef.current = new NoSleep();
+        preloadAlerts();
         return () => {
             noSleepRef.current?.disable();
         };
@@ -322,6 +343,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             const ok = await ensureOnboarding();
             if (!ok) return;
             if (useReadyTimer) {
+                playAlert("before"); // 상황 숙지 시작 음성
                 setReadySeconds(INITIAL_READY_SECONDS); // 준비 타이머 시작
             } else {
                 startRecording(); // 바로 시작
