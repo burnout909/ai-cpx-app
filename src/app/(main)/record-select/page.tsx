@@ -28,7 +28,7 @@ export default function SelectPage() {
 
     // 선택 상태
     const [selected, setSelected] = useState<SelectedState>({
-        category: UPLOAD_RECORD_CASE_CATEGORIES[0].name,
+        category: "",
         chiefComplaint: "",
         checklistId: null,
     });
@@ -63,8 +63,7 @@ export default function SelectPage() {
 
     // 현재 선택된 대분류
     const currentCategory =
-        UPLOAD_RECORD_CASE_CATEGORIES.find((cat) => cat.name === selected.category) ??
-        UPLOAD_RECORD_CASE_CATEGORIES[0];
+        UPLOAD_RECORD_CASE_CATEGORIES.find((cat) => cat.name === selected.category);
 
     // 주호소에 체크리스트가 있는지 확인
     const isAvailable = (chiefComplaint: string) => {
@@ -120,6 +119,10 @@ export default function SelectPage() {
                     {loading ? (
                         <div className="flex items-center justify-center py-8">
                             <div className="w-5 h-5 border-2 border-[#D0C7FA] border-t-[#7553FC] rounded-full animate-spin" />
+                        </div>
+                    ) : !currentCategory ? (
+                        <div className="text-[13px] text-[#B8B2D1] px-3 py-4">
+                            분류를 선택하세요
                         </div>
                     ) : (
                         currentCategory.details.map((item) => {

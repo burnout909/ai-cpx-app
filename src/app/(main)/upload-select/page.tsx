@@ -30,14 +30,14 @@ export default function SelectPage() {
 
     // 하나의 객체로 상태 관리
     const [selected, setSelected] = useState<SelectedCaseState>({
-        category: UPLOAD_RECORD_CASE_CATEGORIES[0].name,
-        case: UPLOAD_RECORD_CASE_CATEGORIES[0].details[0].name,
+        category: "",
+        case: "",
     });
 
     // 현재 선택된 대분류 찾기
     const currentCategory = UPLOAD_RECORD_CASE_CATEGORIES.find(
         (cat) => cat.name === selected.category
-    ) ?? UPLOAD_RECORD_CASE_CATEGORIES[0];
+    );
 
     return (
         <div className="flex flex-col relative">
@@ -63,21 +63,27 @@ export default function SelectPage() {
 
                 {/* 오른쪽: 세부 케이스 */}
                 <div className="flex flex-col gap-2 w-1/2 overflow-y-auto border-l border-[#E0DEF0] pl-4 rounded-[8px]">
-                    {currentCategory.details.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() =>
-                                setSelected((prev) => ({ ...prev, case: item.name }))
-                            }
-                            className={`text-left font-medium px-3 py-[9.5px] text-[16px] rounded-[8px] transition-all
-                ${selected.case === item.name
-                                    ? "bg-[#DAD7E8] text-[#210535]"
-                                    : "text-[#9A8FCB] hover:bg-[#F0EEFC] hover:text-[#210535]"
-                                }`}
-                        >
-                            {item.name}
-                        </button>
-                    ))}
+                    {!currentCategory ? (
+                        <div className="text-[13px] text-[#9A8FCB] px-3 py-4">
+                            분류를 선택하세요
+                        </div>
+                    ) : (
+                        currentCategory.details.map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() =>
+                                    setSelected((prev) => ({ ...prev, case: item.name }))
+                                }
+                                className={`text-left font-medium px-3 py-[9.5px] text-[16px] rounded-[8px] transition-all
+                    ${selected.case === item.name
+                                        ? "bg-[#DAD7E8] text-[#210535]"
+                                        : "text-[#9A8FCB] hover:bg-[#F0EEFC] hover:text-[#210535]"
+                                    }`}
+                            >
+                                {item.name}
+                            </button>
+                        ))
+                    )}
                 </div>
             </div>
 

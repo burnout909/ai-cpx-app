@@ -38,7 +38,7 @@ export default function SelectPage() {
 
     // 선택 상태
     const [selected, setSelected] = useState<SelectedState>({
-        category: LIVE_CASE_CATEGORIES[0].name,
+        category: "",
         chiefComplaint: "",
         caseId: null,
         caseName: null,
@@ -100,8 +100,7 @@ export default function SelectPage() {
 
     // 현재 선택된 대분류
     const currentCategory =
-        LIVE_CASE_CATEGORIES.find((cat) => cat.name === selected.category) ??
-        LIVE_CASE_CATEGORIES[0];
+        LIVE_CASE_CATEGORIES.find((cat) => cat.name === selected.category);
 
     // 현재 선택된 주호소의 케이스 목록
     const currentCases = selected.chiefComplaint
@@ -167,41 +166,47 @@ export default function SelectPage() {
                 {/* 2열: 주호소 */}
                 <div className="flex flex-col gap-2 w-1/3 border-l border-[#E0DEF0] pl-3">
                     <div className="text-xs font-semibold text-[#9A8FCB] mb-1 px-2">주호소</div>
-                    {currentCategory.details.map((item) => {
-                        const available = isAvailable(item.name);
-                        const caseCount = getCaseCount(item.name);
-                        return (
-                            <button
-                                key={item.id}
-                                onClick={() => {
-                                    if (!available) return;
-                                    setSelected((prev) => ({
-                                        ...prev,
-                                        chiefComplaint: item.name,
-                                        caseId: null,
-                                        caseName: null,
-                                    }));
-                                }}
-                                disabled={!available}
-                                className={`text-left font-medium px-3 py-2 text-[14px] rounded-[8px] transition-all
-                                    ${!available
-                                        ? "text-[#C9C4DC] cursor-not-allowed"
-                                        : selected.chiefComplaint === item.name
-                                            ? "bg-[#DAD7E8] text-[#210535]"
-                                            : "text-[#5B4A99] hover:bg-[#F0EEFC] hover:text-[#210535]"
-                                    }`}
-                            >
-                                <span className="flex items-center justify-between">
-                                    {item.name}
-                                    {available && (
-                                        <span className="text-xs text-[#7553FC] bg-[#F0EEFC] px-1.5 py-0.5 rounded">
-                                            {caseCount}
-                                        </span>
-                                    )}
-                                </span>
-                            </button>
-                        );
-                    })}
+                    {!currentCategory ? (
+                        <div className="text-[13px] text-[#B8B2D1] px-3 py-4">
+                            분류를 선택하세요
+                        </div>
+                    ) : (
+                        currentCategory.details.map((item) => {
+                            const available = isAvailable(item.name);
+                            const caseCount = getCaseCount(item.name);
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => {
+                                        if (!available) return;
+                                        setSelected((prev) => ({
+                                            ...prev,
+                                            chiefComplaint: item.name,
+                                            caseId: null,
+                                            caseName: null,
+                                        }));
+                                    }}
+                                    disabled={!available}
+                                    className={`text-left font-medium px-3 py-2 text-[14px] rounded-[8px] transition-all
+                                        ${!available
+                                            ? "text-[#C9C4DC] cursor-not-allowed"
+                                            : selected.chiefComplaint === item.name
+                                                ? "bg-[#DAD7E8] text-[#210535]"
+                                                : "text-[#5B4A99] hover:bg-[#F0EEFC] hover:text-[#210535]"
+                                        }`}
+                                >
+                                    <span className="flex items-center justify-between">
+                                        {item.name}
+                                        {available && (
+                                            <span className="text-xs text-[#7553FC] bg-[#F0EEFC] px-1.5 py-0.5 rounded">
+                                                {caseCount}
+                                            </span>
+                                        )}
+                                    </span>
+                                </button>
+                            );
+                        })
+                    )}
                 </div>
 
                 {/* 3열: 케이스 */}
