@@ -70,6 +70,7 @@ export default function ScenarioListTable({
   );
   const [statusFilter, setStatusFilter] = useState<ScenarioStatus | "">("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [authorFilter, setAuthorFilter] = useState("");
 
   // 정렬 상태
   const [sortField, setSortField] = useState<SortField>(null);
@@ -140,12 +141,32 @@ export default function ScenarioListTable({
     return CHIEF_COMPLAINTS_BY_CATEGORY[categoryFilter] as readonly string[];
   }, [categoryFilter]);
 
+  // 작성자 목록 추출
+  const authorOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const s of scenarios) {
+      const name = getAuthorName(s.createdBy);
+      if (name !== "-") names.add(name);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [scenarios]);
+
   // 필터링 + 정렬된 시나리오
   const filteredScenarios = useMemo(() => {
     let result = scenarios.filter((s) => {
       // 카테고리 필터 (서버에서 주호소 필터 안 건 경우 클라이언트에서 필터)
       if (categoryFilter && !chiefComplaint) {
         if (!categoryChiefComplaints?.includes(s.chiefComplaint)) return false;
+      }
+
+      // 작성자 필터
+      if (authorFilter) {
+        const name = getAuthorName(s.createdBy);
+        if (authorFilter === "__none__") {
+          if (name !== "-") return false;
+        } else {
+          if (name !== authorFilter) return false;
+        }
       }
 
       // 검색어 필터
@@ -176,7 +197,7 @@ export default function ScenarioListTable({
     }
 
     return result;
-  }, [scenarios, categoryFilter, chiefComplaint, categoryChiefComplaints, searchTerm, sortField, sortDirection]);
+  }, [scenarios, categoryFilter, chiefComplaint, categoryChiefComplaints, authorFilter, searchTerm, sortField, sortDirection]);
 
   // 상태 뱃지 컬러
   const getStatusBadge = (status: ScenarioStatus) => {
@@ -303,6 +324,19 @@ export default function ScenarioListTable({
           <option value="DRAFT">임시저장</option>
           <option value="LEGACY">이전버전</option>
         </select>
+        <select
+          value={authorFilter}
+          onChange={(e) => setAuthorFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-500"
+        >
+          <option value="">모든 작성자</option>
+          <option value="__none__">작성자 없음</option>
+          {authorOptions.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
         <div className="flex-1 min-w-[200px]">
           <input
             type="text"
@@ -344,6 +378,14 @@ export default function ScenarioListTable({
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 작성자
+                {authorFilter && (
+                  <button
+                    onClick={() => setAuthorFilter("")}
+                    className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors"
+                  >
+                    {authorFilter} ✕
+                  </button>
+                )}
               </th>
               <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 버전
@@ -381,7 +423,7 @@ export default function ScenarioListTable({
             ) : filteredScenarios.length === 0 ? (
               <tr>
                 <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
-                  {searchTerm || chiefComplaint || statusFilter || categoryFilter
+                  {searchTerm || chiefComplaint || statusFilter || categoryFilter || authorFilter
                     ? "검색 결과가 없습니다."
                     : "등록된 시나리오가 없습니다."}
                 </td>
@@ -431,8 +473,19 @@ export default function ScenarioListTable({
                       <td className="px-4 py-3 text-sm text-gray-900 font-medium">
                         {scenario.caseName}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {getAuthorName(scenario.createdBy)}
+                      <td
+                        className="px-4 py-3 text-sm text-gray-600"
+                        onClick={(e) => {
+                          const name = getAuthorName(scenario.createdBy);
+                          if (name !== "-") {
+                            e.stopPropagation();
+                            setAuthorFilter(authorFilter === name ? "" : name);
+                          }
+                        }}
+                      >
+                        <span className={getAuthorName(scenario.createdBy) !== "-" ? "hover:text-violet-600 hover:underline cursor-pointer" : ""}>
+                          {getAuthorName(scenario.createdBy)}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-center text-sm text-gray-600">
                         v{scenario.versionNumber.toFixed(1)}
@@ -490,8 +543,19 @@ export default function ScenarioListTable({
                         <td className="px-4 py-2 text-sm text-gray-500">
                           {version.caseName}
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-400">
-                          {getAuthorName(version.createdBy)}
+                        <td
+                          className="px-4 py-2 text-sm text-gray-400"
+                          onClick={(e) => {
+                            const name = getAuthorName(version.createdBy);
+                            if (name !== "-") {
+                              e.stopPropagation();
+                              setAuthorFilter(authorFilter === name ? "" : name);
+                            }
+                          }}
+                        >
+                          <span className={getAuthorName(version.createdBy) !== "-" ? "hover:text-violet-600 hover:underline cursor-pointer" : ""}>
+                            {getAuthorName(version.createdBy)}
+                          </span>
                         </td>
                         <td className="px-4 py-2 text-center text-sm text-gray-500">
                           v{version.versionNumber.toFixed(1)}

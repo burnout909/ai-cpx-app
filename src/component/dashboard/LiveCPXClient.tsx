@@ -361,7 +361,7 @@ export default function LiveCPXClient({
         }
       };
 
-      recorder.start(100); // 100ms마다 chunk 생성
+      recorder.start(25); // 100ms마다 chunk 생성
       setIsRecording(true);
     } catch (err: any) {
       console.error("세션 시작 오류:", err);

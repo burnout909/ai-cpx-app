@@ -27,11 +27,12 @@ interface Props {
     sessionId: string | null;
     checklistId: string | null;
     timestampsS3Key: string | null;
+    scenarioId: string | null;
 }
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
-export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin, sessionId: initialSessionId, checklistId, timestampsS3Key }: Props) {
+export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, studentNumber, origin, sessionId: initialSessionId, checklistId, timestampsS3Key, scenarioId }: Props) {
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
@@ -42,19 +43,15 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
 
     // 새로 추가: 솔루션 마크다운/HTML 상태
     const [solutionHtml, setSolutionHtml] = useState<string>("");
+    const [solutionLoading, setSolutionLoading] = useState<boolean>(false);
     const [showSolution, setShowSolution] = useState<boolean>(true); //솔루션 보기 여부
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const feedbackAnchorRef = useRef<HTMLDivElement>(null);
     const solutionAnchorRef = useRef<HTMLDivElement>(null); // 해설 섹션 상단 ref 추가
     const uploadedScoreRef = useRef(false);
+    const pipelineRanRef = useRef(false);
     const { totals, overall } = getAllTotals(gradesBySection);
-
-    useEffect(() => {
-        if (initialSessionId && initialSessionId !== sessionId) {
-            setSessionId(initialSessionId);
-        }
-    }, [initialSessionId, sessionId]);
 
     // 구조화 점수 자동 업로드: structuredScore/studentId-datetimeStamp(korea)
     useEffect(() => {
@@ -98,7 +95,10 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                         total,
                         sizeBytes: body.size,
                         textLength: JSON.stringify(gradesBySection).length,
-                        dataJson: gradesBySection,
+                        dataJson: {
+                        ...gradesBySection,
+                        ...(Object.keys(timingBySection).length > 0 ? { timingBySection } : {}),
+                    },
                     });
                     if (meta.sessionId && meta.sessionId !== sessionId) {
                         setSessionId(meta.sessionId);
@@ -127,11 +127,50 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
 
     useEffect(() => {
         if (!caseName) return;
-        if (transcriptS3Key) runLiveAutoPipeline(transcriptS3Key, caseName, checklistId, timestampsS3Key);
-        else if (audioKeys.length > 0) runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId);
-    }, [audioKeys, transcriptS3Key, caseName, checklistId]);
+        if (pipelineRanRef.current) return; // 중복 실행 방지
+        pipelineRanRef.current = true;
 
-    // 👇 비동기 로드: caseName 바뀌면 솔루션 로드
+        (async () => {
+            // 1) sessionId가 있으면 DB에서 기존 Score 확인
+            if (sessionId) {
+                try {
+                    const res = await fetch(`/api/metadata?sessionId=${encodeURIComponent(sessionId)}`);
+                    if (res.ok) {
+                        const { sessions } = await res.json();
+                        const session = sessions?.[0];
+
+                        // Score가 있으면 즉시 복원, 파이프라인 건너뛰기
+                        const cachedScore = session?.scores?.[0];
+                        if (cachedScore?.dataJson && typeof cachedScore.dataJson === 'object') {
+                            const { timingBySection: cachedTiming, ...grades } = cachedScore.dataJson as Record<string, unknown>;
+                            setGradesBySection(grades as Record<string, GradeItem[]>);
+                            setTimingBySection((cachedTiming as SectionTimingMap) ?? {});
+                            uploadedScoreRef.current = true; // 재업로드 방지
+                            setDone(true);
+                            setStatusMessage(null);
+                            return;
+                        }
+
+                        // Score 없지만 Transcript 있으면 SP 전사 건너뛰기 가능
+                        const cachedTranscript = session?.transcripts?.[0];
+                        if (cachedTranscript?.s3Key && audioKeys.length > 0) {
+                            runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId, scenarioId, cachedTranscript.s3Key);
+                            return;
+                        }
+                    }
+                } catch {
+                    // cache check failed, fall through to full pipeline
+                }
+            }
+
+            // 2) 캐시 없으면 기존 파이프라인 실행
+            if (transcriptS3Key) runLiveAutoPipeline(transcriptS3Key, caseName, checklistId, timestampsS3Key, scenarioId);
+            else if (audioKeys.length > 0) runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId, scenarioId);
+        })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [caseName, sessionId]);
+
+    // 👇 비동기 로드: scenarioId가 있으면 DB에서, 없으면 정적 파일에서 솔루션 로드
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -140,17 +179,34 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
                     setSolutionHtml("");
                     return;
                 }
-                const md = await loadVPSolution(caseName);     // ← Promise<string> 대기
+                setSolutionLoading(true);
+
+                // scenarioId가 있으면 DB에서 commentary 로드
+                if (scenarioId) {
+                    const res = await fetch(`/api/scenario-commentary?id=${encodeURIComponent(scenarioId)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.html && !cancelled) {
+                            setSolutionHtml(DOMPurify.sanitize(data.html));
+                            return;
+                        }
+                    }
+                    // DB 조회 실패 시 정적 파일 fallback
+                }
+
+                const md = await loadVPSolution(caseName);
                 const parsed = marked.parse(md) as string;
                 const safe = DOMPurify.sanitize(parsed);
                 if (!cancelled) setSolutionHtml(safe);
             } catch (err) {
                 if (!cancelled) setSolutionHtml(""); // 실패 시 비움
                 console.error(err);
+            } finally {
+                if (!cancelled) setSolutionLoading(false);
             }
         })();
         return () => { cancelled = true; };
-    }, [caseName]);
+    }, [caseName, scenarioId]);
 
     const PART_LABEL = { history: '병력 청취', physical_exam: '신체 진찰', education: '환자 교육', ppi: '환자-의사관계' };
 
@@ -215,15 +271,20 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, stud
             >
                 <div ref={solutionAnchorRef} />
                 {/* 상태 표시 + 솔루션 뷰 */}
-                {origin == "VP" && !!solutionHtml && (
-                    <div className='pt-2'>
+                {origin == "VP" && (solutionLoading || !!solutionHtml) && (
+                    <div className='pt-2 flex flex-col flex-1 w-full'>
                         <h2 className='text-[20px] font-semibold mb-2'>해설</h2>
-                        <div
-                            className="prose prose-[14px] text-[#333] leading-relaxed"
-                            dangerouslySetInnerHTML={{ __html: solutionHtml }}
-                        />
+                        {solutionLoading ? (
+                            <div className="flex justify-center py-8">
+                                <div className="w-6 h-6 border-2 border-[#7553FC] border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        ) : (
+                            <div
+                                className="prose prose-[14px] text-[#333] leading-relaxed"
+                                dangerouslySetInnerHTML={{ __html: solutionHtml }}
+                            />
+                        )}
                     </div>
-
                 )}
                 {/* {statusMessage && (
                     <>

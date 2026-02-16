@@ -30,6 +30,19 @@ async function loadChecklistFromDB(checklistId: string): Promise<EvidenceModule>
     return checklistJson as EvidenceModule;
 }
 
+// Scenario DB 스냅샷에서 체크리스트 로드
+async function loadChecklistFromScenario(scenarioId: string): Promise<EvidenceModule> {
+    const res = await fetch(`/api/scenario-checklist?id=${encodeURIComponent(scenarioId)}`);
+    if (!res.ok) {
+        throw new Error("시나리오 체크리스트 로드 실패");
+    }
+    const data = await res.json();
+    if (!data.checklist) {
+        throw new Error("시나리오 체크리스트 데이터가 없습니다");
+    }
+    return data.checklist as EvidenceModule;
+}
+
 export function useLiveAutoPipeline(
     setStatusMessage: (msg: string | null) => void,
     setGradesBySection: (data: any) => void,
@@ -38,14 +51,16 @@ export function useLiveAutoPipeline(
     setDone: (done: boolean) => void,
     setTimingBySection?: (timing: SectionTimingMap) => void,
 ) {
-    return async function runLiveAutoPipeline(key: string, caseName: string, checklistId?: string | null, timestampsS3Key?: string | null) {
+    return async function runLiveAutoPipeline(key: string, caseName: string, checklistId?: string | null, timestampsS3Key?: string | null, scenarioId?: string | null) {
         const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
         try {
             // 1️⃣ 체크리스트 불러오기
             setStatusMessage('체크리스트 로드 중...');
 
             let evidence: EvidenceModule;
-            if (checklistId) {
+            if (scenarioId) {
+                evidence = await loadChecklistFromScenario(scenarioId);
+            } else if (checklistId) {
                 evidence = await loadChecklistFromDB(checklistId);
             } else {
                 const loaded = await loadChecklistByCase(caseName!);

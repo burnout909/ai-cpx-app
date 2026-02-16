@@ -99,7 +99,7 @@ export default function ReportDetailTable({ grades }: { grades?: GradeItem[] }) 
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-1.5">
                                                 <span
-                                                    className="text-[10px] text-[#999] transition-transform duration-200"
+                                                    className="text-[10px] text-[#7553FC] transition-transform duration-200"
                                                     style={{ display: 'inline-block', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
                                                 >
                                                     ▶
@@ -107,8 +107,7 @@ export default function ReportDetailTable({ grades }: { grades?: GradeItem[] }) 
                                                 <span className="font-medium">{g.title}</span>
                                             </div>
                                             {expanded && g.criteria && (
-                                                <div className="mt-2 pl-3 text-sm text-[#555] leading-relaxed">
-                                                    <span className="font-semibold text-[#7553FC]">채점 기준: </span>
+                                                <div className="mt-2 pl-3 text-sm text-[#7553FC] leading-relaxed">
                                                     {g.criteria}
                                                 </div>
                                             )}

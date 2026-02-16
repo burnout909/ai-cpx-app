@@ -17,7 +17,7 @@ type Slide = {
 
 export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
     const [step, setStep] = useState(0);
-    // const [dontShowAgain, setDontShowAgain] = useState(false);
+    const [dontShowAgain, setDontShowAgain] = useState(false);
 
     // 미리 영상 버퍼를 채워서 슬라이드 전환 지연을 최소화
     useEffect(() => {
@@ -37,8 +37,14 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
     }, []);
 
     const nextStep = () => {
-        if (step < slides.length - 1) setStep(step + 1);
-        else onReadyStart();
+        if (step < slides.length - 1) {
+            setStep(step + 1);
+        } else {
+            if (dontShowAgain) {
+                localStorage.setItem("isLiveClientShow", "false");
+            }
+            onReadyStart();
+        }
     };
 
     const prevStep = () => {
@@ -133,12 +139,23 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
                                 <RightArrowIcon className="w-6 h-6 text-[#7553FC]" />
                             </button>
                         ) : (
-                            <button
-                                onClick={nextStep}
-                                className="bg-[#7553FC] text-white text-[16px] font-medium cursor-pointer py-3 px-6 rounded-xl hover:bg-[#6743f0]"
-                            >
-                                시작하기
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={dontShowAgain}
+                                        onChange={(e) => setDontShowAgain(e.target.checked)}
+                                        className="w-4 h-4 accent-[#7553FC] cursor-pointer"
+                                    />
+                                    <span className="text-[14px] text-gray-500">다시 보지 않기</span>
+                                </label>
+                                <button
+                                    onClick={nextStep}
+                                    className="bg-[#7553FC] text-white text-[16px] font-medium cursor-pointer py-3 px-6 rounded-xl hover:bg-[#6743f0]"
+                                >
+                                    시작하기
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

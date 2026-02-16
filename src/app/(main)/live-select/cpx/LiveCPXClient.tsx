@@ -326,7 +326,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                 }
             };
 
-            recorder.start(100); // 100ms마다 chunk 생성
+            recorder.start(25); // 100ms마다 chunk 생성
             setIsRecording(true);
             setConnected(true);
             setFocusMode(true);
@@ -452,8 +452,11 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                 const tsParam = turnTimestampsRef.current.length > 0
                     ? `&timestampsS3Key=${encodeURIComponent(timestampsKey)}`
                     : "";
+                const scenarioParam = scenarioId
+                    ? `&scenarioId=${encodeURIComponent(scenarioId)}`
+                    : "";
                 router.push(
-                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("VP")}${sessionParam}${tsParam}`
+                    `/score?transcriptS3Key=${encodeURIComponent(historyKey || "")}&caseName=${encodeURIComponent(caseName)}&studentNumber=${encodeURIComponent(studentId)}&origin=${encodeURIComponent("VP")}${sessionParam}${tsParam}${scenarioParam}`
                 );
             });
         } catch (err) {
