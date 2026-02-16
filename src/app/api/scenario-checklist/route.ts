@@ -69,11 +69,13 @@ export async function GET(req: Request) {
       return items.filter((item) => includedMap[item.id] !== false);
     };
 
+    // 스냅샷이 DB 키(HistoryEvidenceChecklist) 또는 UI 키(history)로 저장되어 있을 수 있음
+    const raw = snapshot as unknown as Record<string, EvidenceModule[keyof EvidenceModule]>;
     const filtered: EvidenceModule = {
-      HistoryEvidenceChecklist: filterItems(snapshot.HistoryEvidenceChecklist),
-      PhysicalexamEvidenceChecklist: filterItems(snapshot.PhysicalexamEvidenceChecklist),
-      EducationEvidenceChecklist: filterItems(snapshot.EducationEvidenceChecklist),
-      PpiEvidenceChecklist: filterItems(snapshot.PpiEvidenceChecklist),
+      HistoryEvidenceChecklist: filterItems(raw.HistoryEvidenceChecklist || raw.history),
+      PhysicalexamEvidenceChecklist: filterItems(raw.PhysicalexamEvidenceChecklist || raw.physicalExam),
+      EducationEvidenceChecklist: filterItems(raw.EducationEvidenceChecklist || raw.education),
+      PpiEvidenceChecklist: filterItems(raw.PpiEvidenceChecklist || raw.ppi),
     };
 
     return NextResponse.json<ScenarioChecklistResponse>({ checklist: filtered });

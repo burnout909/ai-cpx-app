@@ -201,7 +201,14 @@ export default function ScenarioDetailPage() {
     if (!chiefComplaint) return;
 
     // 기존 시나리오 편집 시에는 이미 스냅샷이 있으므로 로드하지 않음 (최초 로드 시)
-    if (!isNew && checklistSnapshot && !prevChiefComplaint) {
+    // 단, 스냅샷이 빈 배열만 가진 경우(키 불일치 등)는 DB에서 다시 로드
+    const hasChecklistItems = checklistSnapshot && (
+      checklistSnapshot.history.length > 0 ||
+      checklistSnapshot.physicalExam.length > 0 ||
+      checklistSnapshot.education.length > 0 ||
+      checklistSnapshot.ppi.length > 0
+    );
+    if (!isNew && hasChecklistItems && !prevChiefComplaint) {
       setPrevChiefComplaint(chiefComplaint);
       return;
     }
@@ -324,6 +331,7 @@ export default function ScenarioDetailPage() {
         caseName: caseName.trim(),
         previousScenarioId: isNew ? null : scenario?.id,
         scenarioContent,
+        checklistItemsSnapshot: checklistSnapshot || null,
         checklistIncludedMap:
           Object.keys(checklistIncludedMap).length > 0 ? checklistIncludedMap : null,
         commentaryContent: commentaryContent ? { html: commentaryContent } : null,

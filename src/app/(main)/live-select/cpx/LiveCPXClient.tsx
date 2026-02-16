@@ -19,6 +19,7 @@ import { fetchOnboardingStatus } from "@/lib/onboarding";
 import IdRejectedPopup from "@/component/IdRejectedPopup";
 import { postMetadata } from "@/lib/metadata";
 import FocusModeOverlay from "@/component/FocusModeOverlay";
+import NoSleep from "nosleep.js";
 
 type Props = {
     category: string;
@@ -69,6 +70,30 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     const [statusMessage, setStatusMessage] = useState<string | undefined>(undefined)
     const connectedToastShownRef = useRef(false);
 
+    // NoSleep 인스턴스 초기화
+    useEffect(() => {
+        noSleepRef.current = new NoSleep();
+        return () => {
+            noSleepRef.current?.disable();
+        };
+    }, []);
+
+    const enableNoSleep = useCallback(() => {
+        try {
+            noSleepRef.current?.enable();
+        } catch (err) {
+            console.warn("NoSleep 활성화 실패:", err);
+        }
+    }, []);
+
+    const disableNoSleep = useCallback(() => {
+        try {
+            noSleepRef.current?.disable();
+        } catch (err) {
+            console.warn("NoSleep 비활성화 실패:", err);
+        }
+    }, []);
+
     /**stopSession */
     const stopAndResetSession = useCallback(async () => {
         try {
@@ -85,6 +110,9 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             userAudioChunks.current = [];
             cancelAnimationFrame(rafRef.current!);
 
+            // NoSleep 비활성화
+            disableNoSleep();
+
             // 상태 초기화
             setIsRecording(false);
             setConnected(false);
@@ -100,7 +128,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
         } catch (err) {
             console.warn(" 세션 종료 중 오류:", err);
         }
-    }, []);
+    }, [disableNoSleep]);
 
     /** popup show */
     useEffect(() => {
@@ -190,6 +218,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     const rafRef = useRef<number | null>(null);
     const sessionStartRef = useRef<number>(0);
     const turnTimestampsRef = useRef<{ text: string; elapsedSec: number }[]>([]);
+    const noSleepRef = useRef<NoSleep | null>(null);
 
     /** 볼륨 업데이트 */
     const updateVolume = (analyser: AnalyserNode) => {
@@ -237,6 +266,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     /** 세션 시작 */
     async function startSession() {
         if (sessionRef.current || connected || isRecording || isUploading) return;
+        enableNoSleep();
         try {
             const res = await fetch("/api/realtime-key");
             const { value } = await res.json();
@@ -334,6 +364,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
 
         } catch (err) {
             setConnected(false); // 실패 시 다시 false로 복구
+            disableNoSleep();
             alert("세션 연결 실패 또는 마이크 접근 거부");
         }
     }
@@ -465,6 +496,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             alert("업로드 실패");
         } finally {
             cancelAnimationFrame(rafRef.current!);
+            disableNoSleep();
             setIsRecording(false);
             setConnected(false);
             setIsUploading(false);

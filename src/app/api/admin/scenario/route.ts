@@ -211,6 +211,7 @@ export async function POST(req: Request) {
       caseName,
       previousScenarioId,
       scenarioContent,
+      checklistItemsSnapshot: clientChecklistSnapshot,
       checklistIncludedMap,
       commentaryContent,
       rolePromptSnapshot,
@@ -255,7 +256,7 @@ export async function POST(req: Request) {
     // 이전 버전 조회 (수정인 경우)
     let previousScenario = null;
     let checklistSourceVersionId: string | null = null;
-    let checklistItemsSnapshot: unknown = null;
+    let checklistItemsSnapshot: unknown = clientChecklistSnapshot || null;
 
     if (previousScenarioId) {
       previousScenario = await prisma.scenario.findUnique({
@@ -445,6 +446,7 @@ export async function PATCH(req: Request) {
     const {
       id,
       scenarioContent,
+      checklistItemsSnapshot,
       checklistIncludedMap,
       commentaryContent,
       rolePromptSnapshot,
@@ -521,6 +523,9 @@ export async function PATCH(req: Request) {
 
     if (scenarioContent !== undefined) {
       updateData.scenarioContent = scenarioContent;
+    }
+    if (checklistItemsSnapshot !== undefined) {
+      updateData.checklistItemsSnapshot = checklistItemsSnapshot;
     }
     if (checklistIncludedMap !== undefined) {
       updateData.checklistIncludedMap = checklistIncludedMap;
