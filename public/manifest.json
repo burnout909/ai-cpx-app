@@ -1,6 +1,6 @@
 {
   "name": "Live CPX",
-  "short_name": "LiveCPX",
+  "short_name": "CPXmate",
   "description": "실시간 CPX 훈련 시뮬레이터",
   "start_url": "/",
   "display": "standalone",
