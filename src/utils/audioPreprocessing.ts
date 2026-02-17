@@ -65,15 +65,12 @@ export async function getAudioDurationInSeconds(fileBlob: Blob): Promise<number>
 }
 
 /**
- * 8분 초과 → 2개, 12분 초과 → 3개로 분할. (그 외 단일 파일)
+ * 2분 단위로 분할. (2분 이하 → 단일 파일)
  */
 export async function splitMp3ByDuration(mp3Blob: Blob, durationSec?: number): Promise<{ parts: Blob[]; partCount: number; durationSec: number }> {
     const totalDuration = durationSec ?? await getAudioDurationInSeconds(mp3Blob);
-    const partCount = totalDuration > 12 * 60
-        ? 3
-        : totalDuration > 8 * 60
-            ? 2
-            : 1;
+    const CHUNK_SEC = 2 * 60;
+    const partCount = totalDuration <= CHUNK_SEC ? 1 : Math.ceil(totalDuration / CHUNK_SEC);
 
     if (partCount === 1) {
         return { parts: [mp3Blob], partCount, durationSec: totalDuration };

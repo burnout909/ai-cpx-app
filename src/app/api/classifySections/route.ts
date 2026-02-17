@@ -125,7 +125,7 @@ ${isCounseling ? "5. 이 증례는 상담증례이므로 신체진찰(physical_e
 6. 인덱스는 0부터 시작하며, 마지막 턴 인덱스는 ${lines.length - 1}입니다.`;
 
     const resp = await openai.responses.parse({
-      model: "gpt-5",
+      model: "gpt-5.1-2025-11-13",
       input: [
         { role: "system", content: systemPrompt },
         {
@@ -136,11 +136,12 @@ ${isCounseling ? "5. 이 증례는 상담증례이므로 신체진찰(physical_e
       text: {
         format: zodTextFormat(SectionSegmentsSchema, "section_segments_schema"),
       },
-      max_output_tokens: 1024,
+      max_output_tokens: 8192,
     });
 
     const parsed = resp.output_parsed;
     if (!parsed) {
+      console.error("[classifySections] output_parsed is null. Raw output:", JSON.stringify(resp.output, null, 2));
       return NextResponse.json(
         { detail: "LLM parsing failed" },
         { status: 500 }

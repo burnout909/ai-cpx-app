@@ -58,64 +58,58 @@ export function useLiveAutoPipeline(
     return async function runLiveAutoPipeline(key: string, caseName: string, checklistId?: string | null, timestampsS3Key?: string | null, scenarioId?: string | null): Promise<LivePipelineResult | null> {
         const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
         try {
-            // 1️⃣ 체크리스트 불러오기
-            setStatusMessage('체크리스트 로드 중...');
+            // 체크리스트 + 전사 다운로드 + 타임스탬프 다운로드를 병렬 수행
+            setStatusMessage('체크리스트 로드 및 전사 다운로드 중...');
 
-            let evidence: EvidenceModule;
-            if (scenarioId) {
-                evidence = await loadChecklistFromScenario(scenarioId);
-            } else if (checklistId) {
-                evidence = await loadChecklistFromDB(checklistId);
-            } else {
-                const loaded = await loadChecklistByCase(caseName!);
-                evidence = loaded.evidence;
-            }
+            const checklistPromise = (async (): Promise<EvidenceModule> => {
+                if (scenarioId) {
+                    return loadChecklistFromScenario(scenarioId);
+                } else if (checklistId) {
+                    return loadChecklistFromDB(checklistId);
+                } else {
+                    const loaded = await loadChecklistByCase(caseName!);
+                    return loaded.evidence;
+                }
+            })();
 
-            // evidence(named exports)
-            const {
-                HistoryEvidenceChecklist = [],
-                PhysicalexamEvidenceChecklist = [],
-                EducationEvidenceChecklist = [],
-                PpiEvidenceChecklist = [],
-            } = evidence;
+            const transcriptPromise = (async () => {
+                const transcriptUrl = await generateDownloadUrl(bucket as string, key);
+                const res = await fetch(transcriptUrl);
+                if (!res.ok) throw new Error("Transcript 다운로드 실패");
+                return res.text();
+            })();
 
-            // score(named exports)
-            // const {
-            //     HistoryScoreChecklist = [],
-            //     PhysicalExamScoreChecklist = [],
-            //     EducationScoreChecklist = [],
-            //     PpiScoreChecklist = [],
-            // } = score;
-            // 이미 transcript 존재 → 다운로드 URL 생성
-            const transcriptUrl = await generateDownloadUrl(bucket as string, key);
+            const timestampsPromise = (async () => {
+                if (!timestampsS3Key || !bucket) return { turnTimestamps: undefined, sessionDurationSec: undefined };
+                try {
+                    const tsUrl = await generateDownloadUrl(bucket, timestampsS3Key);
+                    const tsRes = await fetch(tsUrl);
+                    if (tsRes.ok) {
+                        const tsData: TimestampsPayload = await tsRes.json();
+                        return { turnTimestamps: tsData.turns, sessionDurationSec: tsData.sessionDurationSec };
+                    }
+                } catch (err) {
+                    console.warn('[VP timestamps download failed]', err);
+                }
+                return { turnTimestamps: undefined, sessionDurationSec: undefined };
+            })();
 
-            // URL로 실제 파일 내용 요청
-            const res = await fetch(transcriptUrl);
-            if (!res.ok) throw new Error("Transcript 다운로드 실패");
-
-            // 내용 읽기 (텍스트 파일)
-            const transcript = await res.text();
-
-            // 병렬 증거 수집
+            const [evidence, transcript, { turnTimestamps, sessionDurationSec }] = await Promise.all([
+                checklistPromise,
+                transcriptPromise,
+                timestampsPromise,
+            ]);
 
             const checklistMap: Record<'history' | 'physical_exam' | 'education' | 'ppi', EvidenceChecklist[]> = {
-                history: HistoryEvidenceChecklist,
-                physical_exam: PhysicalexamEvidenceChecklist,
-                education: EducationEvidenceChecklist,
-                ppi: PpiEvidenceChecklist,
+                history: evidence.HistoryEvidenceChecklist || [],
+                physical_exam: evidence.PhysicalexamEvidenceChecklist || [],
+                education: evidence.EducationEvidenceChecklist || [],
+                ppi: evidence.PpiEvidenceChecklist || [],
             };
-
-            // const scoreChecklistMap: Record<'history' | 'physical_exam' | 'education' | 'ppi', ScoreChecklist[]> = {
-            //     history: HistoryScoreChecklist,
-            //     physical_exam: PhysicalExamScoreChecklist,
-            //     education: EducationScoreChecklist,
-            //     ppi: PpiScoreChecklist,
-            // };
 
             const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
 
-
-            // 3️⃣ 채점 + 섹션 분류 병렬 수행
+            // 채점 + 섹션 분류 병렬 수행
             setStatusMessage('채점 중');
 
             const resultsPromises: Promise<SectionResult>[] = sectionIds.map(async (sectionId) => {
@@ -132,23 +126,6 @@ export function useLiveAutoPipeline(
                 await ensureOkOrThrow(res, data);
                 return { sectionId, evidenceList: data.evidenceList || [] } as SectionResult;
             });
-
-            // VP timestamps 다운로드 (있으면)
-            let turnTimestamps: TurnTimestamp[] | undefined;
-            let sessionDurationSec: number | undefined;
-            if (timestampsS3Key && bucket) {
-                try {
-                    const tsUrl = await generateDownloadUrl(bucket, timestampsS3Key);
-                    const tsRes = await fetch(tsUrl);
-                    if (tsRes.ok) {
-                        const tsData: TimestampsPayload = await tsRes.json();
-                        turnTimestamps = tsData.turns;
-                        sessionDurationSec = tsData.sessionDurationSec;
-                    }
-                } catch (err) {
-                    console.warn('[VP timestamps download failed]', err);
-                }
-            }
 
             // classifySections를 collectEvidence와 병렬 실행
             const classifyBody: Record<string, unknown> = { transcript, caseName };

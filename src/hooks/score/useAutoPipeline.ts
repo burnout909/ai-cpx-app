@@ -81,20 +81,111 @@ export function useAutoPipeline(
         let activeSessionId = sessionId ?? null;
         try {
             if (audioKeys.length === 0) throw new Error('오디오 키가 없습니다.');
-            // 체크리스트 로드
-            setStatusMessage('채점 기준 로드 중');
 
-            let evidence: EvidenceModule;
-            if (scenarioId) {
-                evidence = await loadChecklistFromScenario(scenarioId);
-            } else if (checklistId) {
-                // DB에서 체크리스트 로드
-                evidence = await loadChecklistFromDB(checklistId);
-            } else {
-                // 기존 방식: 로컬 파일에서 로드
-                const loaded = await loadChecklistByCase(caseName!);
-                evidence = loaded.evidence;
-            }
+            // 체크리스트 로드 + 전사를 병렬 수행 (서로 독립적)
+            setStatusMessage('채점 기준 로드 및 전사 중');
+
+            const checklistPromise = (async (): Promise<EvidenceModule> => {
+                if (scenarioId) {
+                    return loadChecklistFromScenario(scenarioId);
+                } else if (checklistId) {
+                    return loadChecklistFromDB(checklistId);
+                } else {
+                    const loaded = await loadChecklistByCase(caseName!);
+                    return loaded.evidence;
+                }
+            })();
+
+            const transcriptPromise = (async () => {
+                let text: string;
+                let allSegments: ApiSegment[] = [];
+
+                if (cachedTranscriptS3Key) {
+                    const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
+                    if (!bucket) throw new Error('S3 bucket not set');
+                    const downloadUrl = await generateDownloadUrl(bucket, cachedTranscriptS3Key);
+                    const dlRes = await fetch(downloadUrl);
+                    if (!dlRes.ok) throw new Error('Transcript 다운로드 실패');
+                    text = await dlRes.text();
+                } else {
+                    const transcriptParts = await Promise.all(
+                        audioKeys.map(async (key) => {
+                            const res1 = await fetch('/api/transcribe', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ s3_key: key }),
+                            });
+                            const data1 = await readJsonOrText(res1);
+                            await ensureOkOrThrow(res1, data1);
+                            return {
+                                text: data1?.text || '',
+                                segments: (data1?.segments || []) as ApiSegment[],
+                            };
+                        })
+                    );
+                    text = transcriptParts.map((p) => p.text).join('\n');
+
+                    let timeOffset = 0;
+                    for (const part of transcriptParts) {
+                        for (const seg of part.segments) {
+                            allSegments.push({
+                                ...seg,
+                                id: allSegments.length + 1,
+                                start: seg.start + timeOffset,
+                                end: seg.end + timeOffset,
+                            });
+                        }
+                        if (part.segments.length > 0) {
+                            timeOffset = part.segments[part.segments.length - 1].end + timeOffset;
+                        }
+                    }
+
+                    // S3 전사본 업로드 (fire-and-forget, 증거수집을 블로킹하지 않음)
+                    const uploadInBackground = async () => {
+                        try {
+                            const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
+                            if (!bucket) return;
+                            const scriptKey = deriveScriptKey(audioKeys);
+                            if (!scriptKey) return;
+                            const uploadUrl = await generateUploadUrl(bucket, scriptKey);
+                            const body = new Blob([text], { type: 'text/plain; charset=utf-8' });
+
+                            const uploadRes = await fetch(uploadUrl, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+                                body,
+                            });
+                            if (!uploadRes.ok) throw new Error('script upload failed');
+
+                            const meta = await postMetadata({
+                                type: "transcript",
+                                s3Key: scriptKey,
+                                sessionId: activeSessionId,
+                                caseName,
+                                origin,
+                                source: "UPLOAD",
+                                textExcerpt: text.slice(0, 200),
+                                textLength: text.length,
+                                sizeBytes: body.size,
+                            });
+                            if (meta.sessionId && meta.sessionId !== activeSessionId) {
+                                activeSessionId = meta.sessionId;
+                                onSessionId?.(meta.sessionId);
+                            }
+                        } catch (err) {
+                            console.warn('[script upload failed]', err);
+                        }
+                    };
+                    uploadInBackground();
+                }
+
+                return { text, allSegments };
+            })();
+
+            const [evidence, { text, allSegments }] = await Promise.all([
+                checklistPromise,
+                transcriptPromise,
+            ]);
 
             const checklistMap = {
                 history: evidence.HistoryEvidenceChecklist || [],
@@ -103,103 +194,7 @@ export function useAutoPipeline(
                 ppi: evidence.PpiEvidenceChecklist || [],
             };
 
-            // const scoreListBySection = {
-            //     history: score.HistoryScoreChecklist || [],
-            //     physical_exam: score.PhysicalExamScoreChecklist || [],
-            //     education: score.EducationScoreChecklist || [],
-            //     ppi: score.PpiScoreChecklist || [],
-            // };
-
             const sectionIds = Object.keys(checklistMap) as (keyof typeof checklistMap)[];
-
-            let text: string;
-            let allSegments: ApiSegment[] = [];
-
-            if (cachedTranscriptS3Key) {
-                // 기존 전사 결과가 있으면 S3에서 다운로드하여 재사용
-                setStatusMessage('전사 결과 로드 중');
-                const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
-                if (!bucket) throw new Error('S3 bucket not set');
-                const downloadUrl = await generateDownloadUrl(bucket, cachedTranscriptS3Key);
-                const dlRes = await fetch(downloadUrl);
-                if (!dlRes.ok) throw new Error('Transcript 다운로드 실패');
-                text = await dlRes.text();
-            } else {
-                // 전사 (병렬 수행, 결과 순서 보장) — segments도 보존
-                setStatusMessage(`오디오 전사 중`);
-                const transcriptParts = await Promise.all(
-                    audioKeys.map(async (key) => {
-                        const res1 = await fetch('/api/transcribe', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ s3_key: key }),
-                        });
-                        const data1 = await readJsonOrText(res1);
-                        await ensureOkOrThrow(res1, data1);
-                        return {
-                            text: data1?.text || '',
-                            segments: (data1?.segments || []) as ApiSegment[],
-                        };
-                    })
-                );
-                text = transcriptParts.map((p) => p.text).join('\n');
-
-                // Merge segments with offset for multi-part audio
-                let timeOffset = 0;
-                for (const part of transcriptParts) {
-                    for (const seg of part.segments) {
-                        allSegments.push({
-                            ...seg,
-                            id: allSegments.length + 1,
-                            start: seg.start + timeOffset,
-                            end: seg.end + timeOffset,
-                        });
-                    }
-                    if (part.segments.length > 0) {
-                        timeOffset = part.segments[part.segments.length - 1].end + timeOffset;
-                    }
-                }
-
-                // 전사 결과를 S3에 저장 (SP_script/ 경로로 교체, 나머지는 동일하게 유지)
-                try {
-                    const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
-                    if (!bucket) {
-                        console.warn('[script upload skipped] bucket not set');
-                    } else {
-                        const scriptKey = deriveScriptKey(audioKeys);
-                        if (!scriptKey) throw new Error('scriptKey missing');
-                        const uploadUrl = await generateUploadUrl(bucket, scriptKey);
-                        const body = new Blob([text], { type: 'text/plain; charset=utf-8' });
-
-                        const uploadRes = await fetch(uploadUrl, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-                            body,
-                        });
-                        if (!uploadRes.ok) {
-                            throw new Error('script upload failed');
-                        }
-
-                        const meta = await postMetadata({
-                            type: "transcript",
-                            s3Key: scriptKey,
-                            sessionId: activeSessionId,
-                            caseName,
-                            origin,
-                            source: "UPLOAD",
-                            textExcerpt: text.slice(0, 200),
-                            textLength: text.length,
-                            sizeBytes: body.size,
-                        });
-                        if (meta.sessionId && meta.sessionId !== activeSessionId) {
-                            activeSessionId = meta.sessionId;
-                            onSessionId?.(meta.sessionId);
-                        }
-                    }
-                } catch (err) {
-                    console.warn('[script upload failed]', err);
-                }
-            }
 
             // 채점 + 섹션 분류 병렬 수행
             setStatusMessage('채점 중');

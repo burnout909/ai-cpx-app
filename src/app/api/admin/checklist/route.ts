@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { parseChecklistCsv, computeChecklistDiff, ChecklistJson } from "@/utils/checklistCsvParser";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * 버전 번호 증가 (0.1 -> 0.2 -> 0.3 ...)
