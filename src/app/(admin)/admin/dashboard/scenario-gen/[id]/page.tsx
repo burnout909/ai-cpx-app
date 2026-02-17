@@ -354,6 +354,10 @@ export default function ScenarioDetailPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 403) {
+          router.push(`/admin/access?redirect=${encodeURIComponent(window.location.pathname)}`);
+          return;
+        }
         throw new Error(data.error || "저장 실패");
       }
 
