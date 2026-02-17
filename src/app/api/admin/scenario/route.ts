@@ -268,9 +268,11 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
-      // 이전 체크리스트 스냅샷 계승
-      checklistSourceVersionId = previousScenario.checklistSourceVersionId;
-      checklistItemsSnapshot = previousScenario.checklistItemsSnapshot;
+      // 클라이언트가 새 체크리스트를 보낸 경우 우선 사용, 없으면 이전 버전 계승
+      if (!clientChecklistSnapshot) {
+        checklistItemsSnapshot = previousScenario.checklistItemsSnapshot;
+      }
+      checklistSourceVersionId = body.checklistSourceVersionId || previousScenario.checklistSourceVersionId;
     } else {
       // 첫 생성: EvidenceChecklist 최신 버전 로드
       const latestChecklist = await prisma.evidenceChecklist.findFirst({
@@ -448,6 +450,7 @@ export async function PATCH(req: Request) {
       scenarioContent,
       checklistItemsSnapshot,
       checklistIncludedMap,
+      checklistSourceVersionId,
       commentaryContent,
       rolePromptSnapshot,
       commentaryPromptSnapshot,
@@ -466,6 +469,24 @@ export async function PATCH(req: Request) {
         { error: "시나리오를 찾을 수 없습니다." },
         { status: 404 }
       );
+    }
+
+    // 배포 취소 처리
+    if (action === "unpublish") {
+      if (existing.status !== "PUBLISHED") {
+        return NextResponse.json(
+          { error: "배포 상태의 시나리오만 배포 취소할 수 있습니다." },
+          { status: 400 }
+        );
+      }
+
+      // PUBLISHED → DRAFT 전환
+      const updated = await prisma.scenario.update({
+        where: { id },
+        data: { status: "DRAFT", publishedAt: null },
+      });
+
+      return NextResponse.json({ success: true, scenario: updated });
     }
 
     // DRAFT만 수정 가능
@@ -526,6 +547,9 @@ export async function PATCH(req: Request) {
     }
     if (checklistItemsSnapshot !== undefined) {
       updateData.checklistItemsSnapshot = checklistItemsSnapshot;
+    }
+    if (checklistSourceVersionId !== undefined) {
+      updateData.checklistSourceVersionId = checklistSourceVersionId;
     }
     if (checklistIncludedMap !== undefined) {
       updateData.checklistIncludedMap = checklistIncludedMap;

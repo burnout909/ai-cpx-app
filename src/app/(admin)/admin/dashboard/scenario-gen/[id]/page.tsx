@@ -120,6 +120,39 @@ export default function ScenarioDetailPage() {
   // 배포 확인 모달 상태
   const [showPublishModal, setShowPublishModal] = useState(false);
 
+  // 배포 취소
+  const handleUnpublish = async () => {
+    if (!scenario) return;
+    if (!confirm("배포를 취소하시겠습니까? DRAFT 상태로 전환됩니다.")) return;
+
+    setSaving(true);
+    setSaveMessage(null);
+
+    try {
+      const res = await fetch("/api/admin/scenario", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: scenario.id, action: "unpublish" }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "배포 취소 실패");
+      }
+
+      setSaveMessage({ type: "success", text: "배포가 취소되었습니다." });
+      fetchScenario();
+    } catch (err) {
+      setSaveMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "배포 취소 중 오류 발생",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // 버전 히스토리
   const [versionHistory, setVersionHistory] = useState<
     { id: string; versionNumber: number; status: string; createdAt: string }[]
@@ -334,6 +367,7 @@ export default function ScenarioDetailPage() {
         checklistItemsSnapshot: checklistSnapshot || null,
         checklistIncludedMap:
           Object.keys(checklistIncludedMap).length > 0 ? checklistIncludedMap : null,
+        checklistSourceVersionId: checklistSourceVersionId || null,
         commentaryContent: commentaryContent ? { html: commentaryContent } : null,
         rolePromptSnapshot: rolePromptSnapshot || null,
         commentaryPromptSnapshot: commentaryPromptSnapshot || null,
@@ -421,9 +455,8 @@ export default function ScenarioDetailPage() {
   // 배포 가능 여부 확인
   const canPublish = hasScenario && hasChecklist && hasCommentary && hasPatientImage;
 
-  // 수정 가능 여부 (DRAFT는 직접 수정, PUBLISHED는 새 버전 생성)
-  // LEGACY는 수정 불가
-  const canEdit = isNew || scenario?.status === "DRAFT" || scenario?.status === "PUBLISHED";
+  // 수정 가능 여부 (DRAFT는 직접 수정, PUBLISHED/LEGACY는 새 버전 생성)
+  const canEdit = isNew || scenario?.status === "DRAFT" || scenario?.status === "PUBLISHED" || scenario?.status === "LEGACY";
 
   // 기본 체크리스트 불러오기 핸들러
   const handleReloadChecklist = useCallback(async () => {
@@ -579,6 +612,15 @@ export default function ScenarioDetailPage() {
               삭제
             </button>
           )}
+          {scenario?.status === "PUBLISHED" && (
+            <button
+              onClick={handleUnpublish}
+              disabled={saving || liveLocked}
+              className="px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 border border-orange-200 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {saving ? "처리 중..." : "배포 취소"}
+            </button>
+          )}
           <button
             onClick={() => handleSave("draft")}
             disabled={saving || !canEdit || liveLocked}
@@ -686,6 +728,13 @@ export default function ScenarioDetailPage() {
       {scenario?.status === "PUBLISHED" && (
         <div className="p-3 rounded-lg text-sm bg-blue-50 text-blue-700 border border-blue-200">
           배포된 시나리오입니다. 수정 시 새 버전(v{((scenario.versionNumber || 0) + 0.1).toFixed(1)})이 생성됩니다.
+        </div>
+      )}
+
+      {/* LEGACY 편집 시 새 버전 생성 안내 */}
+      {scenario?.status === "LEGACY" && (
+        <div className="p-3 rounded-lg text-sm bg-gray-50 text-gray-700 border border-gray-200">
+          이전 버전입니다. 수정 시 새 DRAFT 버전이 생성됩니다.
         </div>
       )}
 
