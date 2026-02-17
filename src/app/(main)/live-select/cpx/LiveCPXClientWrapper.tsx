@@ -24,8 +24,8 @@ export default function LiveCPXClientWrapper({ category, caseName, scenarioId }:
             }
 
             try {
-                // Fetch scenario content
-                const scenarioRes = await fetch(`/api/admin/scenario?id=${scenarioId}`);
+                // Fetch scenario content + patient image in one call
+                const scenarioRes = await fetch(`/api/scenario?id=${scenarioId}`);
                 const scenarioData = await scenarioRes.json();
 
                 if (scenarioRes.ok && scenarioData.scenario?.scenarioContent) {
@@ -35,12 +35,8 @@ export default function LiveCPXClientWrapper({ category, caseName, scenarioId }:
                     }
                 }
 
-                // Fetch patient image
-                const imgRes = await fetch(`/api/admin/patient-image?scenarioId=${scenarioId}`);
-                const imgData = await imgRes.json();
-
-                if (imgRes.ok && imgData.patientImage?.url) {
-                    setPatientImageUrl(imgData.patientImage.url);
+                if (scenarioRes.ok && scenarioData.patientImageUrl) {
+                    setPatientImageUrl(scenarioData.patientImageUrl);
                 }
             } catch (err) {
                 console.error("시나리오 데이터 로드 실패:", err);

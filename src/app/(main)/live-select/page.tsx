@@ -50,8 +50,8 @@ export default function SelectPage() {
             try {
                 // 병렬로 시나리오와 체크리스트 조회
                 const [scenarioRes, checklistRes] = await Promise.all([
-                    fetch("/api/admin/scenario?status=PUBLISHED"),
-                    fetch("/api/admin/checklist"),
+                    fetch("/api/scenario?status=PUBLISHED"),
+                    fetch("/api/checklist"),
                 ]);
 
                 const [scenarioData, checklistData] = await Promise.all([

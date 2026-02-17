@@ -37,7 +37,7 @@ export default function SelectPage() {
     useEffect(() => {
         async function fetchData() {
             try {
-                const checklistRes = await fetch("/api/admin/checklist");
+                const checklistRes = await fetch("/api/checklist");
                 const checklistData = await checklistRes.json();
 
                 // 체크리스트 매핑
