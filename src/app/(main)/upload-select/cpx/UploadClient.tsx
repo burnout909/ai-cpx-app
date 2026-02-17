@@ -63,35 +63,51 @@ export default function UploadClient({ category, caseName }: Props) {
             const baseKey = `uploads/${uuidv4()}-${fileName}.mp3`;
 
             const { parts, partCount } = await splitMp3ByDuration(mp3Blob);
-            const audioKeys: string[] = [];
-            let sessionId: string | null = null;
 
-            for (let i = 0; i < partCount; i += 1) {
-                const key = partCount === 1
-                    ? baseKey
-                    : baseKey.replace(/\.mp3$/i, `-part${i + 1}.mp3`);
+            // 1) S3 키 생성 + S3 업로드 병렬
+            const keysAndParts = parts.map((part, i) => ({
+                key: partCount === 1 ? baseKey : baseKey.replace(/\.mp3$/i, `-part${i + 1}.mp3`),
+                part,
+            }));
+
+            await Promise.all(keysAndParts.map(async ({ key, part }) => {
                 const uploadUrl = await generateUploadUrl(bucket, key);
-
                 const res = await fetch(uploadUrl, {
                     method: "PUT",
                     headers: { "Content-Type": "audio/mpeg" },
-                    body: parts[i],
+                    body: part,
                 });
-
                 if (!res.ok) throw new Error("S3 업로드 실패");
-                audioKeys.push(key);
+            }));
 
-                const meta = await postMetadata({
-                    type: "audio",
-                    s3Key: key,
-                    sessionId,
-                    caseName,
-                    origin: "SP",
-                    fileName: uploadFileName,
-                    contentType: "audio/mpeg",
-                    sizeBytes: parts[i]?.size,
-                });
-                if (meta.sessionId) sessionId = meta.sessionId;
+            const audioKeys = keysAndParts.map(({ key }) => key);
+
+            // 2) 메타데이터: 첫 번째로 sessionId 획득 → 나머지 병렬
+            const firstMeta = await postMetadata({
+                type: "audio",
+                s3Key: audioKeys[0],
+                sessionId: null,
+                caseName,
+                origin: "SP",
+                fileName: uploadFileName,
+                contentType: "audio/mpeg",
+                sizeBytes: parts[0]?.size,
+            });
+            let sessionId: string | null = firstMeta.sessionId;
+
+            if (audioKeys.length > 1) {
+                await Promise.all(audioKeys.slice(1).map((key, i) =>
+                    postMetadata({
+                        type: "audio",
+                        s3Key: key,
+                        sessionId,
+                        caseName,
+                        origin: "SP",
+                        fileName: uploadFileName,
+                        contentType: "audio/mpeg",
+                        sizeBytes: parts[i + 1]?.size,
+                    })
+                ));
             }
 
             // 3️⃣ 성공 시 채점 페이지로 이동
