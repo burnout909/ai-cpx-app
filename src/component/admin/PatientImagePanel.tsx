@@ -33,6 +33,7 @@ interface PatientImageData {
   sex: string;
   age: number;
   chiefComplaint: string;
+  prompt?: string;
   createdAt: string;
 }
 
@@ -49,6 +50,12 @@ export default function PatientImagePanel({
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Prompt customization state
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [showUsedPrompt, setShowUsedPrompt] = useState(false);
 
   // Use ref to avoid infinite loop from callback in dependencies
   const onImageGeneratedRef = useRef(onImageGenerated);
@@ -87,6 +94,41 @@ export default function PatientImagePanel({
     fetchImage();
   }, [fetchImage]);
 
+  // Load default prompt from server
+  const handleLoadDefaultPrompt = async () => {
+    if (!canGenerate || isLoadingPrompt) return;
+
+    setIsLoadingPrompt(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/admin/patient-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "preview-prompt",
+          sex,
+          age,
+          chiefComplaint,
+          scenarioContext,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "프롬프트 불러오기 실패");
+      }
+
+      setCustomPrompt(data.prompt);
+      setShowPromptEditor(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "프롬프트 불러오기 중 오류 발생";
+      setError(msg);
+    } finally {
+      setIsLoadingPrompt(false);
+    }
+  };
+
   // Generate new image
   const handleGenerate = async () => {
     if (!canGenerate || disabled || isGenerating) return;
@@ -104,6 +146,7 @@ export default function PatientImagePanel({
           age,
           chiefComplaint,
           scenarioContext,
+          ...(customPrompt.trim() && { customPrompt: customPrompt.trim() }),
         }),
       });
 
@@ -115,6 +158,7 @@ export default function PatientImagePanel({
 
       setImageData(data.patientImage);
       onImageGeneratedRef.current?.(data.patientImage.url, data.patientImage.id);
+      setShowPromptEditor(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "이미지 생성 중 오류 발생";
       setError(msg);
@@ -146,6 +190,72 @@ export default function PatientImagePanel({
       const msg = err instanceof Error ? err.message : "삭제 중 오류 발생";
       setError(msg);
     }
+  };
+
+  // Prompt editor section (shared between no-image and regenerate states)
+  const renderPromptEditor = () => (
+    <div className="mt-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-gray-600">
+          이미지 생성 프롬프트
+        </label>
+        <button
+          type="button"
+          onClick={handleLoadDefaultPrompt}
+          disabled={!canGenerate || isLoadingPrompt}
+          className={`px-2 py-1 text-[11px] font-medium rounded transition-colors ${
+            !canGenerate || isLoadingPrompt
+              ? "text-gray-400 cursor-not-allowed"
+              : "text-violet-600 hover:bg-violet-50"
+          }`}
+        >
+          {isLoadingPrompt ? (
+            <span className="flex items-center gap-1">
+              <Spinner size={10} borderClassName="border-violet-600" />
+              불러오는 중...
+            </span>
+          ) : (
+            "기본 프롬프트 불러오기"
+          )}
+        </button>
+      </div>
+      <textarea
+        value={customPrompt}
+        onChange={(e) => setCustomPrompt(e.target.value)}
+        placeholder="프롬프트를 직접 입력하거나, '기본 프롬프트 불러오기'를 눌러 자동 생성된 프롬프트를 수정하세요."
+        className="w-full h-32 px-3 py-2 text-xs text-gray-700 bg-white border border-gray-300 rounded-lg resize-y focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400"
+      />
+      {customPrompt.trim() && (
+        <p className="text-[11px] text-gray-400">
+          커스텀 프롬프트가 적용됩니다. 비우면 자동 생성 프롬프트가 사용됩니다.
+        </p>
+      )}
+    </div>
+  );
+
+  // Used prompt display (collapsible, for existing images)
+  const renderUsedPrompt = () => {
+    if (!imageData?.prompt) return null;
+
+    return (
+      <div className="mt-2">
+        <button
+          type="button"
+          onClick={() => setShowUsedPrompt(!showUsedPrompt)}
+          className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          <span className={`transition-transform ${showUsedPrompt ? "rotate-90" : ""}`}>
+            ▶
+          </span>
+          사용된 프롬프트 {showUsedPrompt ? "접기" : "보기"}
+        </button>
+        {showUsedPrompt && (
+          <div className="mt-1.5 p-2 bg-gray-100 rounded text-[11px] text-gray-600 leading-relaxed whitespace-pre-wrap break-words">
+            {imageData.prompt}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -200,27 +310,64 @@ export default function PatientImagePanel({
             <p>{imageData.chiefComplaint}</p>
           </div>
 
+          {/* Used prompt (collapsible) */}
+          {renderUsedPrompt()}
+
+          {/* Prompt editor for regeneration */}
+          {showPromptEditor && renderPromptEditor()}
+
           {/* Action buttons */}
           <div className="flex justify-center gap-2">
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={disabled || isGenerating || !canGenerate}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                disabled || isGenerating
-                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                  : "bg-white text-violet-600 border-violet-300 hover:bg-violet-50"
-              }`}
-            >
-              {isGenerating ? (
-                <span className="flex items-center gap-1.5">
-                  <Spinner size={12} borderClassName="border-violet-600" />
-                  재생성 중...
-                </span>
-              ) : (
-                "재생성"
-              )}
-            </button>
+            {!showPromptEditor ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPromptEditor(true);
+                  // Pre-fill with previously used prompt if available
+                  if (imageData.prompt && !customPrompt.trim()) {
+                    setCustomPrompt(imageData.prompt);
+                  }
+                }}
+                disabled={disabled || isGenerating || !canGenerate}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                  disabled || isGenerating
+                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                    : "bg-white text-violet-600 border-violet-300 hover:bg-violet-50"
+                }`}
+              >
+                재생성
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={disabled || isGenerating || !canGenerate}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    disabled || isGenerating
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-violet-600 text-white hover:bg-violet-700"
+                  }`}
+                >
+                  {isGenerating ? (
+                    <span className="flex items-center gap-1.5">
+                      <Spinner size={12} borderClassName="border-white" />
+                      재생성 중...
+                    </span>
+                  ) : (
+                    "재생성 실행"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPromptEditor(false)}
+                  disabled={isGenerating}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border bg-white text-gray-600 border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={handleDelete}
@@ -251,11 +398,15 @@ export default function PatientImagePanel({
               </p>
             </div>
           ) : (
-            <p className="text-xs text-gray-400">
-              아직 이미지가 없습니다.
-              <br />
-              [AI 이미지 생성] 버튼을 눌러 생성하세요.
-            </p>
+            <>
+              <p className="text-xs text-gray-400">
+                아직 이미지가 없습니다.
+                <br />
+                [AI 이미지 생성] 버튼을 눌러 생성하세요.
+              </p>
+              {/* Prompt editor for initial generation */}
+              {renderPromptEditor()}
+            </>
           )}
         </div>
       )}

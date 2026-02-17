@@ -163,13 +163,26 @@ function generatePrompt(
  * - age: number
  * - chiefComplaint: string
  * - scenarioContext?: ScenarioContext - Optional scenario data for enriched prompts
+ * - customPrompt?: string - Optional custom prompt (overrides auto-generated prompt)
  */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { scenarioId, sex, age, chiefComplaint, scenarioContext } = body;
+    const { scenarioId, sex, age, chiefComplaint, scenarioContext, customPrompt, action } = body;
 
-    console.log("[patient-image POST] Request:", { scenarioId, sex, age, chiefComplaint, hasScenarioContext: !!scenarioContext });
+    // Preview prompt without generating image
+    if (action === "preview-prompt") {
+      if (!sex || !age || !chiefComplaint) {
+        return NextResponse.json(
+          { error: "성별, 나이, 주호소가 필요합니다." },
+          { status: 400 }
+        );
+      }
+      const prompt = generatePrompt(sex, age, chiefComplaint, scenarioContext);
+      return NextResponse.json({ prompt });
+    }
+
+    console.log("[patient-image POST] Request:", { scenarioId, sex, age, chiefComplaint, hasScenarioContext: !!scenarioContext, hasCustomPrompt: !!customPrompt });
 
     // Validate required fields
     if (!sex || !age || !chiefComplaint) {
@@ -186,8 +199,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate prompt (with scenario context if available)
-    const prompt = generatePrompt(sex, age, chiefComplaint, scenarioContext);
+    // Use custom prompt if provided, otherwise auto-generate
+    const prompt = customPrompt?.trim() || generatePrompt(sex, age, chiefComplaint, scenarioContext);
 
     // Call DALL-E 3 API
     const response = await openai.images.generate({
