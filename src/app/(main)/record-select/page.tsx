@@ -4,6 +4,7 @@ import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
 import { UPLOAD_RECORD_CASE_CATEGORIES } from "@/constants/caseData";
 import BottomFixButton from "@/component/BottomFixButton";
+import { track } from "@/lib/mixpanel";
 import Header from "@/component/Header";
 
 interface ChecklistInfo {
@@ -73,6 +74,7 @@ export default function SelectPage() {
     // 버튼 클릭 시 이동 로직
     const handleStartPractice = () => {
         if (!selected.chiefComplaint || !selected.checklistId) return;
+        track("record_practice_started", { category: selected.category, case_name: selected.chiefComplaint });
 
         startTransition(() => {
             router.push(

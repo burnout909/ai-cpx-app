@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { track } from "@/lib/mixpanel";
 
 export default function LoginClient() {
   const searchParams = useSearchParams();
@@ -16,6 +17,7 @@ export default function LoginClient() {
   const redirectTo = searchParams.get("redirect") || "/home";
 
   const handleOAuthSignIn = async (provider: "google" | "kakao") => {
+    track("auth_login_clicked", { provider });
     setIsLoading(true);
     setMessage(null);
 
@@ -34,6 +36,7 @@ export default function LoginClient() {
 
     setIsLoading(false);
     if (error) {
+      track("auth_login_error", { provider, error: error.message });
       setMessage(error.message);
     }
   };

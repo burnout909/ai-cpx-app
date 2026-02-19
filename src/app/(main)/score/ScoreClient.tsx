@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { generateUploadUrl } from '@/app/api/s3/s3';
 import getKSTTimestamp from '@/utils/getKSTTimestamp';
 import { postMetadata } from '@/lib/metadata';
+import { track } from '@/lib/mixpanel';
 
 marked.setOptions({ async: false });
 
@@ -239,6 +240,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
 
     const handleButtonClick = () => {
         // 👇 버튼을 눌렀을 때만 스크롤 이동
+        track("score_solution_toggled", { case_name: caseName });
         setShowSolution((prev) => !prev);
         showSolution ?
             setTimeout(() => {
@@ -261,6 +263,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
     // 상태 변화 감시: statusMessage가 null로 바뀌면 토스트 + 알림음
     useEffect(() => {
         if (statusMessage === null) {
+            track("score_completed", { case_name: caseName, origin, session_id: sessionId });
             // 띵 알림음 재생 (도→미 2음 차임)
             try {
                 const ctx = new AudioContext();

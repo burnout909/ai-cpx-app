@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import toast, { Toaster } from "react-hot-toast";
+import { track } from "@/lib/mixpanel";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function OnboardingPage() {
   };
 
   const handleSubmit = async () => {
+    track("auth_onboarding_submitted");
     const validationError = validate();
     if (validationError) {
       setError(validationError);
@@ -87,9 +89,11 @@ export default function OnboardingPage() {
         throw new Error(data?.error || "등록에 실패했습니다.");
       }
 
+      track("auth_onboarding_completed");
       toast.success("1영업일 이내에 처리될 예정입니다.");
       router.replace("/home");
     } catch (err: any) {
+      track("auth_onboarding_error", { error: err?.message });
       setError(err?.message || "등록 중 오류가 발생했습니다.");
     } finally {
       setIsSubmitting(false);

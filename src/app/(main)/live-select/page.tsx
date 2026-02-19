@@ -4,6 +4,7 @@ import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
 import { LIVE_CASE_CATEGORIES } from "@/constants/caseData";
 import BottomFixButton from "@/component/BottomFixButton";
+import { track } from "@/lib/mixpanel";
 import Header from "@/component/Header";
 
 interface ScenarioCase {
@@ -122,6 +123,7 @@ export default function SelectPage() {
     // 버튼 클릭 시 이동 로직
     const handleStartPractice = () => {
         if (!selected.caseId || !selected.caseName) return;
+        track("live_practice_started", { category: selected.category, case_name: selected.caseName });
 
         startTransition(() => {
             router.push(

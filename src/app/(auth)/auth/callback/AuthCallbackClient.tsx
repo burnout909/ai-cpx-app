@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { track } from "@/lib/mixpanel";
 import Spinner from "@/component/Spinner";
 
 export default function AuthCallbackClient() {
@@ -17,6 +18,7 @@ export default function AuthCallbackClient() {
     const run = async () => {
       const errorDescription = searchParams.get("error_description");
       if (errorDescription) {
+        track("auth_oauth_error", { error: errorDescription });
         setHasError(true);
         setMessage(decodeURIComponent(errorDescription));
         return;
@@ -31,9 +33,11 @@ export default function AuthCallbackClient() {
         const data = await res.json().catch(() => ({}));
         if (isCancelled) return;
         if (data?.status === "missing") {
+          track("auth_onboarding_redirected");
           router.replace("/onboarding");
           return;
         }
+        track("auth_login_completed");
         router.replace(redirectTo);
       };
 

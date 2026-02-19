@@ -19,6 +19,7 @@ import { fetchOnboardingStatus } from "@/lib/onboarding";
 import IdRejectedPopup from "@/component/IdRejectedPopup";
 import { postMetadata } from "@/lib/metadata";
 import FocusModeOverlay from "@/component/FocusModeOverlay";
+import { track } from "@/lib/mixpanel";
 import NoSleep from "nosleep.js";
 
 type Props = {
@@ -361,6 +362,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             setIsRecording(true);
             setConnected(true);
             setFocusMode(true);
+            track("vp_session_started", { case_name: caseName });
 
         } catch (err) {
             setConnected(false); // 실패 시 다시 false로 복구
@@ -372,6 +374,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     /** ⏹ 세션 종료 + 사용자 음성 및 대화 로그 업로드 */
     async function stopSession() {
         try {
+            track("vp_session_ended", { case_name: caseName, duration_sec: INITIAL_SECONDS - seconds });
             setIsUploading(true);
 
             // 녹음 중지
@@ -477,6 +480,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             }
 
             // 채점 페이지로 이동
+            track("vp_submitted", { case_name: caseName, session_id: sessionId });
             startTransition(() => {
                 const sessionParam = sessionId
                     ? `&sessionId=${encodeURIComponent(sessionId)}`

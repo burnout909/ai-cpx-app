@@ -1,4 +1,5 @@
 import "./globals.css";
+import MixpanelProvider from "@/component/MixpanelProvider";
 
 export const metadata = {
   title: "ai-cpx",
@@ -24,9 +25,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body>
-        <div>
-          {children}
-        </div>
+        <MixpanelProvider>
+          <div>
+            {children}
+          </div>
+        </MixpanelProvider>
       </body>
     </html>
   );

@@ -17,6 +17,7 @@ import IdRejectedPopup from "@/component/IdRejectedPopup";
 import { postMetadata } from "@/lib/metadata";
 import NoSleep from "nosleep.js";
 import FocusModeOverlay from "@/component/FocusModeOverlay";
+import { track } from "@/lib/mixpanel";
 
 const DEFAULT_SECONDS = 12 * 60; // 12분
 const MIN_SECONDS = 2.5 * 60; // 최소 2.5분
@@ -229,6 +230,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             };
 
             mediaRecorder.start();
+            track("record_session_started", { case_name: caseName });
             setIsRecording(true);
             setIsPaused(false);
             setIsPreviewReady(false);
@@ -253,6 +255,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
         if (recorder && recorder.state === "recording") {
             recorder.requestData();
             recorder.pause();
+            track("record_session_paused", { case_name: caseName });
             setIsPaused(true);
             setIsRecording(false);
         }
@@ -263,6 +266,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
         const recorder = mediaRecorderRef.current;
         if (recorder && recorder.state === "paused") {
             recorder.resume();
+            track("record_session_resumed", { case_name: caseName });
             setIsPaused(false);
             setIsRecording(true);
         }
@@ -475,6 +479,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             }
 
             // 3️⃣ 업로드 완료 → 채점 페이지 이동
+            track("record_submitted", { case_name: caseName, session_id: sessionId });
             startTransition(() => {
                 const query = audioKeys.length === 1
                     ? `s3Key=${encodeURIComponent(audioKeys[0])}`

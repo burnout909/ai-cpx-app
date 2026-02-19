@@ -4,6 +4,7 @@ import RightArrowIcon from "@/assets/icon/RightArrowIcon.svg"
 import PeopleIcon from "@/assets/icon/PeopleIcon.svg"
 import SprakleIcon from "@/assets/icon/SparkleIcon.svg"
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/mixpanel";
 import Spinner from "@/component/Spinner";
 import Header from "@/component/Header";
 
@@ -18,13 +19,13 @@ export default function Home() {
                     icon={<SprakleIcon className="w-[24px] h-[24px] text-[#210535]" />}
                     title={"혼자 연습하기"}
                     buttonName="가상환자와 실습하기"
-                    onClick={() => router.push('/live-select')}
+                    onClick={() => { track("home_cta_clicked", { destination: "live" }); router.push('/live-select'); }}
                 />
                 <HomeComponent
                     icon={<PeopleIcon className="w-[24px] h-[24px] text-[#210535]" />}
                     title={"팀으로 연습하기"}
                     buttonName="녹음 후 채점 받기"
-                    onClick={() => router.push('/record-select')}
+                    onClick={() => { track("home_cta_clicked", { destination: "record" }); router.push('/record-select'); }}
                 />
             </div>
             {/* 엑스포 만족도 조사용 */}
