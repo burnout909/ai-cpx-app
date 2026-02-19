@@ -1,0 +1,1 @@
+자 .claude/docs/skills.md와 .claude/docs/subagents.md가 claude공식문서인데 이를 기반으로 mixpanel agent를 만드려고 해.                                                                     
