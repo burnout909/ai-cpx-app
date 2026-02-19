@@ -3,7 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import Link from 'next/link';
 import Spinner from '@/component/Spinner';
-import { GradeItem } from '@/types/score';
+import { GradeItem, SectionTimingMap } from '@/types/score';
 import { getAllTotals } from '@/utils/score';
 import SearchIcon from '@/assets/icon/SearchIcon.svg';
 import AdminReportDetailTable from '@/component/admin/AdminReportDetail';
@@ -394,7 +394,8 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
         structured: StructuredScores | null,
         active: string,
         setActive: (s: string) => void,
-        totals: ReturnType<typeof getAllTotals> | null
+        totals: ReturnType<typeof getAllTotals> | null,
+        timing?: SectionTimingMap,
     ) => {
         if (!structured || !totals) return null;
         return (
@@ -405,6 +406,7 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
                     active={active}
                     setActive={setActive}
                     PART_LABEL={PART_LABEL}
+                    timing={timing}
                 />
                 <AdminReportDetailTable grades={structured[active] || []} />
             </div>
@@ -519,10 +521,17 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
                     ? contentCache[selectedScriptKey]?.text
                     ?? (contentCache[selectedScriptKey]?.json ? JSON.stringify(contentCache[selectedScriptKey]?.json, null, 2) : null)
                     : null);
-        const structuredData =
+        const rawStructured =
             selectedStructKey === artifacts.structured.latestKey
                 ? artifacts.structured.latest
                 : (selectedStructKey ? contentCache[selectedStructKey]?.json || null : null);
+        // timingBySection 추출 + 비-섹션 키 제거 (grade 섹션만 남김)
+        const timingData: SectionTimingMap | undefined = rawStructured?.timingBySection ?? undefined;
+        const structuredData = rawStructured
+            ? Object.fromEntries(
+                Object.entries(rawStructured).filter(([, v]) => Array.isArray(v))
+            ) as StructuredScores
+            : null;
         const computedTotals = structuredData ? getAllTotals(structuredData) : null;
 
         const handleTimeSelect = (artifact: 'script' | 'structured' | 'audio', key: string) => {
@@ -610,7 +619,7 @@ export default function AdminDashboardClient({ mode = 'student' }: { mode?: Dash
                             {findTimestamp(artifacts.structured.versions, selectedStructKey)}
                         </div>
                         {renderTimeChips(structuredVersions, selectedStructKey, (k) => handleTimeSelect('structured', k))}
-                        {renderStructuredBlock(structuredData || null, active, setActive, computedTotals) || (
+                        {renderStructuredBlock(structuredData || null, active, setActive, computedTotals, timingData) || (
                             <div className="text-[14px] text-gray-500">데이터가 없습니다.</div>
                         )}
                     </div>

@@ -1,6 +1,7 @@
 import { GradeItem } from "@/types/score";
 
 export function sumPoints(list: GradeItem[]) {
+    if (!Array.isArray(list)) return { got: 0, max: 0 };
     return list.reduce(
         (acc, g) => ({
             got: acc.got + g.point,
