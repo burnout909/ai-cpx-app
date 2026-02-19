@@ -8,6 +8,8 @@ import { GradeItem, SectionResult, SectionTimingMap } from '@/types/score';
 import { getAllTotals } from '@/utils/score';
 import { useEffect, useState, useRef } from 'react';
 import Header from '@/component/Header';
+import SmallHeader from '@/component/SmallHeader';
+import { useRouter } from 'next/navigation';
 import { loadVPSolution } from '@/utils/loadVirtualPatient';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -29,11 +31,13 @@ interface Props {
     checklistId: string | null;
     timestampsS3Key: string | null;
     scenarioId: string | null;
+    fromHistory?: boolean;
 }
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
-export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, origin, sessionId: initialSessionId, checklistId, timestampsS3Key, scenarioId }: Props) {
+export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, origin, sessionId: initialSessionId, checklistId, timestampsS3Key, scenarioId, fromHistory }: Props) {
+    const router = useRouter();
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
@@ -262,7 +266,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
 
     // 상태 변화 감시: statusMessage가 null로 바뀌면 토스트 + 알림음
     useEffect(() => {
-        if (statusMessage === null) {
+        if (statusMessage === null && !fromHistory) {
             track("score_completed", { case_name: caseName, origin, session_id: sessionId });
             // 띵 알림음 재생 (도→미 2음 차임)
             try {
@@ -295,7 +299,11 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
     }, [statusMessage]);
     return (
         <>
-            <Header />
+            {fromHistory ? (
+                <SmallHeader title="실습 피드백" onClick={() => router.push('/history')} />
+            ) : (
+                <Header />
+            )}
             <div className="relative flex flex-col items-center justify-center px-4 pb-[136px] overflow-y-auto"
                 ref={scrollContainerRef}
             >

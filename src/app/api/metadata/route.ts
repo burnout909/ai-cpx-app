@@ -336,9 +336,19 @@ export async function GET(req: Request) {
         ? (searchParams.get("status") || "").trim()
         : "";
 
+    const chiefComplaint =
+      typeof searchParams.get("chiefComplaint") === "string"
+        ? (searchParams.get("chiefComplaint") || "").trim()
+        : "";
+
     const where: any = { userId: user.id };
     if (origin) where.origin = origin;
-    if (caseName) where.case = { name: caseName };
+
+    const caseFilter: Record<string, unknown> = {};
+    if (caseName) caseFilter.name = caseName;
+    if (chiefComplaint) caseFilter.chiefComplaint = chiefComplaint;
+    if (Object.keys(caseFilter).length > 0) where.case = caseFilter;
+
     if (sessionId) where.id = sessionId;
     if (statusRaw && Object.values(SessionStatus).includes(statusRaw as any)) {
       where.status = statusRaw as SessionStatus;
@@ -355,6 +365,7 @@ export async function GET(req: Request) {
               select: {
                 id: true,
                 name: true,
+                chiefComplaint: true,
                 description: true,
               },
             },

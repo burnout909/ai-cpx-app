@@ -3,6 +3,7 @@ import { ReactNode, useTransition } from "react";
 import RightArrowIcon from "@/assets/icon/RightArrowIcon.svg"
 import PeopleIcon from "@/assets/icon/PeopleIcon.svg"
 import SprakleIcon from "@/assets/icon/SparkleIcon.svg"
+import ResetIcon from "@/assets/icon/ResetIcon.svg"
 import { useRouter } from "next/navigation";
 import { track } from "@/lib/mixpanel";
 import Spinner from "@/component/Spinner";
@@ -26,6 +27,12 @@ export default function Home() {
                     title={"팀으로 연습하기"}
                     buttonName="녹음 후 채점 받기"
                     onClick={() => { track("home_cta_clicked", { destination: "record" }); router.push('/record-select'); }}
+                />
+                <HomeComponent
+                    icon={<ResetIcon className="w-[24px] h-[24px] text-[#210535]" />}
+                    title={"학습 기록"}
+                    buttonName="내 학습 기록 다시보기"
+                    onClick={() => { track("home_cta_clicked", { destination: "history" }); router.push('/history'); }}
                 />
             </div>
             {/* 엑스포 만족도 조사용 */}
