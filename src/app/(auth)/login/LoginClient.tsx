@@ -6,8 +6,10 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { track } from "@/lib/mixpanel";
+import { usePageTracking } from "@/hooks/usePageTracking";
 
 export default function LoginClient() {
+  usePageTracking("login");
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 

@@ -7,6 +7,7 @@ import SmallHeader from "@/component/SmallHeader";
 import SessionCard from "@/component/history/SessionCard";
 import Spinner from "@/component/Spinner";
 import { track } from "@/lib/mixpanel";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import ArrowUpIcon from "@/assets/icon/ArrowUpIcon.svg";
 
 interface SessionData {
@@ -28,6 +29,7 @@ type OriginFilter = "" | "VP" | "SP";
 
 export default function HistoryPage() {
   const router = useRouter();
+  usePageTracking("history");
   const [allSessions, setAllSessions] = useState<SessionData[]>([]);
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,12 +110,12 @@ export default function HistoryPage() {
     }
     setSelectedCaseName(name);
     setDropdownOpen(false);
-    track("history_filter_changed", { caseName: name || "전체" });
+    track("history_case_filter", { case_name: name || "전체" });
   };
 
   const handleCardClick = (session: SessionData) => {
     const caseName = session.case?.name ?? "";
-    track("history_session_clicked", { sessionId: session.id, caseName });
+    track("history_session_clicked", { session_id: session.id, case_name: caseName, origin: session.origin });
     router.push(
       `/score?sessionId=${session.id}&caseName=${encodeURIComponent(caseName)}&origin=${session.origin}&from=history`
     );
@@ -182,7 +184,7 @@ export default function HistoryPage() {
                 key={value}
                 label={label}
                 active={originFilter === value}
-                onClick={() => setOriginFilter(value)}
+                onClick={() => { track("history_origin_filter", { filter: label }); setOriginFilter(value); }}
               />
             ))}
           </div>
@@ -205,7 +207,7 @@ export default function HistoryPage() {
                 key={value}
                 label={label}
                 active={dateFilter === value}
-                onClick={() => setDateFilter(value)}
+                onClick={() => { track("history_date_filter", { filter: label }); setDateFilter(value); }}
               />
             ))}
           </div>

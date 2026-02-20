@@ -2,21 +2,36 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { GradeItem } from "@/types/score";
 import YesIcon from "@/assets/icon/YesIcon.svg";
 import NoIcon from "@/assets/icon/NoIcon.svg";
+import { track } from "@/lib/mixpanel";
 
-export default function ReportDetailTable({ grades }: { grades?: GradeItem[] }) {
+const SECTION_LABEL: Record<string, string> = {
+    history: '병력청취',
+    physical_exam: '신체진찰',
+    education: '환자교육',
+    ppi: '환자-의사관계',
+};
+
+export default function ReportDetailTable({ grades, section, origin }: { grades?: GradeItem[]; section?: string | null; origin?: string }) {
     const borderColor = '#DDD6FE';
     const items = grades || [];
     const [filter, setFilter] = useState<"all" | "correct" | "incorrect">("all");
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-    const toggleExpand = useCallback((id: string) => {
+    const toggleExpand = useCallback((id: string, title: string) => {
         setExpandedIds((prev) => {
             const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
+            const expanding = !next.has(id);
+            if (expanding) next.add(id);
+            else next.delete(id);
+            track("score_item_toggled", {
+                section: section ? SECTION_LABEL[section] || section : "",
+                title,
+                action: expanding ? "expand" : "collapse",
+                origin,
+            });
             return next;
         });
-    }, []);
+    }, [section, origin]);
 
     // 섹션이 바뀌면 필터·확장 초기화
     useEffect(() => {
@@ -53,19 +68,28 @@ export default function ReportDetailTable({ grades }: { grades?: GradeItem[] }) 
                     <FilterButton
                         active={filter === "all"}
                         label="전체"
-                        onClick={() => setFilter("all")}
+                        onClick={() => {
+                            track("score_filter_clicked", { section: section ? SECTION_LABEL[section] || section : "", filter: "전체", origin });
+                            setFilter("all");
+                        }}
                     />
                     <FilterButton
                         active={filter === "correct"}
                         label="정답"
                         icon={<YesIcon width={18} height={18} className="text-[#00BF40]" />}
-                        onClick={() => setFilter("correct")}
+                        onClick={() => {
+                            track("score_filter_clicked", { section: section ? SECTION_LABEL[section] || section : "", filter: "정답", origin });
+                            setFilter("correct");
+                        }}
                     />
                     <FilterButton
                         active={filter === "incorrect"}
                         label="오답"
                         icon={<NoIcon width={18} height={18} className="text-[#FF4242]" />}
-                        onClick={() => setFilter("incorrect")}
+                        onClick={() => {
+                            track("score_filter_clicked", { section: section ? SECTION_LABEL[section] || section : "", filter: "오답", origin });
+                            setFilter("incorrect");
+                        }}
                     />
                 </div>
                 <table className="min-w-full text-sm bg-[#FAFAFA]">
@@ -94,7 +118,7 @@ export default function ReportDetailTable({ grades }: { grades?: GradeItem[] }) 
                                         key={g.id}
                                         className="align-top border-t cursor-pointer select-none active:bg-gray-100 transition-colors"
                                         style={{ borderColor }}
-                                        onClick={() => toggleExpand(g.id)}
+                                        onClick={() => toggleExpand(g.id, g.title)}
                                     >
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-1.5">

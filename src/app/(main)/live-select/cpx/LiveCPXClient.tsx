@@ -49,6 +49,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     const [isFinished, setIsFinished] = useState(false);
     const [showPopup, setShowPopup] = useState(false); //가상환자 클릭시 popup 띄우기
     const [readySeconds, setReadySeconds] = useState<number | null>(null); //준비 시간 타이머
+    const readyStartRef = useRef<number>(0); // 상황숙지 시작 시각
     const [conversationText, setConversationText] = useState<string[]>([]);
     const [focusMode, setFocusMode] = useState(false);
     const [verificationPopup, setVerificationPopup] = useState<{
@@ -336,7 +337,14 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
 
 
             // 🎙 마이크 스트림 수집
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            let stream: MediaStream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                track("mic_permission", { allowed: true });
+            } catch (micErr) {
+                track("mic_permission", { allowed: false });
+                throw micErr;
+            }
             const audioCtx = new AudioContext();
             const micSrc = audioCtx.createMediaStreamSource(stream);
             const analyser = audioCtx.createAnalyser();
@@ -362,7 +370,13 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             setIsRecording(true);
             setConnected(true);
             setFocusMode(true);
-            track("vp_session_started", { case_name: caseName });
+            const readyDurationMs = readyStartRef.current > 0
+                ? Date.now() - readyStartRef.current
+                : 0;
+            track("vp_start", {
+                case_name: caseName,
+                ready_duration_ms: readyDurationMs,
+            });
 
         } catch (err) {
             setConnected(false); // 실패 시 다시 false로 복구
@@ -374,7 +388,31 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     /** ⏹ 세션 종료 + 사용자 음성 및 대화 로그 업로드 */
     async function stopSession() {
         try {
-            track("vp_session_ended", { case_name: caseName, duration_sec: INITIAL_SECONDS - seconds });
+            const practiceDurationSec = INITIAL_SECONDS - seconds;
+            const mm = Math.floor(practiceDurationSec / 60);
+            const ss = practiceDurationSec % 60;
+
+            // 턴 간 응답시간 계산
+            const turns = turnTimestampsRef.current;
+            const userTurns = turns.filter(t => t.text.startsWith("의사:"));
+            const assistantTurns = turns.filter(t => t.text.startsWith("환자:"));
+            const gaps: number[] = [];
+            for (let i = 1; i < turns.length; i++) {
+                gaps.push(turns[i].elapsedSec - turns[i - 1].elapsedSec);
+            }
+            const avgGapSec = gaps.length > 0
+                ? Math.round((gaps.reduce((a, b) => a + b, 0) / gaps.length) * 10) / 10
+                : 0;
+
+            track("vp_session_ended", {
+                case_name: caseName,
+                duration_sec: practiceDurationSec,
+                duration_display: `${mm}분 ${ss}초`,
+                total_turns: turns.length,
+                user_turns: userTurns.length,
+                assistant_turns: assistantTurns.length,
+                avg_turn_gap_sec: avgGapSec,
+            });
             setIsUploading(true);
 
             // 녹음 중지
@@ -511,10 +549,12 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     const ensureOnboarding = async () => {
         const result = await fetchOnboardingStatus();
         if (result.status === "missing") {
+            track("auth_blocked", { reason: "missing", page: "live_cpx" });
             setVerificationPopup({ kind: "missing" });
             return false;
         }
         if (result.status === "rejected") {
+            track("auth_blocked", { reason: "rejected", page: "live_cpx" });
             setVerificationPopup({
                 kind: "rejected",
                 reason: result.rejectReason ?? null,
@@ -522,6 +562,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
             return false;
         }
         if (result.status === "pending") {
+            track("auth_blocked", { reason: "pending", page: "live_cpx" });
             toast("학생증 확인 중입니다. 승인 완료 후 이용해주세요.", {
                 duration: 2500,
             });
@@ -562,6 +603,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
     //팝업에서 시작하기 버튼 누른 후 자동으로 준비 시간 카운팅
     const handleReadyStart = () => {
         setShowPopup(false);       // 팝업 닫기
+        readyStartRef.current = Date.now(); // 상황숙지 시작 시각 기록
         setReadySeconds(INITIAL_READY_SECONDS); // 준비 타이머 시작
     };
 
@@ -730,7 +772,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                                 {isRecording && !focusMode && (
                                     <button
                                         type="button"
-                                        onClick={() => setFocusMode(true)}
+                                        onClick={() => { track("focus_mode", { action: "enable" }); setFocusMode(true); }}
                                         className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F3F0FF] hover:bg-[#E9E2FF] transition cursor-pointer"
                                         title="집중 모드"
                                     >

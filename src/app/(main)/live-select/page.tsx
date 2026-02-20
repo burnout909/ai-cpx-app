@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LIVE_CASE_CATEGORIES } from "@/constants/caseData";
 import BottomFixButton from "@/component/BottomFixButton";
 import { track } from "@/lib/mixpanel";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import Header from "@/component/Header";
 
 interface ScenarioCase {
@@ -30,6 +31,7 @@ type SelectedState = {
 export default function SelectPage() {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
+    usePageTracking("live_select");
 
     // 시나리오 데이터 (DB에서 가져옴)
     const [scenariosByChiefComplaint, setScenariosByChiefComplaint] = useState<Record<string, ScenarioCase[]>>({});
@@ -123,7 +125,11 @@ export default function SelectPage() {
     // 버튼 클릭 시 이동 로직
     const handleStartPractice = () => {
         if (!selected.caseId || !selected.caseName) return;
-        track("live_practice_started", { category: selected.category, case_name: selected.caseName });
+        track("live_cta_clicked", {
+            class: selected.category,
+            dx: selected.chiefComplaint,
+            case: selected.caseName,
+        });
 
         startTransition(() => {
             router.push(
@@ -146,14 +152,19 @@ export default function SelectPage() {
                     {LIVE_CASE_CATEGORIES.map((category) => (
                         <button
                             key={category.id}
-                            onClick={() =>
+                            onClick={() => {
+                                track("live_select_clicked", {
+                                    class: category.name,
+                                    dx: "",
+                                    case: "",
+                                });
                                 setSelected({
                                     category: category.name,
                                     chiefComplaint: "",
                                     caseId: null,
                                     caseName: null,
-                                })
-                            }
+                                });
+                            }}
                             className={`px-3 py-2 rounded-[8px] font-medium text-[15px] text-left transition-all
                                 ${selected.category === category.name
                                     ? "bg-[#D0C7FA] text-[#210535]"
@@ -181,6 +192,11 @@ export default function SelectPage() {
                                     key={item.id}
                                     onClick={() => {
                                         if (!available) return;
+                                        track("live_select_clicked", {
+                                            class: selected.category,
+                                            dx: item.name,
+                                            case: "",
+                                        });
                                         setSelected((prev) => ({
                                             ...prev,
                                             chiefComplaint: item.name,
@@ -230,13 +246,18 @@ export default function SelectPage() {
                         currentCases.map((scenario) => (
                             <button
                                 key={scenario.id}
-                                onClick={() =>
+                                onClick={() => {
+                                    track("live_select_clicked", {
+                                        class: selected.category,
+                                        dx: selected.chiefComplaint,
+                                        case: scenario.caseName,
+                                    });
                                     setSelected((prev) => ({
                                         ...prev,
                                         caseId: scenario.id,
                                         caseName: scenario.caseName,
-                                    }))
-                                }
+                                    }));
+                                }}
                                 className={`text-left font-medium px-3 py-2 text-[14px] rounded-[8px] transition-all
                                     ${selected.caseId === scenario.id
                                         ? "bg-[#7553FC] text-white"

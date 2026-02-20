@@ -3,6 +3,7 @@
 import Image, { StaticImageData } from 'next/image';
 import PlayIcon from '@/assets/icon/PlayIcon.svg';
 import PauseIcon from '@/assets/icon/PauseIcon.svg';
+import { track } from '@/lib/mixpanel';
 
 type Props = {
     isOpen: boolean;
@@ -90,7 +91,7 @@ export default function FocusModeOverlay({
                 {/* 화면 축소 버튼 */}
                 <button
                     type="button"
-                    onClick={onClose}
+                    onClick={() => { track("focus_mode", { action: "disable" }); onClose(); }}
                     className="w-10 h-10 flex items-center justify-center rounded-full bg-[#F3F0FF] hover:bg-[#E9E2FF] transition cursor-pointer"
                     title="화면 축소"
                 >

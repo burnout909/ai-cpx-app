@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import LiveCPXClient from "./LiveCPXClient";
 import { VirtualPatient } from "@/utils/loadVirtualPatient";
+import { usePageTracking } from "@/hooks/usePageTracking";
 
 interface Props {
     category: string;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function LiveCPXClientWrapper({ category, caseName, scenarioId }: Props) {
+    usePageTracking("live_cpx");
     const [patientImageUrl, setPatientImageUrl] = useState<string | undefined>(undefined);
     const [virtualPatient, setVirtualPatient] = useState<VirtualPatient | null>(null);
     const [customRolePrompt, setCustomRolePrompt] = useState<string | undefined>(undefined);

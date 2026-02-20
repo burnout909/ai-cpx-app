@@ -6,11 +6,13 @@ import SprakleIcon from "@/assets/icon/SparkleIcon.svg"
 import ResetIcon from "@/assets/icon/ResetIcon.svg"
 import { useRouter } from "next/navigation";
 import { track } from "@/lib/mixpanel";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import Spinner from "@/component/Spinner";
 import Header from "@/component/Header";
 
 export default function Home() {
     const router = useRouter();
+    usePageTracking("home");
 
     return (
         <div>

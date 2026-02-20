@@ -8,6 +8,7 @@ import PlayIcon from "@/assets/icon/PlayIcon.svg";
 import PauseIcon from "@/assets/icon/PauseIcon.svg";
 import RefreshIcon from "@/assets/icon/ResetIcon.svg";
 import Spinner from "@/component/Spinner";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import { splitMp3ByDuration, standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import { useUserStore } from "@/store/useUserStore";
@@ -66,6 +67,7 @@ type Props = { category: string; caseName: string; checklistId?: string };
 
 export default function RecordCPXClient({ category, caseName, checklistId }: Props) {
     const router = useRouter();
+    usePageTracking("record_cpx");
 
     // 상태값
     const [isRecording, setIsRecording] = useState(false);
@@ -84,6 +86,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     const [readySeconds, setReadySeconds] = useState<number | null>(null); // 준비 시간 타이머
     const [useReadyTimer, setUseReadyTimer] = useState(true); // 준비 시간 토글
     const [focusMode, setFocusMode] = useState(false);
+    const readyStartRef = useRef<number>(0); // 상황숙지 시작 시각
     const [verificationPopup, setVerificationPopup] = useState<{
         kind: "missing" | "rejected";
         reason?: string | null;
@@ -194,7 +197,14 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
         setIsConnencting(true)
         enableNoSleep(); // 화면 꺼짐 방지
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            let stream: MediaStream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                track("mic_permission", { allowed: true });
+            } catch (micErr) {
+                track("mic_permission", { allowed: false });
+                throw micErr;
+            }
             const mediaRecorder = new MediaRecorder(stream);
             mediaRecorderRef.current = mediaRecorder;
             audioChunks.current = [];
@@ -230,7 +240,15 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             };
 
             mediaRecorder.start();
-            track("record_session_started", { case_name: caseName });
+            const readyDurationMs = readyStartRef.current > 0
+                ? Date.now() - readyStartRef.current
+                : 0;
+            track("record_start", {
+                case_name: caseName,
+                use_ready_timer: useReadyTimer,
+                set_duration_sec: duration,
+                ready_duration_ms: useReadyTimer ? readyDurationMs : undefined,
+            });
             setIsRecording(true);
             setIsPaused(false);
             setIsPreviewReady(false);
@@ -293,10 +311,12 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     const ensureOnboarding = async () => {
         const result = await fetchOnboardingStatus();
         if (result.status === "missing") {
+            track("auth_blocked", { reason: "missing", page: "record_cpx" });
             setVerificationPopup({ kind: "missing" });
             return false;
         }
         if (result.status === "rejected") {
+            track("auth_blocked", { reason: "rejected", page: "record_cpx" });
             setVerificationPopup({
                 kind: "rejected",
                 reason: result.rejectReason ?? null,
@@ -304,6 +324,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             return false;
         }
         if (result.status === "pending") {
+            track("auth_blocked", { reason: "pending", page: "record_cpx" });
             toast("학생증 확인 중입니다. 승인 완료 후 이용해주세요.", {
                 duration: 2500,
             });
@@ -348,6 +369,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             if (!ok) return;
             if (useReadyTimer) {
                 playAlert("before"); // 상황 숙지 시작 음성
+                readyStartRef.current = Date.now(); // 상황숙지 시작 시각 기록
                 setReadySeconds(INITIAL_READY_SECONDS); // 준비 타이머 시작
             } else {
                 startRecording(); // 바로 시작
@@ -479,7 +501,15 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             }
 
             // 3️⃣ 업로드 완료 → 채점 페이지 이동
-            track("record_submitted", { case_name: caseName, session_id: sessionId });
+            const practiceDurationSec = duration - seconds;
+            const mm = Math.floor(practiceDurationSec / 60);
+            const ss = practiceDurationSec % 60;
+            track("record_submitted", {
+                case_name: caseName,
+                session_id: sessionId,
+                duration_sec: practiceDurationSec,
+                duration_display: `${mm}분 ${ss}초`,
+            });
             startTransition(() => {
                 const query = audioKeys.length === 1
                     ? `s3Key=${encodeURIComponent(audioKeys[0])}`
@@ -612,7 +642,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                         {isRecording && !focusMode && (
                             <button
                                 type="button"
-                                onClick={() => setFocusMode(true)}
+                                onClick={() => { track("focus_mode", { action: "enable" }); setFocusMode(true); }}
                                 className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F3F0FF] hover:bg-[#E9E2FF] transition cursor-pointer"
                                 title="집중 모드"
                             >

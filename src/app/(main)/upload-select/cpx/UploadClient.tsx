@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { splitMp3ByDuration, standardizeToMP3 } from "@/utils/audioPreprocessing";
 import { generateUploadUrl } from "@/app/api/s3/s3";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import Spinner from "@/component/Spinner";
 import Header from "@/component/Header";
 import { postMetadata } from "@/lib/metadata";
@@ -22,6 +23,7 @@ export default function UploadClient({ category, caseName }: Props) {
     const [isUploadingToS3, setIsUploadingToS3] = useState(false);
     const router = useRouter();
     const [isPending, startTransition] = useTransition()
+    usePageTracking("upload_cpx");
 
     // 파일 업로드 (로컬 변환 + 미리듣기)
     const handleUpload = async (file: File) => {

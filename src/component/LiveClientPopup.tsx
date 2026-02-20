@@ -3,6 +3,7 @@ import { useEffect, useState, type ComponentType } from "react";
 import RightArrowIcon from "@/assets/icon/RightArrowIcon.svg";
 import LeftArrowIcon from "@/assets/icon/LeftArrowIcon.svg";
 import { Instruction1Video, Instruction2Video, Instruction4Video, Instruction5Video } from "./VideoLoop";
+import { track } from "@/lib/mixpanel";
 
 interface Props {
     onClose: () => void;
@@ -38,17 +39,23 @@ export default function LiveClientPopup({ onClose, onReadyStart }: Props) {
 
     const nextStep = () => {
         if (step < slides.length - 1) {
+            track("instruction", { destination: `step${step + 2}` });
             setStep(step + 1);
         } else {
             if (dontShowAgain) {
                 localStorage.setItem("isLiveClientShow", "false");
+                track("instruction", { action: "donotseeagain" });
             }
+            track("instruction", { action: "start" });
             onReadyStart();
         }
     };
 
     const prevStep = () => {
-        if (step > 0) setStep(step - 1);
+        if (step > 0) {
+            track("instruction", { destination: `step${step}` });
+            setStep(step - 1);
+        }
     };
 
     // 단순 마크다운(**bold**)만 처리해서 여백 이슈 없이 볼드 유지

@@ -5,6 +5,7 @@ import CloseIcon from "@/assets/icon/CloseIcon.svg";
 import ArrowUpIcon from "@/assets/icon/ArrowUpIcon.svg";
 import FloatingButton from "./FloatingButton";
 import { InquiryItem } from "@/types/inquiry";
+import { track } from "@/lib/mixpanel";
 
 type Tab = "new" | "list";
 
@@ -47,6 +48,7 @@ export default function FloatingInquiryLauncher() {
         body: JSON.stringify({ content: content.trim() }),
       });
       if (res.ok) {
+        track("inquiry_submitted");
         setContent("");
         setSubmitSuccess(true);
         setTimeout(() => setSubmitSuccess(false), 2000);
@@ -85,7 +87,7 @@ export default function FloatingInquiryLauncher() {
         <button
           type="button"
           aria-label="Close overlay"
-          onClick={() => setOpen(false)}
+          onClick={() => { track("inquiry_closed"); setOpen(false); }}
           className="pointer-events-auto absolute inset-0 bg-black/40"
         />
       )}
@@ -100,7 +102,7 @@ export default function FloatingInquiryLauncher() {
                 <button
                   type="button"
                   aria-label="Close"
-                  onClick={() => setOpen(false)}
+                  onClick={() => { track("inquiry_closed"); setOpen(false); }}
                   className="rounded-md px-2 py-0.5 text-[#6B7280] hover:bg-[#F3F4F6]"
                 >
                   <CloseIcon width={16} height={16} />
@@ -113,7 +115,7 @@ export default function FloatingInquiryLauncher() {
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setTab(t)}
+                    onClick={() => { track("inquiry_tab_clicked", { tab: t === "new" ? "새 문의" : "내 문의 내역" }); setTab(t); }}
                     className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
                       tab === t
                         ? "bg-white text-[#7553FC] shadow-sm"
@@ -219,7 +221,12 @@ export default function FloatingInquiryLauncher() {
 
           <div className="pointer-events-auto absolute bottom-24 right-5">
             <FloatingButton
-              onClick={() => setOpen((v) => !v)}
+              onClick={() => {
+                setOpen((v) => {
+                  track(v ? "inquiry_closed" : "inquiry_opened");
+                  return !v;
+                });
+              }}
               ariaLabel="문의하기"
             />
             {hasUnread && (

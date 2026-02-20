@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { UPLOAD_RECORD_CASE_CATEGORIES } from "@/constants/caseData";
 import BottomFixButton from "@/component/BottomFixButton";
 import { track } from "@/lib/mixpanel";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import Header from "@/component/Header";
 
 interface ChecklistInfo {
@@ -22,6 +23,7 @@ type SelectedState = {
 export default function SelectPage() {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
+    usePageTracking("record_select");
 
     // 체크리스트 데이터 (DB에서 가져옴)
     const [checklistMap, setChecklistMap] = useState<Record<string, ChecklistInfo>>({});
@@ -74,7 +76,10 @@ export default function SelectPage() {
     // 버튼 클릭 시 이동 로직
     const handleStartPractice = () => {
         if (!selected.chiefComplaint || !selected.checklistId) return;
-        track("record_practice_started", { category: selected.category, case_name: selected.chiefComplaint });
+        track("record_cta_clicked", {
+            class: selected.category,
+            dx: selected.chiefComplaint,
+        });
 
         startTransition(() => {
             router.push(
@@ -97,13 +102,17 @@ export default function SelectPage() {
                     {UPLOAD_RECORD_CASE_CATEGORIES.map((category) => (
                         <button
                             key={category.id}
-                            onClick={() =>
+                            onClick={() => {
+                                track("record_select_clicked", {
+                                    class: category.name,
+                                    dx: "",
+                                });
                                 setSelected({
                                     category: category.name,
                                     chiefComplaint: "",
                                     checklistId: null,
-                                })
-                            }
+                                });
+                            }}
                             className={`px-3 py-2 rounded-[8px] font-medium text-[15px] text-left transition-all
                                 ${selected.category === category.name
                                     ? "bg-[#D0C7FA] text-[#210535]"
@@ -134,6 +143,10 @@ export default function SelectPage() {
                                     key={item.id}
                                     onClick={() => {
                                         if (!available) return;
+                                        track("record_select_clicked", {
+                                            class: selected.category,
+                                            dx: item.name,
+                                        });
                                         setSelected((prev) => ({
                                             ...prev,
                                             chiefComplaint: item.name,

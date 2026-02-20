@@ -18,6 +18,7 @@ import { generateUploadUrl } from '@/app/api/s3/s3';
 import getKSTTimestamp from '@/utils/getKSTTimestamp';
 import { postMetadata } from '@/lib/metadata';
 import { track } from '@/lib/mixpanel';
+import { usePageTracking } from '@/hooks/usePageTracking';
 
 marked.setOptions({ async: false });
 
@@ -38,6 +39,7 @@ type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
 export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, origin, sessionId: initialSessionId, checklistId, timestampsS3Key, scenarioId, fromHistory }: Props) {
     const router = useRouter();
+    usePageTracking("score", { origin: fromHistory ? "History" : origin });
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
     const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
@@ -55,6 +57,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
     const feedbackAnchorRef = useRef<HTMLDivElement>(null);
     const solutionAnchorRef = useRef<HTMLDivElement>(null); // 해설 섹션 상단 ref 추가
     const uploadedScoreRef = useRef(false);
+    const scoreStartTimeRef = useRef(Date.now());
     const pipelineRanRef = useRef(false);
     const { totals, overall } = getAllTotals(gradesBySection);
 
@@ -244,7 +247,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
 
     const handleButtonClick = () => {
         // 👇 버튼을 눌렀을 때만 스크롤 이동
-        track("score_solution_toggled", { case_name: caseName });
+        track("score_solution_toggled", { case_name: caseName, origin });
         setShowSolution((prev) => !prev);
         showSolution ?
             setTimeout(() => {
@@ -267,7 +270,12 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
     // 상태 변화 감시: statusMessage가 null로 바뀌면 토스트 + 알림음
     useEffect(() => {
         if (statusMessage === null && !fromHistory) {
-            track("score_completed", { case_name: caseName, origin, session_id: sessionId });
+            track("score_completed", {
+                case_name: caseName,
+                origin,
+                session_id: sessionId,
+                score_duration_ms: Date.now() - scoreStartTimeRef.current,
+            });
             // 띵 알림음 재생 (도→미 2음 차임)
             try {
                 const ctx = new AudioContext();
@@ -347,8 +355,9 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
                             setActive={setActiveSection}
                             PART_LABEL={PART_LABEL}
                             timing={timingBySection}
+                            origin={origin}
                         />
-                        <ReportDetailTable grades={activeSection ? gradesBySection[activeSection] : []} />
+                        <ReportDetailTable grades={activeSection ? gradesBySection[activeSection] : []} section={activeSection} origin={origin} />
                     </div>
                 )}
 

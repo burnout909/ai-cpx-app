@@ -1,6 +1,9 @@
+import PageTracker from "@/component/PageTracker";
+
 export default function PrivacyPolicyPage() {
   return (
     <main className="min-h-screen bg-[#f7f6fb] flex items-center justify-center p-6">
+      <PageTracker page="privacy_policy" />
       <div className="w-full max-w-[720px] rounded-2xl bg-white p-8">
         <h1 className="text-[22px] font-semibold text-[#210535]">
           개인정보처리방침

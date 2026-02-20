@@ -1,4 +1,5 @@
 import { SectionTimingMap } from '@/types/score';
+import { track } from '@/lib/mixpanel';
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 const SECTION_ORDER: Exclude<SectionKey, null>[] = ['history', 'physical_exam', 'education', 'ppi'];
@@ -25,6 +26,7 @@ export default function ReportSummary({
     setActive: (s: SectionKey | null) => void;
     PART_LABEL: Record<string, string>;
     timing?: SectionTimingMap;
+    origin?: string;
 }) {
     const primaryColor = '#7553FC';
     const secondaryColor = '#E9E2FF';
@@ -54,7 +56,10 @@ export default function ReportSummary({
                     return (
                         <button
                             key={key}
-                            onClick={() => setActive(key as SectionKey)}
+                            onClick={() => {
+                                track("score_section_clicked", { section: PART_LABEL[key] || key, origin });
+                                setActive(key as SectionKey);
+                            }}
                             className="text-[14px] text-left rounded-xl border py-5 px-2 transition"
                             style={{
                                 border: isActive

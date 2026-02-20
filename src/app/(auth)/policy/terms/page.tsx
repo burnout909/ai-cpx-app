@@ -1,6 +1,9 @@
+import PageTracker from "@/component/PageTracker";
+
 export default function TermsPage() {
   return (
     <main className="min-h-screen bg-[#f7f6fb] flex items-center justify-center p-6">
+      <PageTracker page="terms" />
       <div className="w-full max-w-[720px] rounded-2xl bg-white p-8">
         <h1 className="text-[22px] font-semibold text-[#210535]">이용약관</h1>
         <p className="text-sm text-gray-600 mt-2">

@@ -4,6 +4,7 @@ import SmallHeader from "@/component/SmallHeader";
 import { useRouter } from "next/navigation";
 import { UPLOAD_RECORD_CASE_CATEGORIES } from "@/constants/caseData";
 import BottomFixButton from "@/component/BottomFixButton";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import Header from "@/component/Header";
 
 type SelectedCaseState = {
@@ -13,6 +14,7 @@ type SelectedCaseState = {
 
 export default function SelectPage() {
     const router = useRouter();
+    usePageTracking("upload_select");
     const [isPending, startTransition] = useTransition()
 
     // 버튼 클릭 시 이동 로직

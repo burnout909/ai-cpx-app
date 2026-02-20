@@ -6,9 +6,11 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { generateUploadUrl } from "@/app/api/s3/s3";
 import toast, { Toaster } from "react-hot-toast";
 import { track } from "@/lib/mixpanel";
+import { usePageTracking } from "@/hooks/usePageTracking";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  usePageTracking("onboarding");
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [name, setName] = useState("");
@@ -116,6 +118,7 @@ export default function OnboardingPage() {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={() => { if (name.trim()) track("onboarding_name_entered"); }}
             placeholder="이름"
             className="h-11 rounded-lg border border-gray-200 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#7553FC]"
           />
@@ -123,6 +126,7 @@ export default function OnboardingPage() {
             type="text"
             value={studentNumber}
             onChange={(e) => handleStudentNumber(e.target.value)}
+            onBlur={() => { if (studentNumber.trim()) track("onboarding_student_number_entered"); }}
             placeholder="학번 (예: 2023191000)"
             className="h-11 rounded-lg border border-gray-200 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#7553FC]"
           />
@@ -131,7 +135,7 @@ export default function OnboardingPage() {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => { const f = e.target.files?.[0] ?? null; setFile(f); if (f) track("onboarding_id_image_selected"); }}
               className="text-sm"
             />
           </label>
