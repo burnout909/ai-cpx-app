@@ -30,10 +30,7 @@ export default function FocusModeOverlay({
 }: Props) {
     if (!isOpen) return null;
 
-    const showTimeWarning = seconds !== undefined && seconds <= 700 && seconds > 690;
-    const timeWarningText = showTimeWarning
-        ? `종료 ${Math.floor(seconds / 60)}분 ${seconds % 60}초 전`
-        : null;
+    const showTimeWarning = seconds !== undefined && seconds <= 120 && seconds > 0;
 
     return (
         <div
@@ -65,7 +62,7 @@ export default function FocusModeOverlay({
                 {/* 종료 2분 전 알림 */}
                 {showTimeWarning && (
                     <p className="text-3xl font-bold text-[#7553FC] animate-focusIn">
-                        {timeWarningText}
+                        종료 임박 (2분 미만 남음)
                     </p>
                 )}
 
