@@ -117,6 +117,15 @@ export default function AdminDashboardLandingPage() {
             badge={<InquiryBadge />}
           />
         </Section>
+
+        {/* 시스템 섹션 */}
+        <Section title="시스템">
+          <DashboardCard
+            href="/admin/dashboard/error-logs"
+            title="에러 로그 확인"
+            description="시스템 에러 및 경고 로그를 확인합니다."
+          />
+        </Section>
       </main>
     </div>
   );
