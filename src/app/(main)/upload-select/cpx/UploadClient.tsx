@@ -12,6 +12,7 @@ import { usePageTracking } from "@/hooks/usePageTracking";
 import Spinner from "@/component/Spinner";
 import Header from "@/component/Header";
 import { postMetadata } from "@/lib/metadata";
+import { reportClientError } from "@/lib/reportClientError";
 
 type Props = { category: string; caseName: string };
 
@@ -40,7 +41,7 @@ export default function UploadClient({ category, caseName }: Props) {
             setAudioUrl(url);
             setMp3Blob(converted);
         } catch (e) {
-            console.error(e);
+            reportClientError(e instanceof Error ? e.message : String(e), { source: "UploadClient/handleUpload", stackTrace: e instanceof Error ? e.stack : undefined });
             alert("⚠️ 변환 중 오류가 발생했습니다.");
             setUploadFileName(null);
             setAudioUrl(null);
@@ -123,7 +124,7 @@ export default function UploadClient({ category, caseName }: Props) {
                 router.push(`/score?${query}&caseName=${encodeURIComponent(caseName)}&origin=SP${sessionParam}`);
             })
         } catch (err: any) {
-            console.error(err);
+            reportClientError(err?.message || String(err), { source: "UploadClient/handleSubmit", stackTrace: err?.stack });
             alert(`업로드 중 오류: ${err.message || "알 수 없는 오류"}`);
         } finally {
             setIsUploadingToS3(false);

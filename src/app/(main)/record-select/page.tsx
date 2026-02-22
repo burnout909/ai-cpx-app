@@ -7,6 +7,7 @@ import BottomFixButton from "@/component/BottomFixButton";
 import { track } from "@/lib/mixpanel";
 import { usePageTracking } from "@/hooks/usePageTracking";
 import Header from "@/component/Header";
+import { reportClientError } from "@/lib/reportClientError";
 
 interface ChecklistInfo {
     chiefComplaint: string;
@@ -56,7 +57,7 @@ export default function SelectPage() {
                     setChecklistMap(mapped);
                 }
             } catch (err) {
-                console.error("데이터 로드 실패:", err);
+                reportClientError(err instanceof Error ? err.message : String(err), { source: "record-select/page/fetchData", stackTrace: err instanceof Error ? err.stack : undefined });
             } finally {
                 setLoading(false);
             }

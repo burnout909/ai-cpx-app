@@ -1,4 +1,5 @@
 import ScoreClient from "./ScoreClient";
+import { logger } from "@/lib/logger";
 
 export default async function Page({
     searchParams,
@@ -15,7 +16,7 @@ export default async function Page({
                 parsedAudioKeys = arr.filter((v) => typeof v === "string");
             }
         } catch (e) {
-            console.error("Failed to parse s3KeyList", e);
+            logger.error("Failed to parse s3KeyList", { source: "score/page", stackTrace: e instanceof Error ? e.stack : undefined });
         }
     }
     if (parsedAudioKeys.length === 0 && s3Key) {

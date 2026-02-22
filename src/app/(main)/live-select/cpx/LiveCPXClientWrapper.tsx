@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import LiveCPXClient from "./LiveCPXClient";
 import { VirtualPatient } from "@/utils/loadVirtualPatient";
 import { usePageTracking } from "@/hooks/usePageTracking";
+import { reportClientError } from "@/lib/reportClientError";
 
 interface Props {
     category: string;
@@ -41,7 +42,7 @@ export default function LiveCPXClientWrapper({ category, caseName, scenarioId }:
                     setPatientImageUrl(scenarioData.patientImageUrl);
                 }
             } catch (err) {
-                console.error("시나리오 데이터 로드 실패:", err);
+                reportClientError(err instanceof Error ? err.message : String(err), { source: "LiveCPXClientWrapper/fetchScenarioData", stackTrace: err instanceof Error ? err.stack : undefined });
             } finally {
                 setLoading(false);
             }

@@ -299,7 +299,6 @@ export async function POST(req: Request) {
       recordId,
     });
   } catch (err: any) {
-    console.error(err);
     logger.error(`metadata POST failed: ${err?.message || "unknown"}`, {
       source: "api/metadata POST",
       stackTrace: err instanceof Error ? err.stack : undefined,
@@ -384,7 +383,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ sessions });
   } catch (err: any) {
-    console.error(err);
     const { searchParams } = new URL(req.url);
     logger.error(`metadata GET failed: ${err?.message || "unknown"}`, {
       source: "api/metadata GET",

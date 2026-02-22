@@ -367,7 +367,7 @@ export async function POST(req: Request) {
           data: { activeImageId: pendingImageId },
         });
 
-        console.log("[scenario POST] Linked new image:", pendingImageId, "to scenario:", newScenario.id);
+        logger.info(`[scenario POST] Linked new image: ${pendingImageId} to scenario: ${newScenario.id}`, { source: "api/admin/scenario POST" });
       } catch (imgErr) {
         const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
         logger.warn(`[scenario POST] Failed to link image: ${imgMsg}`, {
@@ -404,7 +404,7 @@ export async function POST(req: Request) {
             data: { activeImageId: newImage.id },
           });
 
-          console.log("[scenario POST] Copied image from previous scenario:", previousImage.id, "-> new image:", newImage.id);
+          logger.info(`[scenario POST] Copied image from previous scenario: ${previousImage.id} -> new image: ${newImage.id}`, { source: "api/admin/scenario POST" });
         }
       } catch (imgErr) {
         const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
@@ -441,7 +441,7 @@ export async function POST(req: Request) {
             data: { activeImageId: newImage.id },
           });
 
-          console.log("[scenario POST] Copied image from latest version:", latestImage.id, "-> new image:", newImage.id);
+          logger.info(`[scenario POST] Copied image from latest version: ${latestImage.id} -> new image: ${newImage.id}`, { source: "api/admin/scenario POST" });
         }
       } catch (imgErr) {
         const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
@@ -625,7 +625,7 @@ export async function PATCH(req: Request) {
           data: { activeImageId: pendingImageId },
         });
 
-        console.log("[scenario PATCH] Linked image:", pendingImageId, "to scenario:", id);
+        logger.info(`[scenario PATCH] Linked image: ${pendingImageId} to scenario: ${id}`, { source: "api/admin/scenario PATCH" });
       } catch (imgErr) {
         const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
         logger.warn(`[scenario PATCH] Failed to link image: ${imgMsg}`, {

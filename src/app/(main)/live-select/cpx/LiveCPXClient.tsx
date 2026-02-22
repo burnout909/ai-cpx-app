@@ -21,6 +21,7 @@ import { postMetadata } from "@/lib/metadata";
 import FocusModeOverlay from "@/component/FocusModeOverlay";
 import { track } from "@/lib/mixpanel";
 import NoSleep from "nosleep.js";
+import { reportClientError } from "@/lib/reportClientError";
 
 type Props = {
     category: string;
@@ -84,7 +85,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
         try {
             noSleepRef.current?.enable();
         } catch (err) {
-            console.warn("NoSleep 활성화 실패:", err);
+            // NoSleep activation failed — non-critical
         }
     }, []);
 
@@ -92,7 +93,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
         try {
             noSleepRef.current?.disable();
         } catch (err) {
-            console.warn("NoSleep 비활성화 실패:", err);
+            // NoSleep deactivation failed — non-critical
         }
     }, []);
 
@@ -128,7 +129,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
 
 
         } catch (err) {
-            console.warn(" 세션 종료 중 오류:", err);
+            // session cleanup error — non-critical
         }
     }, [disableNoSleep]);
 
@@ -154,7 +155,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                 const img = await loadVPProfile(caseName);
                 if (mounted) setProfileImage(img);
             } catch (e) {
-                console.warn("프로필 이미지 로드 실패:", e);
+                reportClientError(e instanceof Error ? e.message : String(e), { source: "LiveCPXClient/loadVPProfile", level: "WARN" });
                 if (mounted) setProfileImage(FallbackProfile);
             }
         })();
@@ -202,7 +203,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                 const data = await loadVirtualPatient(caseName);
                 if (isMounted) setCaseData(data);
             } catch (err) {
-                console.error("가상환자 로드 실패:", err);
+                reportClientError(err instanceof Error ? err.message : String(err), { source: "LiveCPXClient/loadVirtualPatient", stackTrace: err instanceof Error ? err.stack : undefined });
             }
         }
 
@@ -494,7 +495,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                 });
                 if (transcriptMeta.sessionId) sessionId = transcriptMeta.sessionId;
             } else {
-                console.warn("⚠️ 대화 내용이 비어 있어 히스토리를 업로드하지 않았습니다.");
+                reportClientError("대화 내용이 비어 있어 히스토리를 업로드하지 않았습니다.", { source: "LiveCPXClient/stopSession", level: "WARN" });
             }
 
             // VP timestamps JSON 업로드
@@ -514,7 +515,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                     headers: { "Content-Type": "application/json" },
                     body: tsBlob,
                 });
-                if (!tsRes.ok) console.warn("VP timestamps 업로드 실패");
+                if (!tsRes.ok) reportClientError("VP timestamps 업로드 실패", { source: "LiveCPXClient/stopSession", level: "WARN" });
             }
 
             // 채점 페이지로 이동
@@ -534,7 +535,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                 );
             });
         } catch (err) {
-            console.error("업로드 중 오류:", err);
+            reportClientError(err instanceof Error ? err.message : String(err), { source: "LiveCPXClient/stopSession", stackTrace: err instanceof Error ? err.stack : undefined });
             alert("업로드 실패");
         } finally {
             cancelAnimationFrame(rafRef.current!);

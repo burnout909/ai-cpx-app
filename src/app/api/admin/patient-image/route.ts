@@ -183,8 +183,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ prompt });
     }
 
-    console.log("[patient-image POST] Request:", { scenarioId, sex, age, chiefComplaint, hasScenarioContext: !!scenarioContext, hasCustomPrompt: !!customPrompt });
-
     // Validate required fields
     if (!sex || !age || !chiefComplaint) {
       return NextResponse.json(
@@ -214,7 +212,6 @@ export async function POST(req: Request) {
     });
 
     const imageUrl = response.data?.[0]?.url;
-    console.log("[patient-image POST] DALL-E response URL:", imageUrl ? "received" : "null");
 
     if (!imageUrl) {
       return NextResponse.json(
@@ -248,8 +245,6 @@ export async function POST(req: Request) {
         ContentType: "image/png",
       })
     );
-    console.log("[patient-image POST] S3 upload complete:", s3Key);
-
     // Create PatientImage record
     const patientImage = await prisma.patientImage.create({
       data: {
@@ -264,20 +259,16 @@ export async function POST(req: Request) {
       },
     });
 
-    console.log("[patient-image POST] DB record created:", patientImage.id);
-
     // If scenarioId provided, update scenario's activeImageId
     if (scenarioId) {
       await prisma.scenario.update({
         where: { id: scenarioId },
         data: { activeImageId: patientImage.id },
       });
-      console.log("[patient-image POST] Scenario activeImageId updated");
     }
 
     // Generate signed URL for immediate display
     const signedUrl = await generateDownloadUrl(BUCKET, s3Key);
-    console.log("[patient-image POST] Signed URL generated");
 
     return NextResponse.json({
       success: true,
@@ -287,7 +278,6 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    console.error("Patient image generation error:", err);
     const msg = err instanceof Error ? err.message : String(err);
     logger.error(`Patient image generation failed: ${msg}`, {
       source: "api/admin/patient-image POST",
@@ -313,8 +303,6 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const scenarioId = searchParams.get("scenarioId");
-
-    console.log("[patient-image GET] id:", id, "scenarioId:", scenarioId);
 
     if (id) {
       // Get specific image
@@ -346,10 +334,7 @@ export async function GET(req: Request) {
         select: { activeImageId: true },
       });
 
-      console.log("[patient-image GET] scenario:", scenario);
-
       if (!scenario?.activeImageId) {
-        console.log("[patient-image GET] No activeImageId found");
         return NextResponse.json({ patientImage: null });
       }
 
@@ -357,14 +342,11 @@ export async function GET(req: Request) {
         where: { id: scenario.activeImageId },
       });
 
-      console.log("[patient-image GET] patientImage:", patientImage?.id, patientImage?.s3Key);
-
       if (!patientImage) {
         return NextResponse.json({ patientImage: null });
       }
 
       const signedUrl = await generateDownloadUrl(BUCKET, patientImage.s3Key);
-      console.log("[patient-image GET] signedUrl generated, length:", signedUrl?.length);
 
       return NextResponse.json({
         patientImage: {

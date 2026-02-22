@@ -2,9 +2,7 @@
 import BottomFixButton from '@/component/BottomFixButton';
 import ReportDetailTable from '@/component/score/ReportDetail';
 import ReportSummary from '@/component/score/ReportSummary';
-import { useAutoPipeline, PipelineResult } from '@/hooks/score/useAutoPipeline';
-import { useLiveAutoPipeline, LivePipelineResult } from '@/hooks/score/useLiveAutoPipeline';
-import { GradeItem, SectionResult, SectionTimingMap } from '@/types/score';
+import { GradeItem, SectionTimingMap } from '@/types/score';
 import { getAllTotals } from '@/utils/score';
 import { useEffect, useState, useRef } from 'react';
 import Header from '@/component/Header';
@@ -14,11 +12,9 @@ import { loadVPSolution } from '@/utils/loadVirtualPatient';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import toast from 'react-hot-toast';
-import { generateUploadUrl } from '@/app/api/s3/s3';
-import getKSTTimestamp from '@/utils/getKSTTimestamp';
-import { postMetadata } from '@/lib/metadata';
 import { track } from '@/lib/mixpanel';
 import { usePageTracking } from '@/hooks/usePageTracking';
+import { reportClientError } from '@/lib/reportClientError';
 
 marked.setOptions({ async: false });
 
@@ -37,16 +33,22 @@ interface Props {
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
+
 export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, origin, sessionId: initialSessionId, checklistId, timestampsS3Key, scenarioId, fromHistory }: Props) {
     const router = useRouter();
     usePageTracking("score", { origin: fromHistory ? "History" : origin });
     const [statusMessage, setStatusMessage] = useState<string | null>('준비 중');
-    const [results, setResults] = useState<SectionResult[]>([]);
     const [gradesBySection, setGradesBySection] = useState<Record<string, GradeItem[]>>({});
     const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
     const [done, setDone] = useState<boolean>(false);
     const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
     const [timingBySection, setTimingBySection] = useState<SectionTimingMap>({});
+
+    // Queue stage tracking
+    type PipelineStage = "transcribing" | "loading" | "collecting" | "grading" | "saving";
+    const [currentStage, setCurrentStage] = useState<PipelineStage | null>(null);
+    const [showScoringUI, setShowScoringUI] = useState<boolean>(false);
+    const [enqueuing, setEnqueuing] = useState<boolean>(false);
 
     // 새로 추가: 솔루션 마크다운/HTML 상태
     const [solutionHtml, setSolutionHtml] = useState<string>("");
@@ -61,146 +63,118 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
     const pipelineRanRef = useRef(false);
     const { totals, overall } = getAllTotals(gradesBySection);
 
-    // Score를 S3 + DB에 동기적으로 저장하는 헬퍼
-    async function saveScoreToDB(
-        grades: Record<string, GradeItem[]>,
-        timing: SectionTimingMap,
-    ) {
-        try {
-            uploadedScoreRef.current = true;
+    // Queue 기반 채점: enqueue → polling
+    async function enqueueAndPoll(extraParams?: { cachedTranscriptS3Key?: string }) {
+        setEnqueuing(true);
+        setStatusMessage('채점 대기 중');
 
-            const uploadPayload = {
-                history: grades.history ?? [],
-                physical_exam: grades.physical_exam ?? [],
-                education: grades.education ?? [],
-                ppi: grades.ppi ?? [],
-                ...(Object.keys(timing).length > 0 ? { timingBySection: timing } : {}),
-            };
+        const enqueueBody: Record<string, unknown> = {
+            caseName,
+            origin,
+            sessionId,
+            checklistId,
+            scenarioId,
+        };
 
-            // S3 업로드
-            let s3Key: string | undefined;
-            const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
-            if (bucket) {
-                const timestamp = getKSTTimestamp();
-                s3Key = `${origin}_structuredScore/${timestamp}.json`;
+        if (origin === "VP" && transcriptS3Key) {
+            enqueueBody.transcriptS3Key = transcriptS3Key;
+            if (timestampsS3Key) enqueueBody.timestampsS3Key = timestampsS3Key;
+        } else {
+            enqueueBody.audioKeys = audioKeys;
+        }
 
-                const uploadUrl = await generateUploadUrl(bucket, s3Key);
-                const body = new Blob([JSON.stringify(uploadPayload, null, 2)], {
-                    type: 'application/json; charset=utf-8',
-                });
+        if (extraParams?.cachedTranscriptS3Key) {
+            enqueueBody.cachedTranscriptS3Key = extraParams.cachedTranscriptS3Key;
+        }
 
-                const uploadRes = await fetch(uploadUrl, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-                    body,
-                });
-                if (!uploadRes.ok) {
-                    console.warn('[S3 score upload failed]');
-                    s3Key = undefined;
-                }
+        const enqueueRes = await fetch('/api/score/enqueue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(enqueueBody),
+        });
+        if (!enqueueRes.ok) {
+            const err = await enqueueRes.json().catch(() => ({}));
+            throw new Error(err.detail || 'enqueue failed');
+        }
+        const { jobId } = await enqueueRes.json();
+
+        // Enqueue 성공 → 채점 진행 UI로 전환
+        setEnqueuing(false);
+        setShowScoringUI(true);
+
+        // Polling loop
+        while (true) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const statusRes = await fetch(`/api/score/status?id=${encodeURIComponent(jobId)}`);
+            if (!statusRes.ok) continue;
+            const data = await statusRes.json();
+
+            if (data.status === 'waiting') {
+                setStatusMessage(`채점 대기 중${data.position ? ` (${data.position}번째)` : ''}`);
+            } else if (data.status === 'processing') {
+                setStatusMessage('채점 중');
+                if (data.stage) setCurrentStage(data.stage);
+            } else if (data.status === 'done' && data.result) {
+                setCurrentStage('saving');
+                setGradesBySection(data.result.gradesBySection);
+                setTimingBySection(data.result.timingBySection ?? {});
+                uploadedScoreRef.current = true;
+                return;
+            } else if (data.status === 'failed') {
+                throw new Error(data.error || '채점 실패');
             }
-
-            // DB 저장: studentNumber 없어도 dataJson으로 캐싱
-            const { overall: o } = getAllTotals(grades);
-            const total = Number.isFinite(o?.got) ? o.got : undefined;
-            const meta = await postMetadata({
-                type: "score",
-                s3Key: s3Key ?? "",
-                sessionId,
-                caseName,
-                origin,
-                total,
-                sizeBytes: JSON.stringify(uploadPayload).length,
-                textLength: JSON.stringify(grades).length,
-                dataJson: uploadPayload,
-            });
-            if (meta.sessionId && meta.sessionId !== sessionId) {
-                setSessionId(meta.sessionId);
-            }
-        } catch (e) {
-            console.warn('[structuredScore save skipped]', e);
         }
     }
 
-
-
-
-    const runAutoPipeline = useAutoPipeline(
-        setStatusMessage,
-        setGradesBySection,
-        setResults,
-        setActiveSection,
-        (id) => setSessionId(id),
-        setTimingBySection,
-    );
-    const runLiveAutoPipeline = useLiveAutoPipeline(setStatusMessage, setGradesBySection, setResults, setActiveSection, setTimingBySection);
-
     useEffect(() => {
         if (!caseName) return;
-        if (pipelineRanRef.current) return; // 중복 실행 방지
+        if (pipelineRanRef.current) return;
         pipelineRanRef.current = true;
 
         (async () => {
-            // Tier 1: sessionId가 있으면 DB에서 기존 Score 확인
-            if (sessionId) {
-                try {
-                    const res = await fetch(`/api/metadata?sessionId=${encodeURIComponent(sessionId)}`);
-                    if (res.ok) {
-                        const { sessions } = await res.json();
-                        const session = sessions?.[0];
+            try {
+                // Tier 1: sessionId가 있으면 DB에서 기존 Score 확인
+                if (sessionId) {
+                    try {
+                        const res = await fetch(`/api/metadata?sessionId=${encodeURIComponent(sessionId)}`);
+                        if (res.ok) {
+                            const { sessions } = await res.json();
+                            const session = sessions?.[0];
 
-                        // Score가 있으면 즉시 복원, 파이프라인 건너뛰기
-                        const cachedScore = session?.scores?.[0];
-                        if (cachedScore?.dataJson && typeof cachedScore.dataJson === 'object') {
-                            const { timingBySection: cachedTiming, ...grades } = cachedScore.dataJson as Record<string, unknown>;
-                            setGradesBySection(grades as Record<string, GradeItem[]>);
-                            setTimingBySection((cachedTiming as SectionTimingMap) ?? {});
-                            uploadedScoreRef.current = true; // 재업로드 방지
-                            setDone(true);
-                            setStatusMessage(null);
-                            return;
-                        }
-
-                        // Tier 2: Score 없지만 Transcript 있으면 전사 건너뛰기 가능
-                        const cachedTranscript = session?.transcripts?.[0];
-                        if (cachedTranscript?.s3Key) {
-                            let result: PipelineResult | LivePipelineResult | null = null;
-
-                            if (audioKeys.length > 0) {
-                                // SP: 전사 건너뛰고 채점만
-                                result = await runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId, scenarioId, cachedTranscript.s3Key);
-                            } else if (transcriptS3Key) {
-                                // VP: transcript 이미 있으니 채점만
-                                result = await runLiveAutoPipeline(transcriptS3Key, caseName, checklistId, timestampsS3Key, scenarioId);
+                            // Score가 있으면 즉시 복원, 파이프라인 건너뛰기
+                            const cachedScore = session?.scores?.[0];
+                            if (cachedScore?.dataJson && typeof cachedScore.dataJson === 'object') {
+                                const { timingBySection: cachedTiming, ...grades } = cachedScore.dataJson as Record<string, unknown>;
+                                setGradesBySection(grades as Record<string, GradeItem[]>);
+                                setTimingBySection((cachedTiming as SectionTimingMap) ?? {});
+                                uploadedScoreRef.current = true;
+                                setDone(true);
+                                setStatusMessage(null);
+                                return;
                             }
 
-                            if (result) {
-                                await saveScoreToDB(result.gradesBySection, result.timingBySection);
+                            // Tier 2: Score 없지만 Transcript 있으면 cachedTranscriptS3Key 전달
+                            const cachedTranscript = session?.transcripts?.[0];
+                            if (cachedTranscript?.s3Key) {
+                                await enqueueAndPoll({ cachedTranscriptS3Key: cachedTranscript.s3Key });
+                                setStatusMessage(null);
+                                setDone(true);
+                                return;
                             }
-                            setStatusMessage(null);
-                            setDone(true);
-                            return;
                         }
+                    } catch {
+                        // cache check failed, fall through to full pipeline
                     }
-                } catch {
-                    // cache check failed, fall through to full pipeline
                 }
-            }
 
-            // Tier 3: 캐시 없음 → 전체 파이프라인
-            let result: PipelineResult | LivePipelineResult | null = null;
-
-            if (transcriptS3Key) {
-                result = await runLiveAutoPipeline(transcriptS3Key, caseName, checklistId, timestampsS3Key, scenarioId);
-            } else if (audioKeys.length > 0) {
-                result = await runAutoPipeline(audioKeys, caseName, sessionId, origin, checklistId, scenarioId);
+                // Tier 3: 캐시 없음 → queue 채점
+                await enqueueAndPoll();
+                setStatusMessage(null);
+                setDone(true);
+            } catch (e: any) {
+                reportClientError(e?.message || String(e), { source: "ScoreClient/pipeline", stackTrace: e?.stack });
+                setStatusMessage(`오류 발생: ${e.message || e}`);
             }
-
-            if (result) {
-                await saveScoreToDB(result.gradesBySection, result.timingBySection);
-            }
-            setStatusMessage(null);
-            setDone(true);
         })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [caseName, sessionId]);
@@ -235,7 +209,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
                 if (!cancelled) setSolutionHtml(safe);
             } catch (err) {
                 if (!cancelled) setSolutionHtml(""); // 실패 시 비움
-                console.error(err);
+                reportClientError(err instanceof Error ? err.message : String(err), { source: "ScoreClient/loadSolution", stackTrace: err instanceof Error ? err.stack : undefined });
             } finally {
                 if (!cancelled) setSolutionLoading(false);
             }
@@ -332,13 +306,123 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
                         )}
                     </div>
                 )}
-                {/* {statusMessage && (
-                    <>
-                        <div className="fixed top-3/7 left-1/2 -translate-x-1/2 text-center text-[20px] font-semibold text-[#7553FC] animate-pulse">
-                            {statusMessage}
+                {/* Enqueue 대기 UI */}
+                {enqueuing && (
+                    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white">
+                        <div className="w-8 h-8 border-3 border-[#7553FC] border-t-transparent rounded-full animate-spin mb-4" />
+                        <p className="text-[18px] text-gray-500">잠시 페이지에서 기다려주세요</p>
+                    </div>
+                )}
+
+                {/* 채점 진행 중 UI */}
+                {showScoringUI && !done && (() => {
+                    const SP_STEPS: { stage: PipelineStage; label: string }[] = [
+                        { stage: 'transcribing', label: '음성 전사' },
+                        { stage: 'loading', label: '채점 기준 로드' },
+                        { stage: 'collecting', label: '증거 수집' },
+                        { stage: 'grading', label: '점수 계산' },
+                        { stage: 'saving', label: '결과 저장' },
+                    ];
+                    const VP_STEPS: { stage: PipelineStage; label: string }[] = [
+                        { stage: 'transcribing', label: '전사 다운로드' },
+                        { stage: 'loading', label: '채점 기준 로드' },
+                        { stage: 'collecting', label: '증거 수집' },
+                        { stage: 'grading', label: '점수 계산' },
+                        { stage: 'saving', label: '결과 저장' },
+                    ];
+                    const steps = origin === 'VP' ? VP_STEPS : SP_STEPS;
+                    const stageOrder: PipelineStage[] = steps.map(s => s.stage);
+                    const currentIdx = currentStage ? stageOrder.indexOf(currentStage) : 0;
+
+                    return (
+                        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6 bg-white">
+                            <p className="text-[22px] font-bold text-gray-900 mb-2 text-center">
+                                채점이 진행되고 있어요.
+                            </p>
+                            <p className="text-[18px] text-gray-500 text-center">
+                                페이지를 벗어나셔도 학습 기록에서 채점 결과를 확인할 수 있어요.
+                            </p>
+                            <p className="text-[18px] text-gray-500 mb-8 text-center">
+                                바로 다음 실습을 진행하시겠어요?
+                            </p>
+
+                            {/* Pipeline steps */}
+                            <div className="w-full max-w-xs mb-10 flex flex-col gap-3">
+                                {steps.map(({ stage, label }, idx) => {
+                                    const isDone = idx < currentIdx;
+                                    const isActive = idx === currentIdx;
+                                    const isPending = idx > currentIdx;
+                                    return (
+                                        <div key={stage} className="flex items-center gap-3">
+                                            <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold transition-colors duration-500 ${
+                                                isDone ? 'bg-[#7553FC] text-white' :
+                                                isActive ? 'bg-[#7553FC] text-white animate-pulse' :
+                                                'bg-gray-200 text-gray-400'
+                                            }`}>
+                                                {isDone ? '✓' : idx + 1}
+                                            </div>
+                                            <span className={`text-[15px] transition-colors duration-500 ${
+                                                isDone ? 'text-[#7553FC] font-semibold' :
+                                                isActive ? 'text-[#7553FC] font-semibold' :
+                                                'text-gray-300'
+                                            }`}>
+                                                {label}{isActive && <span className="ml-1 inline-block animate-pulse">...</span>}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Navigation buttons */}
+                            <div className="w-full max-w-sm flex flex-col gap-3">
+                                {origin === "VP" ? (
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                track("score_next_practice_clicked", { case_name: caseName, origin, target: "VP" });
+                                                router.push('/live-select');
+                                            }}
+                                            className="w-full py-3.5 rounded-xl bg-[#7553FC] text-white text-[16px] font-semibold"
+                                        >
+                                            가상환자와 실습하기
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                track("score_next_practice_clicked", { case_name: caseName, origin, target: "SP" });
+                                                router.push('/record-select');
+                                            }}
+                                            className="w-full py-3.5 rounded-xl bg-white text-[#7553FC] text-[16px] font-semibold border border-[#7553FC]"
+                                        >
+                                            표준화환자와 실습하기
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                track("score_next_practice_clicked", { case_name: caseName, origin, target: "SP" });
+                                                router.push('/record-select');
+                                            }}
+                                            className="w-full py-3.5 rounded-xl bg-[#7553FC] text-white text-[16px] font-semibold"
+                                        >
+                                            표준화환자와 실습하기
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                track("score_next_practice_clicked", { case_name: caseName, origin, target: "VP" });
+                                                router.push('/live-select');
+                                            }}
+                                            className="w-full py-3.5 rounded-xl bg-white text-[#7553FC] text-[16px] font-semibold border border-[#7553FC]"
+                                        >
+                                            가상환자와 실습하기
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
-                    </>
-                )} */}
+                    );
+                })()}
+
                 <div ref={feedbackAnchorRef} className="w-full" />
 
                 {/* 피드백 뷰 */}

@@ -19,6 +19,7 @@ import { postMetadata } from "@/lib/metadata";
 import NoSleep from "nosleep.js";
 import FocusModeOverlay from "@/component/FocusModeOverlay";
 import { track } from "@/lib/mixpanel";
+import { reportClientError } from "@/lib/reportClientError";
 
 const DEFAULT_SECONDS = 12 * 60; // 12분
 const MIN_SECONDS = 2.5 * 60; // 최소 2.5분
@@ -55,10 +56,10 @@ function playAlert(type: keyof typeof AUDIO_ALERTS) {
     const cached = audioCache.get(src);
     if (cached) {
         cached.currentTime = 0;
-        cached.play().catch((err) => console.warn("[Audio] 재생 실패:", err));
+        cached.play().catch(() => {});
     } else {
         const audio = new Audio(src);
-        audio.play().catch((err) => console.warn("[Audio] 재생 실패:", err));
+        audio.play().catch(() => {});
         audioCache.set(src, audio);
     }
 }
@@ -119,18 +120,16 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
     const enableNoSleep = useCallback(() => {
         try {
             noSleepRef.current?.enable();
-            console.log("NoSleep 활성화됨 - 화면이 꺼지지 않습니다");
-        } catch (err) {
-            console.warn("NoSleep 활성화 실패:", err);
+        } catch {
+            // NoSleep activation failed — non-critical
         }
     }, []);
 
     const disableNoSleep = useCallback(() => {
         try {
             noSleepRef.current?.disable();
-            console.log("NoSleep 비활성화됨");
-        } catch (err) {
-            console.warn("NoSleep 비활성화 실패:", err);
+        } catch {
+            // NoSleep deactivation failed — non-critical
         }
     }, []);
 
@@ -263,7 +262,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             alert("마이크 접근이 거부되었거나 오류가 발생했습니다.");
             setIsConnencting(false);
             disableNoSleep();
-            console.error(err);
+            reportClientError(err instanceof Error ? err.message : String(err), { source: "RecordCPXClient/startRecording", stackTrace: err instanceof Error ? err.stack : undefined });
         }
     }
 
@@ -407,7 +406,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
             setAudioURL(url);
             setIsPreviewReady(true);
         } catch (err) {
-            console.error(err);
+            reportClientError(err instanceof Error ? err.message : String(err), { source: "RecordCPXClient/handlePreview", stackTrace: err instanceof Error ? err.stack : undefined });
             alert("MP3 변환 중 오류가 발생했습니다.");
         } finally {
             setIsConverting(false);
@@ -431,7 +430,7 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                     finalMp3 = await standardizeToMP3(blob);
                     setMp3Blob(finalMp3);
                 } catch (err) {
-                    console.error(err);
+                    reportClientError(err instanceof Error ? err.message : String(err), { source: "RecordCPXClient/handleSubmit/convert", stackTrace: err instanceof Error ? err.stack : undefined });
                     alert("MP3 변환 중 오류가 발생했습니다.");
                     setIsConvertingDirect(false);
                     return;
@@ -525,8 +524,8 @@ export default function RecordCPXClient({ category, caseName, checklistId }: Pro
                 );
             });
         } catch (err: any) {
-            console.error(err);
-            alert(`❌ 업로드 중 오류: ${err.message || "알 수 없는 오류"}`);
+            reportClientError(err?.message || String(err), { source: "RecordCPXClient/handleSubmit", stackTrace: err?.stack });
+            alert(`업로드 중 오류: ${err.message || "알 수 없는 오류"}`);
         } finally {
             setIsUploadingToS3(false);
         }
