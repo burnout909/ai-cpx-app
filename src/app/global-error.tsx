@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { reportClientError } from '@/lib/reportClientError';
 
 export default function GlobalError({
   error,
@@ -20,6 +21,12 @@ export default function GlobalError({
       window.location.reload();
       return;
     }
+
+    reportClientError(error.message || 'Unknown global error', {
+      stackTrace: error.stack,
+      source: 'global-error',
+      metadata: { digest: error.digest },
+    });
   }, [error]);
 
   return (

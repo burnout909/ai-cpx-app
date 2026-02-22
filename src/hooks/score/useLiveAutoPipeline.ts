@@ -3,6 +3,7 @@ import { generateDownloadUrl } from "@/app/api/s3/s3";
 import { GradeItem, SectionResult, SectionTimingMap } from "@/types/score";
 import { EvidenceChecklist, loadChecklistByCase, ScoreChecklist, EvidenceModule } from "@/utils/loadChecklist";
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
+import { reportClientError } from "@/lib/reportClientError";
 
 interface TurnTimestamp {
     text: string;
@@ -90,6 +91,10 @@ export function useLiveAutoPipeline(
                     }
                 } catch (err) {
                     console.warn('[VP timestamps download failed]', err);
+                    reportClientError(
+                        err instanceof Error ? err.message : 'VP timestamps download failed',
+                        { source: 'useLiveAutoPipeline/timestamps', level: 'WARN', stackTrace: err instanceof Error ? err.stack : undefined },
+                    );
                 }
                 return { turnTimestamps: undefined, sessionDurationSec: undefined };
             })();
@@ -148,6 +153,10 @@ export function useLiveAutoPipeline(
                 })
                 .catch((err) => {
                     console.warn('[classifySections skipped]', err);
+                    reportClientError(
+                        err instanceof Error ? err.message : 'classifySections failed',
+                        { source: 'useLiveAutoPipeline/classifySections', level: 'WARN', stackTrace: err instanceof Error ? err.stack : undefined },
+                    );
                     return null;
                 });
 
@@ -194,6 +203,11 @@ export function useLiveAutoPipeline(
             return { gradesBySection: graded, timingBySection: timingResult ?? {} };
         } catch (e: any) {
             console.error(e);
+            reportClientError(e.message || String(e), {
+                source: 'useLiveAutoPipeline',
+                stackTrace: e.stack,
+                metadata: { caseName },
+            });
             setStatusMessage(`오류 발생: ${e.message || e}`);
             return null;
         }

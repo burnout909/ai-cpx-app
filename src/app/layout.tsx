@@ -1,5 +1,6 @@
 import "./globals.css";
 import MixpanelProvider from "@/component/MixpanelProvider";
+import GlobalErrorHandler from "@/component/GlobalErrorHandler";
 
 export const metadata = {
   title: "ai-cpx",
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body>
+        <GlobalErrorHandler />
         <MixpanelProvider>
           <div>
             {children}

@@ -4,6 +4,7 @@ import { EvidenceChecklist, loadChecklistByCase, EvidenceModule } from "@/utils/
 import { ensureOkOrThrow, readJsonOrText } from "@/utils/score";
 import { generateDownloadUrl, generateUploadUrl } from "@/app/api/s3/s3";
 import { postMetadata } from "@/lib/metadata";
+import { reportClientError } from "@/lib/reportClientError";
 
 type SectionKey = 'history' | 'physical_exam' | 'education' | 'ppi' | null;
 
@@ -174,6 +175,10 @@ export function useAutoPipeline(
                             }
                         } catch (err) {
                             console.warn('[script upload failed]', err);
+                            reportClientError(
+                                err instanceof Error ? err.message : 'script upload failed',
+                                { source: 'useAutoPipeline/scriptUpload', level: 'WARN', stackTrace: err instanceof Error ? err.stack : undefined },
+                            );
                         }
                     };
                     uploadInBackground();
@@ -231,6 +236,10 @@ export function useAutoPipeline(
                 })
                 .catch((err) => {
                     console.warn('[classifySections skipped]', err);
+                    reportClientError(
+                        err instanceof Error ? err.message : 'classifySections failed',
+                        { source: 'useAutoPipeline/classifySections', level: 'WARN', stackTrace: err instanceof Error ? err.stack : undefined },
+                    );
                     return null;
                 });
 
@@ -277,6 +286,11 @@ export function useAutoPipeline(
             return { gradesBySection: graded, timingBySection: timingResult ?? {} };
         } catch (e: any) {
             console.error(e);
+            reportClientError(e.message || String(e), {
+                source: 'useAutoPipeline',
+                stackTrace: e.stack,
+                metadata: { caseName },
+            });
             setStatusMessage(`오류 발생: ${e.message || e}`);
             return null;
         }
