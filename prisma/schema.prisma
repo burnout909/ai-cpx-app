@@ -731,6 +731,33 @@ enum InquiryStatus {
   @@schema("public")
 }
 
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+
+  @@schema("public")
+}
+
+model ErrorLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  level      LogLevel
+  message    String
+  stackTrace String?  @map("stack_trace")
+  source     String?
+  userId     String?  @map("user_id") @db.Uuid
+  userAgent  String?  @map("user_agent")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([level])
+  @@index([createdAt])
+  @@index([source])
+  @@map("error_logs")
+  @@schema("public")
+}
+
 enum UserRole {
   STUDENT
   ADMIN
