@@ -22,21 +22,30 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const caseName = searchParams.get("caseName");
 
-    if (!id) {
+    if (!id && !caseName) {
       return NextResponse.json<ScenarioCommentaryError>(
-        { detail: "scenarioCommentary failed: id가 필요합니다." },
+        { detail: "scenarioCommentary failed: id 또는 caseName이 필요합니다." },
         { status: 400 },
       );
     }
 
-    const scenario = await prisma.scenario.findUnique({
-      where: { id },
-      select: {
-        status: true,
-        commentaryContent: true,
-      },
-    });
+    let scenario: { status: string; commentaryContent: unknown } | null = null;
+
+    if (id) {
+      scenario = await prisma.scenario.findUnique({
+        where: { id },
+        select: { status: true, commentaryContent: true },
+      });
+    } else if (caseName) {
+      // caseName 형식: "콧물코막힘_002" → chiefComplaint="콧물코막힘", caseName="콧물코막힘_002"
+      scenario = await prisma.scenario.findFirst({
+        where: { caseName, status: "PUBLISHED" },
+        orderBy: { versionNumber: "desc" },
+        select: { status: true, commentaryContent: true },
+      });
+    }
 
     if (!scenario) {
       return NextResponse.json<ScenarioCommentaryError>(

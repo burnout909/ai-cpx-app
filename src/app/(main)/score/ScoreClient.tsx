@@ -53,7 +53,7 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
     // 새로 추가: 솔루션 마크다운/HTML 상태
     const [solutionHtml, setSolutionHtml] = useState<string>("");
     const [solutionLoading, setSolutionLoading] = useState<boolean>(false);
-    const [showSolution, setShowSolution] = useState<boolean>(true); //솔루션 보기 여부
+    const [showSolution, setShowSolution] = useState<boolean>(!fromHistory); // fromHistory면 해설 닫힌 상태로 시작
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const feedbackAnchorRef = useRef<HTMLDivElement>(null);
@@ -190,18 +190,19 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
                 }
                 setSolutionLoading(true);
 
-                // scenarioId가 있으면 DB에서 commentary 로드
-                if (scenarioId) {
-                    const res = await fetch(`/api/scenario-commentary?id=${encodeURIComponent(scenarioId)}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.html && !cancelled) {
-                            setSolutionHtml(DOMPurify.sanitize(data.html));
-                            return;
-                        }
+                // scenarioId 또는 caseName으로 DB에서 commentary 로드
+                const commentaryUrl = scenarioId
+                    ? `/api/scenario-commentary?id=${encodeURIComponent(scenarioId)}`
+                    : `/api/scenario-commentary?caseName=${encodeURIComponent(caseName)}`;
+                const res = await fetch(commentaryUrl);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.html && !cancelled) {
+                        setSolutionHtml(DOMPurify.sanitize(data.html));
+                        return;
                     }
-                    // DB 조회 실패 시 정적 파일 fallback
                 }
+                // DB 조회 실패 시 정적 파일 fallback
 
                 const md = await loadVPSolution(caseName);
                 const parsed = marked.parse(md) as string;
@@ -220,25 +221,12 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
     const PART_LABEL = { history: '병력 청취', physical_exam: '신체 진찰', education: '환자 교육', ppi: '환자-의사관계' };
 
     const handleButtonClick = () => {
-        // 👇 버튼을 눌렀을 때만 스크롤 이동
-        track("score_solution_toggled", { case_name: caseName, origin });
-        setShowSolution((prev) => !prev);
-        showSolution ?
-            setTimeout(() => {
-                feedbackAnchorRef.current?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
-                });
-            }, 150) // DOM 렌더링 보정용 약간의 지연:
-            :
-            setTimeout(() => {
-                solutionAnchorRef.current?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
-                });
-            }, 150);
-
-
+        track("score_navigate_practice", { case_name: caseName, origin });
+        if (origin === "VP") {
+            router.push('/live-select');
+        } else {
+            router.push('/record-select');
+        }
     };
 
     // 상태 변화 감시: statusMessage가 null로 바뀌면 토스트 + 알림음
@@ -286,43 +274,19 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
             ) : (
                 <Header />
             )}
-            <div className="relative flex flex-col items-center justify-center px-4 pb-[136px] overflow-y-auto"
+            <div className={`relative flex flex-col items-center justify-center px-4 overflow-y-auto ${fromHistory ? 'pb-6' : 'pb-[136px]'}`}
                 ref={scrollContainerRef}
             >
-                <div ref={solutionAnchorRef} />
-                {/* 상태 표시 + 솔루션 뷰 */}
-                {origin == "VP" && (solutionLoading || !!solutionHtml) && (
-                    <div className='pt-2 flex flex-col flex-1 w-full'>
-                        <h2 className='text-[20px] font-semibold mb-2'>해설</h2>
-                        {solutionLoading ? (
-                            <div className="flex justify-center py-8">
-                                <div className="w-6 h-6 border-2 border-[#7553FC] border-t-transparent rounded-full animate-spin" />
-                            </div>
-                        ) : (
-                            <div
-                                className="prose prose-[14px] text-[#333] leading-relaxed"
-                                dangerouslySetInnerHTML={{ __html: solutionHtml }}
-                            />
-                        )}
-                    </div>
-                )}
-                {/* Enqueue 대기 UI */}
-                {enqueuing && (
+                {/* Enqueue / 초기 대기 UI — VP: done 전까지, SP: enqueuing 중에만 */}
+                {(origin === "VP" ? (!done && !showScoringUI && !fromHistory) : enqueuing) && (
                     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white">
                         <div className="w-8 h-8 border-3 border-[#7553FC] border-t-transparent rounded-full animate-spin mb-4" />
-                        <p className="text-[18px] text-gray-500">잠시 페이지에서 기다려주세요</p>
+                        <p className="text-[18px] text-gray-500">잠시 페이지를 벗어나지 말아주세요</p>
                     </div>
                 )}
 
-                {/* 채점 진행 중 UI */}
-                {showScoringUI && !done && (() => {
-                    const SP_STEPS: { stage: PipelineStage; label: string }[] = [
-                        { stage: 'transcribing', label: '음성 전사' },
-                        { stage: 'loading', label: '채점 기준 로드' },
-                        { stage: 'collecting', label: '증거 수집' },
-                        { stage: 'grading', label: '점수 계산' },
-                        { stage: 'saving', label: '결과 저장' },
-                    ];
+                {/* 채점 진행 중 UI — VP: 인라인 컴포넌트, SP: 전체화면 오버레이 */}
+                {showScoringUI && !done && origin === "VP" && (() => {
                     const VP_STEPS: { stage: PipelineStage; label: string }[] = [
                         { stage: 'transcribing', label: '전사 다운로드' },
                         { stage: 'loading', label: '채점 기준 로드' },
@@ -330,7 +294,85 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
                         { stage: 'grading', label: '점수 계산' },
                         { stage: 'saving', label: '결과 저장' },
                     ];
-                    const steps = origin === 'VP' ? VP_STEPS : SP_STEPS;
+                    const stageOrder: PipelineStage[] = VP_STEPS.map(s => s.stage);
+                    const currentIdx = currentStage ? stageOrder.indexOf(currentStage) : 0;
+
+                    return (
+                        <div className="w-full flex flex-col items-center px-2 pt-4 pb-6 mb-4">
+                            <p className="text-[22px] font-bold text-gray-900 mb-2 text-center">
+                                채점이 진행되고 있어요.
+                            </p>
+                            <p className="text-[14px] text-gray-500 text-center mb-6">
+                                페이지를 벗어나셔도 학습 기록에서 채점 결과를 확인할 수 있어요.
+                            </p>
+
+                            <div className="w-full max-w-xs flex flex-col gap-3">
+                                {VP_STEPS.map(({ stage, label }, idx) => {
+                                    const isDone = idx < currentIdx;
+                                    const isActive = idx === currentIdx;
+                                    return (
+                                        <div key={stage} className="flex items-center gap-3">
+                                            <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold transition-colors duration-500 ${
+                                                isDone ? 'bg-[#7553FC] text-white' :
+                                                isActive ? 'bg-[#7553FC] text-white animate-pulse' :
+                                                'bg-gray-200 text-gray-400'
+                                            }`}>
+                                                {isDone ? '✓' : idx + 1}
+                                            </div>
+                                            <span className={`text-[15px] transition-colors duration-500 ${
+                                                isDone ? 'text-[#7553FC] font-semibold' :
+                                                isActive ? 'text-[#7553FC] font-semibold' :
+                                                'text-gray-300'
+                                            }`}>
+                                                {label}{isActive && <span className="ml-1 inline-block animate-pulse">...</span>}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                <div ref={solutionAnchorRef} />
+                {/* 상태 표시 + 솔루션 뷰 */}
+                {origin == "VP" && (solutionLoading || !!solutionHtml) && (
+                    <div className='pt-2 flex flex-col flex-1 w-full'>
+                        {fromHistory ? (
+                            <button
+                                onClick={() => setShowSolution((prev) => !prev)}
+                                className="flex items-center gap-1.5 mb-2"
+                            >
+                                <span className={`text-[14px] transition-transform duration-200 ${showSolution ? 'rotate-90' : ''}`}>▶</span>
+                                <h2 className='text-[20px] font-semibold'>해설</h2>
+                            </button>
+                        ) : (
+                            <h2 className='text-[20px] font-semibold mb-2'>해설</h2>
+                        )}
+                        {showSolution && (
+                            solutionLoading ? (
+                                <div className="flex justify-center py-8">
+                                    <div className="w-6 h-6 border-2 border-[#7553FC] border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            ) : (
+                                <div
+                                    className="prose prose-[14px] text-[#333] leading-relaxed"
+                                    dangerouslySetInnerHTML={{ __html: solutionHtml }}
+                                />
+                            )
+                        )}
+                    </div>
+                )}
+
+                {showScoringUI && !done && origin === "SP" && (() => {
+                    const SP_STEPS: { stage: PipelineStage; label: string }[] = [
+                        { stage: 'transcribing', label: '음성 전사' },
+                        { stage: 'loading', label: '채점 기준 로드' },
+                        { stage: 'collecting', label: '증거 수집' },
+                        { stage: 'grading', label: '점수 계산' },
+                        { stage: 'saving', label: '결과 저장' },
+                    ];
+                    const steps = SP_STEPS;
                     const stageOrder: PipelineStage[] = steps.map(s => s.stage);
                     const currentIdx = currentStage ? stageOrder.indexOf(currentStage) : 0;
 
@@ -351,7 +393,6 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
                                 {steps.map(({ stage, label }, idx) => {
                                     const isDone = idx < currentIdx;
                                     const isActive = idx === currentIdx;
-                                    const isPending = idx > currentIdx;
                                     return (
                                         <div key={stage} className="flex items-center gap-3">
                                             <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold transition-colors duration-500 ${
@@ -375,49 +416,24 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
 
                             {/* Navigation buttons */}
                             <div className="w-full max-w-sm flex flex-col gap-3">
-                                {origin === "VP" ? (
-                                    <>
-                                        <button
-                                            onClick={() => {
-                                                track("score_next_practice_clicked", { case_name: caseName, origin, target: "VP" });
-                                                router.push('/live-select');
-                                            }}
-                                            className="w-full py-3.5 rounded-xl bg-[#7553FC] text-white text-[16px] font-semibold"
-                                        >
-                                            가상환자와 실습하기
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                track("score_next_practice_clicked", { case_name: caseName, origin, target: "SP" });
-                                                router.push('/record-select');
-                                            }}
-                                            className="w-full py-3.5 rounded-xl bg-white text-[#7553FC] text-[16px] font-semibold border border-[#7553FC]"
-                                        >
-                                            표준화환자와 실습하기
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <button
-                                            onClick={() => {
-                                                track("score_next_practice_clicked", { case_name: caseName, origin, target: "SP" });
-                                                router.push('/record-select');
-                                            }}
-                                            className="w-full py-3.5 rounded-xl bg-[#7553FC] text-white text-[16px] font-semibold"
-                                        >
-                                            표준화환자와 실습하기
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                track("score_next_practice_clicked", { case_name: caseName, origin, target: "VP" });
-                                                router.push('/live-select');
-                                            }}
-                                            className="w-full py-3.5 rounded-xl bg-white text-[#7553FC] text-[16px] font-semibold border border-[#7553FC]"
-                                        >
-                                            가상환자와 실습하기
-                                        </button>
-                                    </>
-                                )}
+                                <button
+                                    onClick={() => {
+                                        track("score_next_practice_clicked", { case_name: caseName, origin, target: "SP" });
+                                        router.push('/record-select');
+                                    }}
+                                    className="w-full py-3.5 rounded-xl bg-[#7553FC] text-white text-[16px] font-semibold"
+                                >
+                                    표준화환자와 실습하기
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        track("score_next_practice_clicked", { case_name: caseName, origin, target: "VP" });
+                                        router.push('/live-select');
+                                    }}
+                                    className="w-full py-3.5 rounded-xl bg-white text-[#7553FC] text-[16px] font-semibold border border-[#7553FC]"
+                                >
+                                    가상환자와 실습하기
+                                </button>
                             </div>
                         </div>
                     );
@@ -445,12 +461,14 @@ export default function ScoreClient({ audioKeys, transcriptS3Key, caseName, orig
                     </div>
                 )}
 
-                {/* 하단 버튼 */}
-                <BottomFixButton
-                    disabled={!!statusMessage}
-                    onClick={handleButtonClick}
-                    buttonName={statusMessage && statusMessage?.length >= 0 ? statusMessage : showSolution ? '채점결과 보기' : '해설 보기'}
-                />
+                {/* 하단 버튼 — fromHistory에서는 숨김 */}
+                {!fromHistory && (
+                    <BottomFixButton
+                        disabled={origin === "VP" ? (!done && !showScoringUI) : !!statusMessage}
+                        onClick={handleButtonClick}
+                        buttonName={origin === "VP" ? '다른 케이스 연습하기' : (statusMessage && statusMessage?.length >= 0 ? statusMessage : '다른 케이스 연습하기')}
+                    />
+                )}
             </div>
         </>
     );
