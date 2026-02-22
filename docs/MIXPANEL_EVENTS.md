@@ -97,8 +97,10 @@
 | `score_filter_clicked` | 전체/정답/오답 필터 | `{ section, filter, origin }` |
 | `score_item_toggled` | 체크리스트 항목 토글 | `{ section, title, action: "expand" \| "collapse", origin }` |
 | `score_solution_toggled` | 해설/채점결과 전환 | `{ case_name, origin }` |
+| `score_next_practice_clicked` | 채점 중 다음 실습 버튼 클릭 | `{ case_name, origin, target }` |
 
 > `origin`: `"VP"` (가상환자) \| `"SP"` (녹음본)
+> `target`: `"VP"` (가상환자와 실습하기) \| `"SP"` (표준화환자와 실습하기)
 > `section`: `"병력 청취"` \| `"신체 진찰"` \| `"환자 교육"` \| `"환자-의사관계"`
 > `filter`: `"전체"` \| `"정답"` \| `"오답"`
 
