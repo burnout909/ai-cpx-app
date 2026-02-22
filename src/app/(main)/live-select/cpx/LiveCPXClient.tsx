@@ -855,6 +855,7 @@ export default function LiveCPXClient({ category, caseName, scenarioId, virtualP
                 disabled={isUploading || connected || isFinished}
                 patientImage={patientImageUrl || profileImage}
                 patientName={caseData?.meta?.name || caseData?.properties?.meta?.name}
+                seconds={seconds}
             />
         </div >
     );

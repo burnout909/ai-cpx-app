@@ -14,6 +14,7 @@ type Props = {
     disabled: boolean;
     patientImage?: string | StaticImageData;
     patientName?: string;
+    seconds?: number;
 };
 
 export default function FocusModeOverlay({
@@ -25,8 +26,14 @@ export default function FocusModeOverlay({
     disabled,
     patientImage,
     patientName,
+    seconds,
 }: Props) {
     if (!isOpen) return null;
+
+    const showTimeWarning = seconds !== undefined && seconds <= 700 && seconds > 690;
+    const timeWarningText = showTimeWarning
+        ? `종료 ${Math.floor(seconds / 60)}분 ${seconds % 60}초 전`
+        : null;
 
     return (
         <div
@@ -53,6 +60,13 @@ export default function FocusModeOverlay({
                             </p>
                         )}
                     </div>
+                )}
+
+                {/* 종료 2분 전 알림 */}
+                {showTimeWarning && (
+                    <p className="text-3xl font-bold text-[#7553FC] animate-focusIn">
+                        {timeWarningText}
+                    </p>
                 )}
 
                 {/* 볼륨 링 + Play/Pause 버튼 */}
