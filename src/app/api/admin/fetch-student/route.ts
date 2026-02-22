@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import s3 from '@/lib/s3';
 import { GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 const BUCKET = process.env.NEXT_PUBLIC_S3_BUCKET_NAME;
 
@@ -61,7 +62,11 @@ async function readObjectText(key: string) {
         );
         return streamToString(res.Body);
     } catch (err) {
-        console.warn('[readObjectText failed]', key, err);
+        logger.warn(`S3 readObjectText failed for key: ${key}`, {
+            source: "api/admin/fetch-student",
+            stackTrace: err instanceof Error ? (err as Error).stack : undefined,
+            metadata: { key },
+        });
         return '';
     }
 }
@@ -72,7 +77,12 @@ async function loadNarrative(key: string) {
     if (!raw) return null;
     try {
         return JSON.parse(raw);
-    } catch {
+    } catch (parseErr) {
+        logger.warn(`narrative JSON parse failed, using raw content`, {
+            source: "api/admin/fetch-student",
+            stackTrace: parseErr instanceof Error ? parseErr.stack : undefined,
+            metadata: { key },
+        });
         return { content: raw };
     }
 }
@@ -84,7 +94,11 @@ async function loadStructuredScores(key: string): Promise<StructuredScores | nul
     try {
         return JSON.parse(raw);
     } catch (err) {
-        console.warn('[structuredScore parse failed]', err);
+        logger.warn(`structuredScore JSON parse failed`, {
+            source: "api/admin/fetch-student",
+            stackTrace: err instanceof Error ? (err as Error).stack : undefined,
+            metadata: { key },
+        });
         return null;
     }
 }
@@ -249,7 +263,12 @@ export async function POST(req: Request) {
             },
         });
     } catch (err: any) {
-        console.error(err);
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(`admin/fetch-student POST failed: ${msg}`, {
+            source: "api/admin/fetch-student",
+            stackTrace: err instanceof Error ? err.stack : undefined,
+            metadata: {},
+        });
         return NextResponse.json({ error: err?.message || 'Failed to load student data' }, { status: 500 });
     }
 }

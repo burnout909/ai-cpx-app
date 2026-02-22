@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 async function requireAdmin() {
   const cookieStore = await cookies();
@@ -47,26 +48,36 @@ export async function POST(req: Request) {
   if (body?.scenarioJson !== undefined) data.scenarioJson = body.scenarioJson;
   if (body?.checklistJson !== undefined) data.checklistJson = body.checklistJson;
 
-  const existing = await prisma.case.findFirst({ where: { name: caseName } });
+  try {
+    const existing = await prisma.case.findFirst({ where: { name: caseName } });
 
-  if (!existing) {
-    const created = await prisma.case.create({
-      data: {
-        name: caseName,
-        ...(Object.keys(data).length > 0 ? data : {}),
-      } as any,
+    if (!existing) {
+      const created = await prisma.case.create({
+        data: {
+          name: caseName,
+          ...(Object.keys(data).length > 0 ? data : {}),
+        } as any,
+      });
+      return NextResponse.json({ case: created });
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ case: existing });
+    }
+
+    const updated = await prisma.case.update({
+      where: { id: existing.id },
+      data: data as any,
     });
-    return NextResponse.json({ case: created });
+
+    return NextResponse.json({ case: updated });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`admin/cases POST failed: ${msg}`, {
+      source: "api/admin/cases",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { caseName, diagnosis, description },
+    });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
-
-  if (Object.keys(data).length === 0) {
-    return NextResponse.json({ case: existing });
-  }
-
-  const updated = await prisma.case.update({
-    where: { id: existing.id },
-    data: data as any,
-  });
-
-  return NextResponse.json({ case: updated });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { generateDownloadUrl } from "@/app/api/s3/s3";
 
 export const runtime = "nodejs";
@@ -88,6 +89,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ scenarios });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const { searchParams } = new URL(req.url);
+    logger.error(`scenario GET failed: ${msg}`, {
+      source: "api/scenario GET",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { id: searchParams.get("id"), status: searchParams.get("status") },
+    });
     return NextResponse.json({ error: `조회 실패: ${msg}` }, { status: 500 });
   }
 }

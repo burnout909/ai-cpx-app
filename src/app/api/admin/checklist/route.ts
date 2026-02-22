@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { parseChecklistCsv, computeChecklistDiff, ChecklistJson } from "@/utils/checklistCsvParser";
 
 export const runtime = "nodejs";
@@ -90,6 +91,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ checklists: latestVersions });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const { searchParams } = new URL(req.url);
+    logger.error(`admin checklist GET failed: ${msg}`, {
+      source: "api/admin/checklist GET",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { chiefComplaint: searchParams.get("chiefComplaint"), id: searchParams.get("id") },
+    });
     return NextResponse.json({ error: `조회 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -193,6 +200,11 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`admin checklist POST failed: ${msg}`, {
+      source: "api/admin/checklist POST",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ error: `처리 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -226,6 +238,12 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "id 또는 chiefComplaint가 필요합니다." }, { status: 400 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const { searchParams } = new URL(req.url);
+    logger.error(`admin checklist DELETE failed: ${msg}`, {
+      source: "api/admin/checklist DELETE",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { id: searchParams.get("id"), chiefComplaint: searchParams.get("chiefComplaint") },
+    });
     return NextResponse.json({ error: `삭제 실패: ${msg}` }, { status: 500 });
   }
 }

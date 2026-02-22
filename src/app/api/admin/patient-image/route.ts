@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import OpenAI from "openai";
 import s3 from "@/lib/s3";
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
@@ -288,6 +289,11 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("Patient image generation error:", err);
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`Patient image generation failed: ${msg}`, {
+      source: "api/admin/patient-image POST",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { method: "POST" },
+    });
     return NextResponse.json(
       { error: `이미지 생성 실패: ${msg}` },
       { status: 500 }
@@ -374,6 +380,12 @@ export async function GET(req: Request) {
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const { searchParams } = new URL(req.url);
+    logger.error(`Patient image GET failed: ${msg}`, {
+      source: "api/admin/patient-image GET",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { id: searchParams.get("id"), scenarioId: searchParams.get("scenarioId") },
+    });
     return NextResponse.json(
       { error: `조회 실패: ${msg}` },
       { status: 500 }
@@ -419,7 +431,12 @@ export async function DELETE(req: Request) {
         })
       );
     } catch (s3Err) {
-      console.warn("S3 delete warning:", s3Err);
+      const s3Msg = s3Err instanceof Error ? s3Err.message : String(s3Err);
+      logger.warn(`S3 delete warning: ${s3Msg}`, {
+        source: "api/admin/patient-image DELETE",
+        stackTrace: s3Err instanceof Error ? s3Err.stack : undefined,
+        metadata: { id, s3Key: patientImage.s3Key },
+      });
     }
 
     // If this image is active on a scenario, clear the activeImageId
@@ -448,6 +465,12 @@ export async function DELETE(req: Request) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const id = new URL(req.url).searchParams.get("id");
+    logger.error(`Patient image DELETE failed: ${msg}`, {
+      source: "api/admin/patient-image DELETE",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { id },
+    });
     return NextResponse.json(
       { error: `삭제 실패: ${msg}` },
       { status: 500 }

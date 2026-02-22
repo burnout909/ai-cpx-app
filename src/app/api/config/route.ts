@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,11 @@ export async function POST(req: Request) {
     return res;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
+    logger.error("Config API failed", {
+      source: "api/config",
+      stackTrace: e instanceof Error ? e.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ ok: false, message: msg }, { status: 500 });
   }
 }

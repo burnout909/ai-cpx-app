@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CpxOrigin, SessionStatus, TranscriptSource, UploadType } from "@prisma/client";
 
@@ -299,6 +300,11 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     console.error(err);
+    logger.error(`metadata POST failed: ${err?.message || "unknown"}`, {
+      source: "api/metadata POST",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json(
       { error: err?.message || "failed to save metadata" },
       { status: 500 }
@@ -379,6 +385,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ sessions });
   } catch (err: any) {
     console.error(err);
+    const { searchParams } = new URL(req.url);
+    logger.error(`metadata GET failed: ${err?.message || "unknown"}`, {
+      source: "api/metadata GET",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {
+        origin: searchParams.get("origin"),
+        caseName: searchParams.get("caseName"),
+        sessionId: searchParams.get("sessionId"),
+        limit: searchParams.get("limit"),
+      },
+    });
     return NextResponse.json(
       { error: err?.message || "failed to load metadata" },
       { status: 500 }

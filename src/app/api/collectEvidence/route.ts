@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getOpenAIClient } from "../_lib";
 import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
+import { logger } from "@/lib/logger";
 
 
 /* =========================
@@ -194,7 +195,12 @@ export async function POST(
         evidenceList: finalEvidenceList,
       });
     } catch (error) {
-      console.error(error)
+      console.error(error);
+      logger.warn("gpt-5.1 structured output failed, falling back to gpt-4o-mini", {
+        source: "api/collectEvidence",
+        stackTrace: error instanceof Error ? error.stack : undefined,
+        metadata: { sectionId },
+      });
       try {
         const fallback = await openai.chat.completions.create({
           model: "gpt-4o-mini",
@@ -222,6 +228,11 @@ export async function POST(
         });
       } catch (innerErr) {
         const msg = innerErr instanceof Error ? innerErr.message : String(innerErr);
+        logger.error(`collectEvidence fallback failed: ${msg}`, {
+          source: "api/collectEvidence",
+          stackTrace: innerErr instanceof Error ? innerErr.stack : undefined,
+          metadata: { sectionId },
+        });
         return NextResponse.json<CollectEvidenceError>(
           { detail: `collectEvidence failed: ${msg}` },
           { status: 500 }
@@ -230,6 +241,10 @@ export async function POST(
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`collectEvidence failed: ${msg}`, {
+      source: "api/collectEvidence",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+    });
     return NextResponse.json<CollectEvidenceError>(
       { detail: `collectEvidence failed: ${msg}` },
       { status: 500 }

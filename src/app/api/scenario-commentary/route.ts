@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -62,6 +63,11 @@ export async function GET(req: Request) {
     return NextResponse.json<ScenarioCommentaryResponse>({ html: commentary.html });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`scenario-commentary GET failed: ${msg}`, {
+      source: "api/scenario-commentary",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { id: new URL(req.url).searchParams.get("id") },
+    });
     return NextResponse.json<ScenarioCommentaryError>(
       { detail: `scenarioCommentary failed: ${msg}` },
       { status: 500 },

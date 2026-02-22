@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOpenAIClient, extractTextFromResponses } from "../_lib";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -63,8 +64,13 @@ export async function POST(req: Request) {
       });
       const txt = extractTextFromResponses(resp).replace(/^["'`]+|["'`]+$/g, "").trim();
       return NextResponse.json({ text: txt || raw });
-    } catch {
+    } catch (fallbackErr) {
       // Chat Completions fallback
+      logger.warn("Responses API failed, falling back to Chat Completions", {
+        source: "api/cleanup",
+        stackTrace: fallbackErr instanceof Error ? fallbackErr.stack : undefined,
+        metadata: { transcriptLength: raw.length },
+      });
       const chat = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         temperature: 0.2,
@@ -81,6 +87,11 @@ export async function POST(req: Request) {
     }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
+    logger.error("Cleanup failed", {
+      source: "api/cleanup",
+      stackTrace: e instanceof Error ? e.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ detail: `Cleanup failed: ${msg}` }, { status: 500 });
   }
 }

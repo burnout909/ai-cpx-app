@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { CCPromptType } from "@prisma/client";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -123,6 +124,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ prompts });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`chief-complaint-prompt GET failed: ${msg}`, {
+      source: "api/admin/chief-complaint-prompt",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { chiefComplaint: new URL(req.url).searchParams.get("chiefComplaint"), type: new URL(req.url).searchParams.get("type") },
+    });
     return NextResponse.json({ error: `조회 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -184,6 +190,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, prompt: created });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`chief-complaint-prompt POST failed: ${msg}`, {
+      source: "api/admin/chief-complaint-prompt",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ error: `저장 실패: ${msg}` }, { status: 500 });
   }
 }

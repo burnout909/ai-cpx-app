@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb, type PDFPage } from "pdf-lib";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -119,6 +120,11 @@ export async function POST(req: Request) {
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
+    logger.error("PDF generation failed", {
+      source: "api/pdf",
+      stackTrace: e instanceof Error ? e.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ detail: `PDF failed: ${msg}` }, { status: 500 });
   }
 }

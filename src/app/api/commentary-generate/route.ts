@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { DEFAULT_COMMENTARY_PROMPT } from "@/constants/defaultPrompts";
+import { logger } from "@/lib/logger";
 
 const requestSchema = z.object({
   scenario: z.any(),
@@ -86,6 +87,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ commentary });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";
+    logger.error(`commentary-generate POST failed: ${message}`, {
+      source: "api/commentary-generate",
+      stackTrace: error instanceof Error ? error.stack : undefined,
+      metadata: { hasScenario: !!scenario, hasCustomPrompt: !!customPrompt },
+    });
     return NextResponse.json(
       { error: "Server error", details: message },
       { status: 500 }

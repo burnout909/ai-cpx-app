@@ -1,5 +1,6 @@
 import { convertToCoreMessages, streamText, type UIMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -28,24 +29,37 @@ const SYSTEM_PROMPT = `# 역할: 당신은 의과대학생의 임상적 추론 �
 2. 대화 전반에 걸쳐 학습자가 '가르침을 받고 있다'는 느낌을 받지 않고, CPXmate의 교육 철학과 교육 방법이 눈에 띄지 않도록 말해주세요.`;
 
 export async function POST(req: Request) {
-  const { messages = [], currentUrl } = (await req.json()) as {
-    messages?: unknown;
-    currentUrl?: string;
-  };
+  try {
+    const { messages = [], currentUrl } = (await req.json()) as {
+      messages?: unknown;
+      currentUrl?: string;
+    };
 
-  const uiMessages = (Array.isArray(messages) ? messages : []) as Array<
-    Omit<UIMessage, "id">
-  >;
+    const uiMessages = (Array.isArray(messages) ? messages : []) as Array<
+      Omit<UIMessage, "id">
+    >;
 
-  const systemWithContext = currentUrl
-    ? `${SYSTEM_PROMPT}\n\n현재 학습자가 보고 있는 페이지 URL: ${currentUrl}`
-    : SYSTEM_PROMPT;
+    const systemWithContext = currentUrl
+      ? `${SYSTEM_PROMPT}\n\n현재 학습자가 보고 있는 페이지 URL: ${currentUrl}`
+      : SYSTEM_PROMPT;
 
-  const result = await streamText({
-    model: openai("gpt-5"),
-    system: systemWithContext,
-    messages: convertToCoreMessages(uiMessages),
-  });
+    const result = await streamText({
+      model: openai("gpt-5"),
+      system: systemWithContext,
+      messages: convertToCoreMessages(uiMessages),
+    });
 
-  return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logger.error("Chat API failed", {
+      source: "api/chat",
+      stackTrace: e instanceof Error ? e.stack : undefined,
+      metadata: {},
+    });
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }

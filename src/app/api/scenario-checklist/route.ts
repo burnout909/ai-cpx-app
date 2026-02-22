@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { EvidenceModule } from "@/utils/loadChecklist";
 
 export const runtime = "nodejs";
@@ -81,6 +82,12 @@ export async function GET(req: Request) {
     return NextResponse.json<ScenarioChecklistResponse>({ checklist: filtered });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const id = new URL(req.url).searchParams.get("id");
+    logger.error(`scenario-checklist failed: ${msg}`, {
+      source: "api/scenario-checklist",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { id },
+    });
     return NextResponse.json<ScenarioChecklistError>(
       { detail: `scenario-checklist failed: ${msg}` },
       { status: 500 },

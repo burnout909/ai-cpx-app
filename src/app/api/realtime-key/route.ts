@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -32,7 +33,12 @@ export async function GET() {
         const data = await response.json();
         return NextResponse.json(data);
     } catch (err) {
-        console.error("❌ Failed to fetch from OpenAI:", err);
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(`realtime-key GET failed: ${msg}`, {
+            source: "api/realtime-key",
+            stackTrace: err instanceof Error ? err.stack : undefined,
+            metadata: {},
+        });
         return NextResponse.json({ error: "Failed to fetch from OpenAI" }, { status: 500 });
     }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CaseStatus } from "@prisma/client";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -67,6 +68,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ cases });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`admin/scenarios GET failed: ${msg}`, {
+      source: "api/admin/scenarios",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { caseId: new URL(req.url).searchParams.get("caseId"), chiefComplaint: new URL(req.url).searchParams.get("chiefComplaint"), status: new URL(req.url).searchParams.get("status"), groupBy: new URL(req.url).searchParams.get("groupBy") },
+    });
     return NextResponse.json({ error: `조회 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -108,6 +114,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, case: newCase });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`admin/scenarios POST failed: ${msg}`, {
+      source: "api/admin/scenarios",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ error: `생성 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -157,6 +168,11 @@ export async function PUT(req: Request) {
     return NextResponse.json({ success: true, case: updatedCase });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`admin/scenarios PUT failed: ${msg}`, {
+      source: "api/admin/scenarios",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ error: `수정 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -185,6 +201,11 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ success: true, case: updatedCase });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`admin/scenarios PATCH failed: ${msg}`, {
+      source: "api/admin/scenarios",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ error: `상태 변경 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -223,6 +244,11 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: true, message: "케이스가 삭제되었습니다." });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`admin/scenarios DELETE failed: ${msg}`, {
+      source: "api/admin/scenarios",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { caseId: new URL(req.url).searchParams.get("caseId") },
+    });
     return NextResponse.json({ error: `삭제 실패: ${msg}` }, { status: 500 });
   }
 }

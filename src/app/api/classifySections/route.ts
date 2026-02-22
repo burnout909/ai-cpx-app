@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOpenAIClient } from "../_lib";
+import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { SectionTimingMap } from "@/types/score";
@@ -58,8 +59,9 @@ function getSectionOrderHint(caseName?: string): string {
 }
 
 export async function POST(req: Request) {
+  let payload: ClassifyRequest | undefined;
   try {
-    const payload = (await req.json()) as ClassifyRequest;
+    payload = (await req.json()) as ClassifyRequest;
     const { transcript, segments, turnTimestamps, totalDurationSec, caseName } =
       payload;
 
@@ -268,6 +270,11 @@ ${isCounseling ? "5. 이 증례는 상담증례이므로 신체진찰(physical_e
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[classifySections]", msg);
+    logger.error(`classifySections failed: ${msg}`, {
+      source: "api/classifySections",
+      stackTrace: e instanceof Error ? e.stack : undefined,
+      metadata: { caseName: payload?.caseName, transcriptLength: payload?.transcript?.length },
+    });
     return NextResponse.json(
       { detail: `classifySections failed: ${msg}` },
       { status: 500 }

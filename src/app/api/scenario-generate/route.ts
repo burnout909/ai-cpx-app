@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { virtualPatientTemplate } from "@/utils/virtualPatientSchema";
 import acuteAbdominalCase from "@/assets/virtualPatient/acute_abdominal_pain_001.json";
+import { logger } from "@/lib/logger";
 
 const metaInputSchema = z.object({
   name: z.string(),
@@ -181,7 +182,12 @@ export async function POST(req: NextRequest) {
     let parsedJson: any;
     try {
       parsedJson = JSON.parse(raw);
-    } catch {
+    } catch (parseErr) {
+      logger.warn(`scenario-generate: Invalid JSON from model`, {
+        source: "api/scenario-generate",
+        stackTrace: parseErr instanceof Error ? parseErr.stack : undefined,
+        metadata: { chiefComplaint: meta.chief_complaint, diagnosis: meta.diagnosis },
+      });
       return NextResponse.json(
         { error: "Invalid JSON from model", content: raw },
         { status: 500 }
@@ -191,6 +197,11 @@ export async function POST(req: NextRequest) {
     const merged = deepMerge(virtualPatientTemplate, parsedJson);
     return NextResponse.json({ scenario: merged });
   } catch (error: any) {
+    logger.error(`scenario-generate POST failed: ${error?.message}`, {
+      source: "api/scenario-generate",
+      stackTrace: error instanceof Error ? error.stack : undefined,
+      metadata: { chiefComplaint: meta.chief_complaint, diagnosis: meta.diagnosis, name: meta.name },
+    });
     return NextResponse.json(
       { error: "Server error", details: error?.message },
       { status: 500 }

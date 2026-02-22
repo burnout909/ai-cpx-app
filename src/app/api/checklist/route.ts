@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,11 @@ export async function GET() {
     return NextResponse.json({ checklists: latestVersions });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`checklist GET failed: ${msg}`, {
+      source: "api/checklist GET",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ error: `조회 실패: ${msg}` }, { status: 500 });
   }
 }

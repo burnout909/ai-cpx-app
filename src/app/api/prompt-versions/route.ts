@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { PromptType } from "@prisma/client";
+import { logger } from "@/lib/logger";
 
 const createSchema = z.object({
   type: z.nativeEnum(PromptType),
@@ -43,6 +44,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ versions });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";
+    logger.error(`prompt-versions GET failed: ${message}`, {
+      source: "api/prompt-versions",
+      stackTrace: error instanceof Error ? error.stack : undefined,
+      metadata: { type },
+    });
     return NextResponse.json(
       { error: "Failed to fetch prompt versions", details: message },
       { status: 500 }
@@ -89,6 +95,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ promptVersion: created }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";
+    logger.error(`prompt-versions POST failed: ${message}`, {
+      source: "api/prompt-versions",
+      stackTrace: error instanceof Error ? error.stack : undefined,
+      metadata: { type, version },
+    });
     return NextResponse.json(
       { error: "Failed to create prompt version", details: message },
       { status: 500 }

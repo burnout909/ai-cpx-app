@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { ScenarioStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -182,6 +183,17 @@ export async function GET(req: Request) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const { searchParams } = new URL(req.url);
+    logger.error(`admin scenario GET failed: ${msg}`, {
+      source: "api/admin/scenario GET",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {
+        id: searchParams.get("id"),
+        chiefComplaint: searchParams.get("chiefComplaint"),
+        caseName: searchParams.get("caseName"),
+        status: searchParams.get("status"),
+      },
+    });
     return NextResponse.json({ error: `조회 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -357,7 +369,12 @@ export async function POST(req: Request) {
 
         console.log("[scenario POST] Linked new image:", pendingImageId, "to scenario:", newScenario.id);
       } catch (imgErr) {
-        console.warn("[scenario POST] Failed to link image:", imgErr);
+        const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
+        logger.warn(`[scenario POST] Failed to link image: ${imgMsg}`, {
+          source: "api/admin/scenario POST",
+          stackTrace: imgErr instanceof Error ? imgErr.stack : undefined,
+          metadata: { pendingImageId, scenarioId: newScenario.id },
+        });
       }
     } else if (previousScenario?.activeImageId) {
       // 이전 버전에 이미지가 있으면 복사하여 새 시나리오에 연결
@@ -390,7 +407,12 @@ export async function POST(req: Request) {
           console.log("[scenario POST] Copied image from previous scenario:", previousImage.id, "-> new image:", newImage.id);
         }
       } catch (imgErr) {
-        console.warn("[scenario POST] Failed to copy image from previous version:", imgErr);
+        const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
+        logger.warn(`[scenario POST] Failed to copy image from previous version: ${imgMsg}`, {
+          source: "api/admin/scenario POST",
+          stackTrace: imgErr instanceof Error ? imgErr.stack : undefined,
+          metadata: { previousScenarioId, activeImageId: previousScenario?.activeImageId, scenarioId: newScenario.id },
+        });
       }
     } else if (existingLatest?.activeImageId && !previousScenarioId) {
       // previousScenarioId 없이 기존 버전이 있는 경우 (같은 chiefComplaint + caseName)
@@ -422,13 +444,23 @@ export async function POST(req: Request) {
           console.log("[scenario POST] Copied image from latest version:", latestImage.id, "-> new image:", newImage.id);
         }
       } catch (imgErr) {
-        console.warn("[scenario POST] Failed to copy image from latest version:", imgErr);
+        const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
+        logger.warn(`[scenario POST] Failed to copy image from latest version: ${imgMsg}`, {
+          source: "api/admin/scenario POST",
+          stackTrace: imgErr instanceof Error ? imgErr.stack : undefined,
+          metadata: { activeImageId: existingLatest?.activeImageId, scenarioId: newScenario.id },
+        });
       }
     }
 
     return NextResponse.json({ success: true, scenario: newScenario });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`admin scenario POST failed: ${msg}`, {
+      source: "api/admin/scenario POST",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ error: `생성 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -595,7 +627,12 @@ export async function PATCH(req: Request) {
 
         console.log("[scenario PATCH] Linked image:", pendingImageId, "to scenario:", id);
       } catch (imgErr) {
-        console.warn("[scenario PATCH] Failed to link image:", imgErr);
+        const imgMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
+        logger.warn(`[scenario PATCH] Failed to link image: ${imgMsg}`, {
+          source: "api/admin/scenario PATCH",
+          stackTrace: imgErr instanceof Error ? imgErr.stack : undefined,
+          metadata: { pendingImageId, scenarioId: id },
+        });
         // 이미지 연결 실패해도 시나리오 수정은 성공으로 처리
       }
     }
@@ -603,6 +640,11 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ success: true, scenario: updated });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`admin scenario PATCH failed: ${msg}`, {
+      source: "api/admin/scenario PATCH",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: {},
+    });
     return NextResponse.json({ error: `수정 실패: ${msg}` }, { status: 500 });
   }
 }
@@ -653,6 +695,12 @@ export async function DELETE(req: Request) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const id = new URL(req.url).searchParams.get("id");
+    logger.error(`admin scenario DELETE failed: ${msg}`, {
+      source: "api/admin/scenario DELETE",
+      stackTrace: err instanceof Error ? err.stack : undefined,
+      metadata: { id },
+    });
     return NextResponse.json({ error: `삭제 실패: ${msg}` }, { status: 500 });
   }
 }
